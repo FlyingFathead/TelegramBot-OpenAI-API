@@ -24,6 +24,10 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.10 - MarkdownV2 tryouts (code blocks + bold is _mostly_ working)
+- v0.09 - using MarkdownV2
+- v0.08 - markdown for bot's responses
+- v0.07 - log incoming and outgoing messages
 - v0.06 - API system message fixed
 - v0.05 - retry, max retries, retry delay
 - v0.04 - chat history trimming
