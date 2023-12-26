@@ -1,8 +1,10 @@
 # Simple OpenAI API-utilizing Telegram Bot
-# Version: v0.11
+# Version: v0.12
 # Date: Dec 26 2023
 #
 # changelog/history:
+# v0.12 - more HTML regex parsing from the API markdown
+# v0.11 - Switch to HTML parsing
 # v0.10 - MarkdownV2 tryouts
 # v0.09 - using MarkdownV2
 # v0.08 - markdown for bot's responses
@@ -12,6 +14,7 @@
 # v0.04 - chat history trimming
 #
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
+# ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 
 import configparser
@@ -22,6 +25,7 @@ import openai
 import json
 import httpx
 import asyncio
+import re
 
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext
@@ -102,91 +106,65 @@ def estimate_max_tokens(input_text, max_allowed_tokens):
     # Ensure max_tokens is positive and within a reasonable range
     return max(1, min(max_tokens, max_allowed_tokens))
 
-# escaping markdown v2 ...
+# convert markdowns to html
+def markdown_to_html(text):
+    # Escape HTML special characters
+    text = (text.replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('"', '&quot;'))
+
+    # Convert markdown code blocks to HTML <pre> tags
+    text = re.sub(r'```(.*?)```', r'<pre>\1</pre>', text, flags=re.DOTALL)
+
+    # Convert markdown inline code to HTML <code> tags
+    text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+
+    # Convert bold text using markdown syntax to HTML <b> tags
+    text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+
+    # Convert italic text using markdown syntax to HTML <i> tags
+    # text = re.sub(r'\b_(.*?)_\b', r'<i>\1</i>', text)
+    # Convert italic text using markdown syntax to HTML <i> tags
+    # The regex here is looking for a standalone asterisk or underscore that could denote italics
+    # It's also making sure that it doesn't capture bold syntax by checking that an asterisk or underscore is not followed or preceded by another asterisk or underscore
+    text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
+    text = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', text)
+
+    return text
+
+# escape markdown v2, v0.12 [currently not in use because this is a ... it's a thing]
 def escape_markdown_v2(text):
-    escape_chars = '_*[]()~>#+-=|{}.!'  # List of characters to escape
-    escaped_text = ''
-    in_bold = False  # Flag to track if we are inside a bold section
+    # Escape MarkdownV2 special characters
+    def escape_special_chars(m):
+        char = m.group(0)
+        # Escape all special characters with a backslash, except for asterisks and underscores
+        if char in ('_', '*', '`'):
+            # These are used for formatting and shouldn't be escaped.
+            return char
+        return '\\' + char
 
-    for char in text:
-        if char == '*' and not in_bold:
-            escaped_text += char  # Do not escape the asterisk
-            in_bold = True
-        elif char == '*' and in_bold:
-            escaped_text += char  # Do not escape the asterisk
-            in_bold = False
-        elif char == '\\':
-            escaped_text += '\\\\'  # Escape the backslash itself
-        elif char in escape_chars:
-            escaped_text += f'\\{char}'  # Escape other characters
-        else:
-            escaped_text += char
+    # First, we'll handle the code blocks by temporarily removing them
+    code_blocks = re.findall(r'```.*?```', text, re.DOTALL)
+    code_placeholders = [f"CODEBLOCK{i}" for i in range(len(code_blocks))]
+    for placeholder, block in zip(code_placeholders, code_blocks):
+        text = text.replace(block, placeholder)
 
-    return escaped_text
+    # Now we escape the special characters outside of the code blocks
+    text = re.sub(r'([[\]()~>#+\-=|{}.!])', escape_special_chars, text)
 
-""" # escape MarkdownV2
-def escape_markdown_v2(text):
-    escape_chars = '_*[]()~>#+-=|{}.!'  # List of characters to escape
-    
-    # Split the text into code blocks and other parts
-    parts = text.split('```')
-    escaped_parts = []
-    
-    for i, part in enumerate(parts):
-        if i % 2 == 0:  # This is not a code block, escape necessary characters
-            escaped_part = ''.join(['\\' + char if char in escape_chars else char for char in part])
-        else:  # This is a code block, do not escape
-            escaped_part = part  # Do not change anything inside code blocks
-        
-        escaped_parts.append(escaped_part)
-    
-    # Rejoin the escaped parts with triple backticks
-    return '```'.join(escaped_parts) """
+    # We convert **bold** and *italic* (or _italic_) syntax to Telegram's MarkdownV2 syntax
+    # Bold: **text** to *text*
+    text = re.sub(r'\*\*(.+?)\*\*', r'*\1*', text)
+    # Italic: *text* or _text_ to _text_ (if not part of a code block)
+    text = re.sub(r'\b_(.+?)_\b', r'_\1_', text)
+    text = re.sub(r'\*(.+?)\*', r'_\1_', text)
 
-""" # escape MarkdownV2
-def escape_markdown_v2(text):
-    escape_chars = '_*[]()~>#+-=|{}.!'
-    # Split text into parts between triple backticks
-    parts = text.split('```')
-    new_parts = []
+    # Restore the code blocks
+    for placeholder, block in zip(code_placeholders, code_blocks):
+        text = text.replace(placeholder, block)
 
-    for i, part in enumerate(parts):
-        if i % 2 == 0:  # Non-code parts
-            # Escape special characters in non-code parts
-            new_part = ''.join(['\\' + char if char in escape_chars else char for char in part])
-        else:  # Code parts
-            # Escape backticks and backslashes in code parts
-            new_part = part.replace('\\', '\\\\').replace('`', '\\`')
-        new_parts.append(new_part)
-
-    # Join all parts back together
-    return '```'.join(new_parts) """
-
-# escaping markdownv2 ...
-""" def escape_markdown_v2(text):
-    # Characters to escape outside of Markdown formatting
-    escape_chars = '_[]()~>#+-=|{}.!'
-
-    # First, we need to escape the special characters that are part of the escape_chars list
-    escaped_text = ''.join(['\\' + char if char in escape_chars else char for char in text])
-
-    # Then, we will handle the escaping of backslashes and backticks inside code blocks
-    parts = escaped_text.split('```')
-    for i, part in enumerate(parts):
-        if i % 2 == 1:  # Inside code blocks
-            # Escape backticks and backslashes in code blocks
-            parts[i] = part.replace('\\', '\\\\').replace('`', '\\`')
-
-    return '```'.join(parts) """
-
-""" # simple markdownv2 escape
-def simple_escape_markdown_v2(text):
-    escape_chars = '_*[]()~>`#+-=|{}.!'
-
-    # Escape special characters with a backslash
-    escaped_text = ''.join(['\\' + char if char in escape_chars else char for char in text])
-
-    return escaped_text """
+    return text
 
 # message handling logic
 async def handle_message(update: Update, context: CallbackContext) -> None:
@@ -247,14 +225,16 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             
             print("Reply message before escaping:", bot_reply, flush=True)
             # escaped_reply = escape_markdown(bot_reply, version=2)
-            escaped_reply = escape_markdown_v2(bot_reply)
+            # escaped_reply = escape_markdown_v2(bot_reply)
+            escaped_reply = markdown_to_html(bot_reply)
             print("Reply message after escaping:", escaped_reply, flush=True)
 
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=escaped_reply,
-                parse_mode=ParseMode.MARKDOWN_V2
+                parse_mode=ParseMode.HTML
             )
+                # parse_mode=ParseMode.MARKDOWN_V2
 
             # reply with markdown v2 escapes
             # escaped_reply = simple_escape_markdown_v2(bot_reply)
