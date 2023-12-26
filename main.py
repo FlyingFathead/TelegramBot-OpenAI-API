@@ -1,8 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
 # Creation Date: Dec 26 2023
-version_number = "0.17"
+version_number = "0.18"
 
 # changelog/history:
+# v0.18 - model temperature can now be set in `config.ini`
 # v0.17 - timestamps, realtime date &  clock
 # v0.16 - `/help` & `/about`
 # v0.15 - chat history context memory (trim with MAX_TOKENS)
@@ -53,6 +54,8 @@ MAX_TOKENS = config.getint('MaxTokens', 4096)
 SYSTEM_INSTRUCTIONS = config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
 MAX_RETRIES = config.getint('MaxRetries', 3)  # Fallback to 3 if not set
 RETRY_DELAY = config.getint('RetryDelay', 10)  # Fallback to 2 if not set
+# Load the Temperature value from config with a default of 0.7
+TEMPERATURE = config.getfloat('Temperature', 0.7)
 
 # ~~~ read the telegram bot token ~~~
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -244,7 +247,7 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                 "model": MODEL,
                 #"messages": context.chat_data['chat_history'],
                 "messages": chat_history_with_system_message,  # Updated to include system message                
-                "temperature": 0.7
+                "temperature": TEMPERATURE  # Use the TEMPERATURE variable loaded from config.ini
             }
 
             # Make the API request
