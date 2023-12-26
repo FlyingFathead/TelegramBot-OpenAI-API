@@ -1,8 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
-# v0.04
-# Dec 26 2023
+# Version: v0.06
+# Date: Dec 26 2023
 #
 # changelog/history:
+# v0.06 - system instructions
 # v0.05 - retry, max retries, retry delay
 # v0.04 - chat history trimming
 #
@@ -21,8 +22,6 @@ import asyncio
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext
 
-# from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-
 # Load configuration
 def load_config():
     config = configparser.ConfigParser()
@@ -34,7 +33,7 @@ config = load_config()
 # Set parameters from config
 MODEL = config.get('Model', 'gpt-3.5-turbo')
 MAX_TOKENS = config.getint('MaxTokens', 4096)
-SYSTEM_MESSAGE = config.get('SystemMessage', '')
+SYSTEM_INSTRUCTIONS = config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
 MAX_RETRIES = config.getint('MaxRetries', 3)  # Fallback to 3 if not set
 RETRY_DELAY = config.getint('RetryDelay', 2)  # Fallback to 2 if not set
 
@@ -79,7 +78,7 @@ logger = logging.getLogger(__name__)
 
 # Function to handle start command
 def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
+    update.message.reply_text('Hello! I am a chatbot powered by OpenAI API. Start chatting with me!')
 
 # trim the chat history to meet up with max token limits
 def trim_chat_history(chat_history, max_total_tokens):
@@ -107,17 +106,21 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
 
     # Trim the chat history if necessary
     trim_chat_history(context.chat_data['chat_history'], MAX_TOKENS)
-    context.chat_data['chat_history'].append({"role": "user", "content": user_message})
 
-    max_retries = 3  # Maximum number of retries
-    retry_delay = 2  # Delay in seconds between retries
+    # Append system instructions as the first message in the chat history
+    system_message = {"role": "system", "content": SYSTEM_INSTRUCTIONS}
+    chat_history_with_system_message = [system_message] + context.chat_data['chat_history']
+
+    # Append the new user message to the chat history
+    chat_history_with_system_message.append({"role": "user", "content": user_message})
 
     for attempt in range(MAX_RETRIES):
         try:
             # Prepare the payload for the API request
             payload = {
                 "model": MODEL,
-                "messages": context.chat_data['chat_history'],
+                #"messages": context.chat_data['chat_history'],
+                "messages": chat_history_with_system_message,  # Updated to include system message                
                 "temperature": 0.7
             }
 
