@@ -3,6 +3,7 @@
 # Dec 26 2023
 #
 # changelog/history:
+# v0.05 - retry, max retries, retry delay
 # v0.04 - chat history trimming
 #
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
@@ -15,6 +16,7 @@ import logging
 import openai
 import json
 import httpx
+import asyncio
 
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext
@@ -33,6 +35,8 @@ config = load_config()
 MODEL = config.get('Model', 'gpt-3.5-turbo')
 MAX_TOKENS = config.getint('MaxTokens', 4096)
 SYSTEM_MESSAGE = config.get('SystemMessage', '')
+MAX_RETRIES = config.getint('MaxRetries', 3)  # Fallback to 3 if not set
+RETRY_DELAY = config.getint('RetryDelay', 2)  # Fallback to 2 if not set
 
 # ~~~ read the telegram bot token ~~~
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -93,7 +97,6 @@ def estimate_max_tokens(input_text, max_allowed_tokens):
     return max(1, min(max_tokens, max_allowed_tokens))
 
 # message handling logic
-# Function to handle messages
 async def handle_message(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     chat_id = update.message.chat_id
@@ -104,37 +107,47 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
 
     # Trim the chat history if necessary
     trim_chat_history(context.chat_data['chat_history'], MAX_TOKENS)
-
-    # Append the new user message to the chat history
     context.chat_data['chat_history'].append({"role": "user", "content": user_message})
 
-    try:
-        # Prepare the payload for the API request
-        payload = {
-            "model": MODEL,
-            "messages": context.chat_data['chat_history'],
-            "temperature": 0.7
-        }
+    max_retries = 3  # Maximum number of retries
+    retry_delay = 2  # Delay in seconds between retries
 
-        # Make the API request
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
-        }
-        response = httpx.post("https://api.openai.com/v1/chat/completions", 
-                              data=json.dumps(payload), 
-                              headers=headers)
-        response_json = response.json()
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Prepare the payload for the API request
+            payload = {
+                "model": MODEL,
+                "messages": context.chat_data['chat_history'],
+                "temperature": 0.7
+            }
 
-        # Extract the response
-        bot_reply = response_json['choices'][0]['message']['content'].strip()
+            # Make the API request
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+            }
+            response = httpx.post("https://api.openai.com/v1/chat/completions", 
+                                  data=json.dumps(payload), 
+                                  headers=headers)
+            response_json = response.json()
 
-        # Send the response back to the user
-        await context.bot.send_message(chat_id=chat_id, text=bot_reply)
+            # Extract the response and send it back to the user
+            bot_reply = response_json['choices'][0]['message']['content'].strip()
+            await context.bot.send_message(chat_id=chat_id, text=bot_reply)
+            break  # Break the loop if successful
 
-    except Exception as e:
-        logger.error(f"Error during message processing: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+        except httpx.ReadTimeout:
+            if attempt < MAX_RETRIES - 1: # If not the last attempt
+                await asyncio.sleep(RETRY_DELAY) # Wait before retrying
+            else:
+                logger.error("Max retries reached. Giving up.")
+                await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting. Please try again later.")
+                break
+
+        except Exception as e:
+            logger.error(f"Error during message processing: {e}")
+            await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+            break  # Exit on other types of exceptions
 
 # Function to handle start command
 async def start(update: Update, context: CallbackContext) -> None:
