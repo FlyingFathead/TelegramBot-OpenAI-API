@@ -24,6 +24,8 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.12 - more HTML regex parsing from the API markdown
+- v0.11 - switched to HTML parsing
 - v0.10 - MarkdownV2 tryouts (code blocks + bold is _mostly_ working)
 - v0.09 - using MarkdownV2
 - v0.08 - markdown for bot's responses
