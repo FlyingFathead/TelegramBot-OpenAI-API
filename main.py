@@ -1,8 +1,12 @@
 # Simple OpenAI API-utilizing Telegram Bot
-# Version: v0.06
+# Version: v0.11
 # Date: Dec 26 2023
 #
 # changelog/history:
+# v0.10 - MarkdownV2 tryouts
+# v0.09 - using MarkdownV2
+# v0.08 - markdown for bot's responses
+# v0.07 - log incoming and outgoing messages
 # v0.06 - system instructions
 # v0.05 - retry, max retries, retry delay
 # v0.04 - chat history trimming
@@ -21,6 +25,9 @@ import asyncio
 
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext
+# Import the required utility function and enumeration
+from telegram.constants import ParseMode
+from telegram.helpers import escape_markdown
 
 # Load configuration
 def load_config():
@@ -95,10 +102,99 @@ def estimate_max_tokens(input_text, max_allowed_tokens):
     # Ensure max_tokens is positive and within a reasonable range
     return max(1, min(max_tokens, max_allowed_tokens))
 
+# escaping markdown v2 ...
+def escape_markdown_v2(text):
+    escape_chars = '_*[]()~>#+-=|{}.!'  # List of characters to escape
+    escaped_text = ''
+    in_bold = False  # Flag to track if we are inside a bold section
+
+    for char in text:
+        if char == '*' and not in_bold:
+            escaped_text += char  # Do not escape the asterisk
+            in_bold = True
+        elif char == '*' and in_bold:
+            escaped_text += char  # Do not escape the asterisk
+            in_bold = False
+        elif char == '\\':
+            escaped_text += '\\\\'  # Escape the backslash itself
+        elif char in escape_chars:
+            escaped_text += f'\\{char}'  # Escape other characters
+        else:
+            escaped_text += char
+
+    return escaped_text
+
+""" # escape MarkdownV2
+def escape_markdown_v2(text):
+    escape_chars = '_*[]()~>#+-=|{}.!'  # List of characters to escape
+    
+    # Split the text into code blocks and other parts
+    parts = text.split('```')
+    escaped_parts = []
+    
+    for i, part in enumerate(parts):
+        if i % 2 == 0:  # This is not a code block, escape necessary characters
+            escaped_part = ''.join(['\\' + char if char in escape_chars else char for char in part])
+        else:  # This is a code block, do not escape
+            escaped_part = part  # Do not change anything inside code blocks
+        
+        escaped_parts.append(escaped_part)
+    
+    # Rejoin the escaped parts with triple backticks
+    return '```'.join(escaped_parts) """
+
+""" # escape MarkdownV2
+def escape_markdown_v2(text):
+    escape_chars = '_*[]()~>#+-=|{}.!'
+    # Split text into parts between triple backticks
+    parts = text.split('```')
+    new_parts = []
+
+    for i, part in enumerate(parts):
+        if i % 2 == 0:  # Non-code parts
+            # Escape special characters in non-code parts
+            new_part = ''.join(['\\' + char if char in escape_chars else char for char in part])
+        else:  # Code parts
+            # Escape backticks and backslashes in code parts
+            new_part = part.replace('\\', '\\\\').replace('`', '\\`')
+        new_parts.append(new_part)
+
+    # Join all parts back together
+    return '```'.join(new_parts) """
+
+# escaping markdownv2 ...
+""" def escape_markdown_v2(text):
+    # Characters to escape outside of Markdown formatting
+    escape_chars = '_[]()~>#+-=|{}.!'
+
+    # First, we need to escape the special characters that are part of the escape_chars list
+    escaped_text = ''.join(['\\' + char if char in escape_chars else char for char in text])
+
+    # Then, we will handle the escaping of backslashes and backticks inside code blocks
+    parts = escaped_text.split('```')
+    for i, part in enumerate(parts):
+        if i % 2 == 1:  # Inside code blocks
+            # Escape backticks and backslashes in code blocks
+            parts[i] = part.replace('\\', '\\\\').replace('`', '\\`')
+
+    return '```'.join(parts) """
+
+""" # simple markdownv2 escape
+def simple_escape_markdown_v2(text):
+    escape_chars = '_*[]()~>`#+-=|{}.!'
+
+    # Escape special characters with a backslash
+    escaped_text = ''.join(['\\' + char if char in escape_chars else char for char in text])
+
+    return escaped_text """
+
 # message handling logic
 async def handle_message(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     chat_id = update.message.chat_id
+
+    # Log the incoming user message
+    logger.info(f"Received message from {update.message.from_user.username} ({chat_id}): {user_message}")
 
     # Prepare the conversation history for the current chat
     if 'chat_history' not in context.chat_data:
@@ -136,7 +232,40 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
 
             # Extract the response and send it back to the user
             bot_reply = response_json['choices'][0]['message']['content'].strip()
-            await context.bot.send_message(chat_id=chat_id, text=bot_reply)
+
+            # Log the bot's response
+            logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
+
+            # HTML markdown, not in use
+            # await context.bot.send_message(chat_id=chat_id, text=bot_reply, parse_mode="HTML")
+
+            # Escape the bot's response
+            # escaped_reply = escape_markdown_v2(bot_reply)
+
+            # Send the escaped message as a reply
+            # await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode="MarkdownV2")
+            
+            print("Reply message before escaping:", bot_reply, flush=True)
+            # escaped_reply = escape_markdown(bot_reply, version=2)
+            escaped_reply = escape_markdown_v2(bot_reply)
+            print("Reply message after escaping:", escaped_reply, flush=True)
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=escaped_reply,
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+
+            # reply with markdown v2 escapes
+            # escaped_reply = simple_escape_markdown_v2(bot_reply)
+            # await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode="MarkdownV2")
+            
+            # ... no escape-reply ...
+            # await context.bot.send_message(chat_id=chat_id, text=bot_reply, parse_mode="MarkdownV2")
+            
+            # test
+            # await context.bot.send_message(chat_id=chat_id, text="**bold**", parse_mode="MarkdownV2")
+            
             break  # Break the loop if successful
 
         except httpx.ReadTimeout:
