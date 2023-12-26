@@ -1,8 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
-# Version: v0.12
+# Version: v0.14
 # Date: Dec 26 2023
 #
 # changelog/history:
+# v0.13 - parsing/regex for url title+address markdowns
 # v0.12 - more HTML regex parsing from the API markdown
 # v0.11 - Switch to HTML parsing
 # v0.10 - MarkdownV2 tryouts
@@ -130,6 +131,9 @@ def markdown_to_html(text):
     # It's also making sure that it doesn't capture bold syntax by checking that an asterisk or underscore is not followed or preceded by another asterisk or underscore
     text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
     text = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', text)
+
+    # Convert [text](url) to clickable links
+    text = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', text)
 
     return text
 
