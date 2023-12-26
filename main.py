@@ -2,6 +2,7 @@
 # Creation Date: Dec 26 2023
 #
 # changelog/history:
+# v0.16 - `/help` & `/about`
 # v0.15 - chat history context memory (trim with MAX_TOKENS)
 # v0.14 - bug fixes
 # v0.13 - parsing/regex for url title+address markdowns
@@ -19,7 +20,7 @@
 # ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 
-version_number = "0.15"
+version_number = "0.16"
 
 import configparser
 import os
