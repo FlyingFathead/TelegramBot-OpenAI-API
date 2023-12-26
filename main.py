@@ -1,8 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
-# Version: v0.14
-# Date: Dec 26 2023
+# Creation Date: Dec 26 2023
 #
 # changelog/history:
+# v0.15 - chat history context memory (trim with MAX_TOKENS)
+# v0.14 - bug fixes
 # v0.13 - parsing/regex for url title+address markdowns
 # v0.12 - more HTML regex parsing from the API markdown
 # v0.11 - Switch to HTML parsing
@@ -17,6 +18,8 @@
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
+
+version_number = "0.15"
 
 import configparser
 import os
@@ -47,7 +50,7 @@ MODEL = config.get('Model', 'gpt-3.5-turbo')
 MAX_TOKENS = config.getint('MaxTokens', 4096)
 SYSTEM_INSTRUCTIONS = config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
 MAX_RETRIES = config.getint('MaxRetries', 3)  # Fallback to 3 if not set
-RETRY_DELAY = config.getint('RetryDelay', 2)  # Fallback to 2 if not set
+RETRY_DELAY = config.getint('RetryDelay', 10)  # Fallback to 2 if not set
 
 # ~~~ read the telegram bot token ~~~
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -85,7 +88,7 @@ if openai.api_key is None:
 # ~~~
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Function to handle start command
@@ -106,6 +109,26 @@ def estimate_max_tokens(input_text, max_allowed_tokens):
     max_tokens = max_allowed_tokens - input_tokens
     # Ensure max_tokens is positive and within a reasonable range
     return max(1, min(max_tokens, max_allowed_tokens))
+
+""" # Define a function to send a typing action
+def send_typing_action(update, context):
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING) """
+
+# Define a function to update chat history in a file
+def update_chat_history(chat_history):
+    with open('chat_history.txt', 'a') as file:
+        for message in chat_history:
+            file.write(message + '\n')
+
+# Define a function to retrieve chat history from a file
+def retrieve_chat_history():
+    chat_history = []
+    try:
+        with open('chat_history.txt', 'r') as file:
+            chat_history = [line.strip() for line in file.readlines()]
+    except FileNotFoundError:
+        pass
+    return chat_history
 
 # convert markdowns to html
 def markdown_to_html(text):
@@ -175,22 +198,34 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     chat_id = update.message.chat_id
 
+    # Send initial response
+    # await context.bot.send_message(chat_id=chat_id, text="I'm processing your request...")
+
+    # ... Simulate typing or generating content ...
+    # await asyncio.sleep(2)  # Simulate a 2-second delay
+
     # Log the incoming user message
     logger.info(f"Received message from {update.message.from_user.username} ({chat_id}): {user_message}")
 
-    # Prepare the conversation history for the current chat
+    # Log the current chat history
+    logger.debug(f"Current chat history: {context.chat_data.get('chat_history')}")
+
+    """ # Prepare the conversation history for the current chat
     if 'chat_history' not in context.chat_data:
-        context.chat_data['chat_history'] = []
+        context.chat_data['chat_history'] = [] """
 
-    # Trim the chat history if necessary
-    trim_chat_history(context.chat_data['chat_history'], MAX_TOKENS)
-
-    # Append system instructions as the first message in the chat history
-    system_message = {"role": "system", "content": SYSTEM_INSTRUCTIONS}
-    chat_history_with_system_message = [system_message] + context.chat_data['chat_history']
+    # Initialize chat_history as an empty list if it doesn't exist
+    chat_history = context.chat_data.get('chat_history', [])
 
     # Append the new user message to the chat history
-    chat_history_with_system_message.append({"role": "user", "content": user_message})
+    chat_history.append({"role": "user", "content": user_message})
+
+    # Prepare the conversation history to send to the OpenAI API
+    system_message = {"role": "system", "content": SYSTEM_INSTRUCTIONS}
+    chat_history_with_system_message = [system_message] + chat_history
+
+    # Trim chat history if it exceeds a specified length or token limit
+    trim_chat_history(chat_history, MAX_TOKENS)
 
     for attempt in range(MAX_RETRIES):
         try:
@@ -212,11 +247,20 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                                   headers=headers)
             response_json = response.json()
 
+            # Log the API request payload
+            logger.info(f"API Request Payload: {payload}")
+
             # Extract the response and send it back to the user
             bot_reply = response_json['choices'][0]['message']['content'].strip()
 
             # Log the bot's response
             logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
+
+            # Append the bot's response to the chat history
+            chat_history.append({"role": "assistant", "content": bot_reply})
+
+            # Update the chat history in context with the new messages
+            context.chat_data['chat_history'] = chat_history
 
             # HTML markdown, not in use
             # await context.bot.send_message(chat_id=chat_id, text=bot_reply, parse_mode="HTML")
@@ -265,6 +309,34 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
             break  # Exit on other types of exceptions
 
+    # Trim chat history if it exceeds a specified length or token limit
+    trim_chat_history(chat_history, MAX_TOKENS)
+
+    # Update the chat history in context with the new messages
+    context.chat_data['chat_history'] = chat_history
+
+# Function to handle the /help command
+async def help_command(update: Update, context: CallbackContext) -> None:
+    help_text = """
+    Welcome to this OpenAI API-powered chatbot! Here are some commands you can use:
+
+    - /start: Start a conversation with the bot.
+    - /help: Display this help message.
+    - /about: Learn more about this bot.
+    
+    Just type your message to chat with the bot!
+    """
+    await update.message.reply_text(help_text)
+
+# Function to handle the /about command
+async def about_command(update: Update, context: CallbackContext) -> None:
+    about_text = f"""
+    This is an OpenAI-powered Telegram chatbot created by FlyingFathead.
+    Version: v{version_number}
+    For more information, visit: https://github.com/FlyingFathead/TelegramBot-OpenAI-API
+    """
+    await update.message.reply_text(about_text)
+
 # Function to handle start command
 async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text('Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
@@ -283,8 +355,12 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error)
 
+    # Register additional command handlers
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("about", about_command))
+
     # Run the bot until the user presses Ctrl-C
     application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    main()    
