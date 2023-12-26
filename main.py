@@ -1,7 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
 # Creation Date: Dec 26 2023
-#
+version_number = "0.17"
+
 # changelog/history:
+# v0.17 - timestamps, realtime date &  clock
 # v0.16 - `/help` & `/about`
 # v0.15 - chat history context memory (trim with MAX_TOKENS)
 # v0.14 - bug fixes
@@ -15,13 +17,12 @@
 # v0.06 - system instructions
 # v0.05 - retry, max retries, retry delay
 # v0.04 - chat history trimming
-#
+
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 
-version_number = "0.16"
-
+import datetime
 import configparser
 import os
 import sys
@@ -199,6 +200,12 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     chat_id = update.message.chat_id
 
+    # get date & time for timestamps
+    now_utc = datetime.datetime.utcnow()
+    utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+    day_of_week = now_utc.strftime("%A")
+    user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
+
     # Send initial response
     # await context.bot.send_message(chat_id=chat_id, text="I'm processing your request...")
 
@@ -219,10 +226,12 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
     chat_history = context.chat_data.get('chat_history', [])
 
     # Append the new user message to the chat history
-    chat_history.append({"role": "user", "content": user_message})
+    chat_history.append({"role": "user", "content": user_message_with_timestamp})
 
     # Prepare the conversation history to send to the OpenAI API
-    system_message = {"role": "system", "content": SYSTEM_INSTRUCTIONS}
+    system_timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    system_message = {"role": "system", "content": f"System message ({system_timestamp}, {day_of_week}): {SYSTEM_INSTRUCTIONS}"}
+    
     chat_history_with_system_message = [system_message] + chat_history
 
     # Trim chat history if it exceeds a specified length or token limit
@@ -284,6 +293,10 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                 parse_mode=ParseMode.HTML
             )
                 # parse_mode=ParseMode.MARKDOWN_V2
+
+            # bot timestamps (optional)
+            # bot_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # bot_reply_with_timestamp = f"{bot_timestamp} - {bot_reply}"
 
             # reply with markdown v2 escapes
             # escaped_reply = simple_escape_markdown_v2(bot_reply)
