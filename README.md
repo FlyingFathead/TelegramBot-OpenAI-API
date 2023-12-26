@@ -24,6 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.13 - parsing/regex for url title+address markdowns
 - v0.12 - more HTML regex parsing from the API markdown
 - v0.11 - switched to HTML parsing
 - v0.10 - MarkdownV2 tryouts (code blocks + bold is _mostly_ working)
