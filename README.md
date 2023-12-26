@@ -24,6 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.06 - API system message fixed
 - v0.05 - retry, max retries, retry delay
 - v0.04 - chat history trimming
 
