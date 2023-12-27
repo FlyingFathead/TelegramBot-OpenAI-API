@@ -24,6 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.19 - timeout error fixes, retry handling; `Timeout` value added to `config.ini`
 - v0.18 - model temperature can now be set in `config.ini`
 - v0.17 - time & date stamping for better temporal awareness
 - v0.16 - `/help` & `/about`
