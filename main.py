@@ -67,7 +67,7 @@ class TelegramBot:
             self.telegram_bot_token = get_bot_token()
             openai.api_key = get_api_key()
         except FileNotFoundError as e:
-            logger.error(f"Required configuration file not found: {e}")
+            logger.error(f"Required configuration not found: {e}")
             sys.exit(1)
 
     def load_config(self):
