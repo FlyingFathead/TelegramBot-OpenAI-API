@@ -24,6 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.22 - `escape_markdown` moved into a separate `.py` file, it was unused anyway
 - v0.21 - Comprehensive Refactoring and Introduction of Object-Oriented Design
   - Implemented object-oriented programming principles by encapsulating bot functionality within the TelegramBot class.
   - Refined code structure for improved readability, maintainability, and scalability.
