@@ -1,8 +1,9 @@
 # Simple OpenAI API-utilizing Telegram Bot
 # Creation Date: Dec 26 2023
-version_number = "0.18"
+version_number = "0.19"
 
 # changelog/history:
+# v0.19 - timeout error fixes, retry handling; `Timeout` value added
 # v0.18 - model temperature can now be set in `config.ini`
 # v0.17 - timestamps, realtime date &  clock
 # v0.16 - `/help` & `/about`
@@ -53,9 +54,9 @@ MODEL = config.get('Model', 'gpt-3.5-turbo')
 MAX_TOKENS = config.getint('MaxTokens', 4096)
 SYSTEM_INSTRUCTIONS = config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
 MAX_RETRIES = config.getint('MaxRetries', 3)  # Fallback to 3 if not set
-RETRY_DELAY = config.getint('RetryDelay', 10)  # Fallback to 2 if not set
-# Load the Temperature value from config with a default of 0.7
-TEMPERATURE = config.getfloat('Temperature', 0.7)
+RETRY_DELAY = config.getint('RetryDelay', 25)  # Fallback to 2 if not set
+TEMPERATURE = config.getfloat('Temperature', 0.7) # Load the Temperature value from config with a default of 0.7
+TIMEOUT = config.getfloat('Timeout', 30.0)  # Fallback to 30 seconds if not set
 
 # ~~~ read the telegram bot token ~~~
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -134,6 +135,10 @@ def retrieve_chat_history():
     except FileNotFoundError:
         pass
     return chat_history
+
+# split long messages
+def split_large_messages(message, max_length=4096):
+    return [message[i:i+max_length] for i in range(0, len(message), max_length)]
 
 # convert markdowns to html
 def markdown_to_html(text):
@@ -257,7 +262,8 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             }
             response = httpx.post("https://api.openai.com/v1/chat/completions", 
                                   data=json.dumps(payload), 
-                                  headers=headers)
+                                  headers=headers,
+                                  timeout=TIMEOUT)
             response_json = response.json()
 
             # Log the API request payload
@@ -321,10 +327,15 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting. Please try again later.")
                 break
 
+        except httpx.TimeoutException as e:
+            logger.error(f"HTTP request timed out: {e}")
+            await context.bot.send_message(chat_id=chat_id, text="Sorry, the request timed out. Please try again later.")
+            # Handle timeout-specific cleanup or logic here
         except Exception as e:
             logger.error(f"Error during message processing: {e}")
             await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
-            break  # Exit on other types of exceptions
+    # General exception handling
+
 
     # Trim chat history if it exceeds a specified length or token limit
     trim_chat_history(chat_history, MAX_TOKENS)
@@ -377,7 +388,8 @@ def main() -> None:
     application.add_handler(CommandHandler("about", about_command))
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling()
+    # application.run_polling()
+    application.run_polling(read_timeout=TIMEOUT)
 
 if __name__ == '__main__':
     main()    
