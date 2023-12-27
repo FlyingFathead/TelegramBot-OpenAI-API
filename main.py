@@ -116,10 +116,6 @@ def estimate_max_tokens(input_text, max_allowed_tokens):
     # Ensure max_tokens is positive and within a reasonable range
     return max(1, min(max_tokens, max_allowed_tokens))
 
-""" # Define a function to send a typing action
-def send_typing_action(update, context):
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING) """
-
 # Define a function to update chat history in a file
 def update_chat_history(chat_history):
     with open('chat_history.txt', 'a') as file:
@@ -157,8 +153,6 @@ def markdown_to_html(text):
     # Convert bold text using markdown syntax to HTML <b> tags
     text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
 
-    # Convert italic text using markdown syntax to HTML <i> tags
-    # text = re.sub(r'\b_(.*?)_\b', r'<i>\1</i>', text)
     # Convert italic text using markdown syntax to HTML <i> tags
     # The regex here is looking for a standalone asterisk or underscore that could denote italics
     # It's also making sure that it doesn't capture bold syntax by checking that an asterisk or underscore is not followed or preceded by another asterisk or underscore
@@ -214,9 +208,11 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
     day_of_week = now_utc.strftime("%A")
     user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
 
+    # (( not implemented atm ))
+    # 
     # Send initial response
     # await context.bot.send_message(chat_id=chat_id, text="I'm processing your request...")
-
+    # 
     # ... Simulate typing or generating content ...
     # await asyncio.sleep(2)  # Simulate a 2-second delay
 
@@ -301,22 +297,7 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
                 text=escaped_reply,
                 parse_mode=ParseMode.HTML
             )
-                # parse_mode=ParseMode.MARKDOWN_V2
 
-            # bot timestamps (optional)
-            # bot_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # bot_reply_with_timestamp = f"{bot_timestamp} - {bot_reply}"
-
-            # reply with markdown v2 escapes
-            # escaped_reply = simple_escape_markdown_v2(bot_reply)
-            # await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode="MarkdownV2")
-            
-            # ... no escape-reply ...
-            # await context.bot.send_message(chat_id=chat_id, text=bot_reply, parse_mode="MarkdownV2")
-            
-            # test
-            # await context.bot.send_message(chat_id=chat_id, text="**bold**", parse_mode="MarkdownV2")
-            
             break  # Break the loop if successful
 
         except httpx.ReadTimeout:
@@ -335,7 +316,6 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
             logger.error(f"Error during message processing: {e}")
             await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
     # General exception handling
-
 
     # Trim chat history if it exceeds a specified length or token limit
     trim_chat_history(chat_history, MAX_TOKENS)
