@@ -24,7 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
-- v0.21 - Comprehensive Refactoring and Introduction of Object-Oriented Design (Date)
+- v0.21 - Comprehensive Refactoring and Introduction of Object-Oriented Design
   - Implemented object-oriented programming principles by encapsulating bot functionality within the TelegramBot class.
   - Refined code structure for improved readability, maintainability, and scalability.
 - v0.20 - modularization, step 1 (key & token reading: `api_key.py`, `bot_token.py`)
