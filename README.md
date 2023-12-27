@@ -27,6 +27,7 @@ Other requirements:
 - v0.21 - Comprehensive Refactoring and Introduction of Object-Oriented Design (Date)
   - Implemented object-oriented programming principles by encapsulating bot functionality within the TelegramBot class.
   - Refined code structure for improved readability, maintainability, and scalability.
+- v0.20 - modularization, step 1 (key & token reading: `api_key.py`, `bot_token.py`)
 - v0.19 - timeout error fixes, retry handling; `Timeout` value added to `config.ini`
 - v0.18 - model temperature can now be set in `config.ini`
 - v0.17 - time & date stamping for better temporal awareness
