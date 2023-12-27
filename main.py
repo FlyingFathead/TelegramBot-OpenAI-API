@@ -1,27 +1,5 @@
-# Simple OpenAI API-utilizing Telegram Bot
+# Simple OpenAI API-utilizing Telegram Bot // v0.23
 #
-# changelog/history:
-# ~
-# v0.22 - cleanup for `escape_markdown.py` module (it's unused)
-# v0.21 - refactoring, restructuring; classes
-# v0.20 - modularization, step 1 (key & token reading: `api_key.py`, `bot_token.py`)
-# v0.19 - timeout error fixes, retry handling; `Timeout` value added
-# v0.18 - model temperature can now be set in `config.ini`
-# v0.17 - timestamps, realtime date &  clock
-# v0.16 - `/help` & `/about`
-# v0.15 - chat history context memory (trim with MAX_TOKENS)
-# v0.14 - bug fixes
-# v0.13 - parsing/regex for url title+address markdowns
-# v0.12 - more HTML regex parsing from the API markdown
-# v0.11 - Switch to HTML parsing
-# v0.10 - MarkdownV2 tryouts
-# v0.09 - using MarkdownV2
-# v0.08 - markdown for bot's responses
-# v0.07 - log incoming and outgoing messages
-# v0.06 - system instructions
-# v0.05 - retry, max retries, retry delay
-# v0.04 - chat history trimming
-# ~
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
@@ -31,6 +9,7 @@ import configparser
 import os
 import sys
 import logging
+from logging.handlers import RotatingFileHandler
 import openai
 import json
 import httpx
@@ -55,9 +34,17 @@ logger = logging.getLogger(__name__)
 
 class TelegramBot:
     # version of this program
-    version_number = "0.22"
+    version_number = "0.23"
 
     def __init__(self):
+        # get our bot & api tokens
+        try:
+            self.telegram_bot_token = get_bot_token()
+            openai.api_key = get_api_key()
+        except FileNotFoundError as e:
+            self.logger.error(f"Required configuration not found: {e}")
+            sys.exit(1)
+
         self.config = self.load_config()
         self.model = self.config.get('Model', 'gpt-3.5-turbo')
         self.max_tokens = self.config.getint('MaxTokens', 4096)
@@ -66,13 +53,22 @@ class TelegramBot:
         self.retry_delay = self.config.getint('RetryDelay', 25)
         self.temperature = self.config.getfloat('Temperature', 0.7)
         self.timeout = self.config.getfloat('Timeout', 30.0)
+        self.logfile_enabled = self.config.getboolean('LogFileEnabled', True)
+        self.logfile_file = self.config.get('LogFile', 'bot.log')
 
-        try:
-            self.telegram_bot_token = get_bot_token()
-            openai.api_key = get_api_key()
-        except FileNotFoundError as e:
-            logger.error(f"Required configuration not found: {e}")
-            sys.exit(1)
+        self.logger = logging.getLogger('TelegramBotLogger')
+        self.logger.setLevel(logging.INFO)  # Set to DEBUG if you want to capture all messages
+
+        # Configure logging
+        if self.logfile_enabled:
+            file_handler = RotatingFileHandler(self.logfile_file, maxBytes=1048576, backupCount=5)
+            file_handler.setLevel(logging.INFO)  # Or set to DEBUG
+
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(formatter)
+
+            self.logger.addHandler(file_handler)
+            self.logger.propagate = False  # Stop propagation to the root logger
 
     def load_config(self):
         config = configparser.ConfigParser()
@@ -158,10 +154,10 @@ class TelegramBot:
         user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
 
         # Log the incoming user message
-        logger.info(f"Received message from {update.message.from_user.username} ({chat_id}): {user_message}")
+        self.logger.info(f"Received message from {update.message.from_user.username} ({chat_id}): {user_message}")
 
         # Log the current chat history
-        logger.debug(f"Current chat history: {context.chat_data.get('chat_history')}")
+        self.logger.debug(f"Current chat history: {context.chat_data.get('chat_history')}")
 
         # Initialize chat_history as an empty list if it doesn't exist
         chat_history = context.chat_data.get('chat_history', [])
@@ -171,7 +167,7 @@ class TelegramBot:
 
         # Prepare the conversation history to send to the OpenAI API
         system_timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        system_message = {"role": "system", "content": f"System message ({system_timestamp}, {day_of_week}): {self.system_instructions}"}
+        system_message = {"role": "system", "content": f"System time+date: {system_timestamp}, {day_of_week}): {self.system_instructions}"}
 
         chat_history_with_system_message = [system_message] + chat_history
 
@@ -200,13 +196,13 @@ class TelegramBot:
                 response_json = response.json()
 
                 # Log the API request payload
-                logger.info(f"API Request Payload: {payload}")
+                self.logger.info(f"API Request Payload: {payload}")
 
                 # Extract the response and send it back to the user
                 bot_reply = response_json['choices'][0]['message']['content'].strip()
 
                 # Log the bot's response
-                logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
+                self.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
 
                 # Append the bot's response to the chat history
                 chat_history.append({"role": "assistant", "content": bot_reply})
@@ -232,16 +228,16 @@ class TelegramBot:
                 if attempt < self.max_retries - 1: # If not the last attempt
                     await asyncio.sleep(self.retry_delay) # Wait before retrying
                 else:
-                    logger.error("Max retries reached. Giving up.")
+                    self.logger.error("Max retries reached. Giving up.")
                     await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting. Please try again later.")
                     break
 
             except httpx.TimeoutException as e:
-                logger.error(f"HTTP request timed out: {e}")
+                self.logger.error(f"HTTP request timed out: {e}")
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, the request timed out. Please try again later.")
                 # Handle timeout-specific cleanup or logic here
             except Exception as e:
-                logger.error(f"Error during message processing: {e}")
+                self.logger.error(f"Error during message processing: {e}")
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
         # General exception handling
 
@@ -275,7 +271,7 @@ class TelegramBot:
 
     # Function to handle errors
     def error(self, update: Update, context: CallbackContext) -> None:
-        logger.warning('Update "%s" caused error "%s"', update, context.error)
+        self.logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     def run(self):
         application = Application.builder().token(self.telegram_bot_token).build()
