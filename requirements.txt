@@ -1,5 +1,5 @@
-configparser
-httpx
-openai
-python-telegram-bot
-transformers
+configparser>=6.0.0
+httpx>=0.25.2
+openai>=1.6.1
+python-telegram-bot>=20.7
+transformers>=4.36.2
