@@ -5,11 +5,11 @@ A simple Python-based Telegram bot for OpenAI API
 - Tested & working on Python 3.10.12
 - Required Python packages:
 ```
-openai
-httpx
-python-telegram-bot
-transformers
-configparser
+openai==1.6.1
+python-telegram-bot==20.7
+transformers==4.36.2
+configparser==6.0.0
+httpx==0.25.2
 ```
 
 Other requirements:
