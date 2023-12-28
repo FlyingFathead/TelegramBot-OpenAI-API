@@ -25,7 +25,8 @@ Other requirements:
 
 # Changelog
 - v0.25 - daily token usage limit functionality
-	- added a functionality to set daily token usage limits (for bot cost control), see `config.ini`
+  - added a functionality to set daily token usage limits (for bot cost control), see `config.ini`
+  - modularized extra utils (startup msg etc) into `utils.py`
 - v0.24 - bug fixes & rate limit pre-alpha
 - v0.23 - option to log to file added, see new logging options in `config.ini`
 - v0.22 - `escape_markdown` moved into a separate `.py` file, it was unused anyway
