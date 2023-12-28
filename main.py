@@ -1,8 +1,11 @@
-# Simple OpenAI API-utilizing Telegram Bot // v0.23
+# Simple OpenAI API-utilizing Telegram Bot
 #
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
+#
+# version of this program
+version_number = "0.26"
 
 # main modules
 import datetime
@@ -32,9 +35,6 @@ from bot_token import get_bot_token
 from api_key import get_api_key
 import utils
 
-# version of this program
-version_number = "0.25"
-
 # Call the startup message function
 utils.print_startup_message(version_number)
 
@@ -50,7 +50,17 @@ class TelegramBot:
     version_number = version_number
 
     def __init__(self):
-        # get our bot & api tokens
+
+        # Load configuration first
+        self.load_config()
+
+        # Initialize logging
+        self.initialize_logging()
+
+        # Initialize chat logging if enabled
+        self.initialize_chat_logging()
+
+        # Attempt to get bot & API tokens
         try:
             self.telegram_bot_token = get_bot_token()
             openai.api_key = get_api_key()
@@ -58,7 +68,21 @@ class TelegramBot:
             self.logger.error(f"Required configuration not found: {e}")
             sys.exit(1)
 
-        self.config = self.load_config()
+        # Initialize chat logging if enabled
+        self.initialize_chat_logging()
+
+        self.token_usage_file = 'token_usage.json'
+        self.total_token_usage = self.read_total_token_usage()
+        self.max_tokens_config = self.config.getint('GlobalMaxTokenUsagePerDay', 100000)
+
+        self.global_request_count = 0
+        self.rate_limit_reset_time = datetime.datetime.now()
+        self.max_global_requests_per_minute = self.config.getint('MaxGlobalRequestsPerMinute', 0)
+
+    def load_config(self):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        self.config = config['DEFAULT']
         self.model = self.config.get('Model', 'gpt-3.5-turbo')
         self.max_tokens = self.config.getint('MaxTokens', 4096)
         self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
@@ -68,34 +92,50 @@ class TelegramBot:
         self.timeout = self.config.getfloat('Timeout', 30.0)
         self.logfile_enabled = self.config.getboolean('LogFileEnabled', True)
         self.logfile_file = self.config.get('LogFile', 'bot.log')
-        self.max_tokens_config = self.config.getint('GlobalMaxTokenUsagePerDay', 100000)
+        self.chat_logging_enabled = self.config.getboolean('ChatLoggingEnabled', False)
+        self.chat_log_max_size = self.config.getint('ChatLogMaxSizeMB', 10) * 1024 * 1024  # Convert MB to bytes
+        self.chat_log_file = self.config.get('ChatLogFile', 'chat.log')
 
+    def initialize_logging(self):
         self.logger = logging.getLogger('TelegramBotLogger')
-        self.logger.setLevel(logging.INFO)  # Set to DEBUG if you want to capture all messages
-
-        self.token_usage_file = 'token_usage.json'
-        self.total_token_usage = self.read_total_token_usage()
-
-        # Configure logging
+        self.logger.setLevel(logging.INFO)
         if self.logfile_enabled:
             file_handler = RotatingFileHandler(self.logfile_file, maxBytes=1048576, backupCount=5)
-            file_handler.setLevel(logging.INFO)  # Or set to DEBUG
-
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            file_handler.setFormatter(formatter)
-
+            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             self.logger.addHandler(file_handler)
-            self.logger.propagate = True  # True/False = Start/Stop propagation to the root logger
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.ERROR)
+        stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(stream_handler)
 
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(logging.ERROR)  # Set this to the desired log level for console output
-            stream_handler.setFormatter(formatter)
-            self.logger.addHandler(stream_handler)
+    def initialize_chat_logging(self):
+        if self.chat_logging_enabled:
+            self.chat_logger = logging.getLogger('ChatLogger')
+            chat_handler = RotatingFileHandler(self.chat_log_file, maxBytes=self.chat_log_max_size, backupCount=5)
+            chat_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+            self.chat_logger.addHandler(chat_handler)
+            self.chat_logger.setLevel(logging.INFO)
 
-    def load_config(self):
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        return config['DEFAULT']
+    # Check and update the global rate limit.
+    def check_global_rate_limit(self):
+        # Bypass rate limit check if max_global_requests_per_minute is set to 0
+        if self.max_global_requests_per_minute == 0:
+            return False
+
+        current_time = datetime.datetime.now()
+
+        # Reset the rate limit counter if a minute has passed
+        if current_time >= self.rate_limit_reset_time:
+            self.global_request_count = 0
+            self.rate_limit_reset_time = current_time + datetime.timedelta(minutes=1)
+
+        # Check if the global request count exceeds the limit
+        if self.global_request_count >= self.max_global_requests_per_minute:
+            return True  # Rate limit exceeded
+
+        # Increment the request count as the rate limit has not been exceeded
+        self.global_request_count += 1
+        return False
 
     # count token usage
     def count_tokens(self, text):
@@ -120,6 +160,28 @@ class TelegramBot:
         }
         with open(self.token_usage_file, 'w') as file:
             json.dump(data, file)
+
+    # logging functionality
+    def log_message(self, message_type, user_id, message):
+        if not self.chat_logging_enabled:
+            return
+
+        # Check if the current log file size exceeds the maximum size (now in bytes)
+        if os.path.exists(self.chat_log_file) and os.path.getsize(self.chat_log_file) >= self.chat_log_max_size:
+            self.rotate_log_file(self.chat_log_file)
+
+        # Now proceed with logging
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        with open(self.chat_log_file, 'a', encoding='utf-8') as log_file:
+            log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
+
+    def rotate_log_file(self, log_file_path):
+        # Rename the existing log file by adding a timestamp
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        archive_log_file_path = f"{log_file_path}_{timestamp}"
+
+        # Rename the current log file to the archive file name
+        os.rename(log_file_path, archive_log_file_path)
 
     # Function to handle start command
     async def start(self, update: Update, context: CallbackContext) -> None:
@@ -190,6 +252,11 @@ class TelegramBot:
 
     # message handling logic
     async def handle_message(self, update: Update, context: CallbackContext) -> None:
+        # Before anything else, check the global rate limit
+        if self.check_global_rate_limit():
+            await context.bot.send_message(chat_id=update.message.chat_id, text="The bot is currently busy. Please try again in a minute.")
+            return
+ 
         try:
 
             user_message = update.message.text
@@ -254,6 +321,9 @@ class TelegramBot:
             # Trim chat history if it exceeds a specified length or token limit
             self.trim_chat_history(chat_history, self.max_tokens)
 
+            # Log the incoming user message
+            self.log_message('User', update.message.from_user.id, update.message.text)
+
             for attempt in range(self.max_retries):
                 try:
                     # Prepare the payload for the API request
@@ -304,6 +374,9 @@ class TelegramBot:
                     # escaped_reply = escape_markdown_v2(bot_reply)
                     escaped_reply = self.markdown_to_html(bot_reply)
                     print("Reply message after escaping:", escaped_reply, flush=True)
+
+                    # Log the bot's response
+                    self.log_message('Bot', self.telegram_bot_token, bot_reply)
 
                     await context.bot.send_message(
                         chat_id=chat_id,
