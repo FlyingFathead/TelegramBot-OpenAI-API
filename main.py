@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.27"
+version_number = "0.28"
 
 # main modules
 import datetime
@@ -86,6 +86,7 @@ class TelegramBot:
         self.model = self.config.get('Model', 'gpt-3.5-turbo')
         self.max_tokens = self.config.getint('MaxTokens', 4096)
         self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+        self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
         self.bot_owner_id = self.config.get('BotOwnerID', '0')
         self.max_retries = self.config.getint('MaxRetries', 3)
         self.retry_delay = self.config.getint('RetryDelay', 25)
@@ -186,7 +187,7 @@ class TelegramBot:
 
     # Function to handle start command
     async def start(self, update: Update, context: CallbackContext) -> None:
-        await update.message.reply_text('Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
+        await update.message.reply_text(self.start_command_response)
 
     # trim the chat history to meet up with max token limits
     def trim_chat_history(self, chat_history, max_total_tokens):
