@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.26"
+version_number = "0.27"
 
 # main modules
 import datetime
@@ -86,6 +86,7 @@ class TelegramBot:
         self.model = self.config.get('Model', 'gpt-3.5-turbo')
         self.max_tokens = self.config.getint('MaxTokens', 4096)
         self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+        self.bot_owner_id = self.config.get('BotOwnerID', '0')
         self.max_retries = self.config.getint('MaxRetries', 3)
         self.retry_delay = self.config.getint('RetryDelay', 25)
         self.temperature = self.config.getfloat('Temperature', 0.7)
@@ -416,7 +417,7 @@ class TelegramBot:
             traceback.print_exc()
             await update.message.reply_text("An unexpected error occurred. Please try again.")
 
-    # Function to handle the /help command
+    # command: /help
     async def help_command(self, update: Update, context: CallbackContext) -> None:
         help_text = """
         Welcome to this OpenAI API-powered chatbot! Here are some commands you can use:
@@ -424,12 +425,13 @@ class TelegramBot:
         - /start: Start a conversation with the bot.
         - /help: Display this help message.
         - /about: Learn more about this bot.
+        - /usage: (For bot owner only) Display current token usage and cap.
         
         Just type your message to chat with the bot!
         """
         await update.message.reply_text(help_text)
 
-    # Function to handle the /about command
+    # command: /about
     async def about_command(self, update: Update, context: CallbackContext) -> None:
         about_text = f"""
         This is an OpenAI-powered Telegram chatbot created by FlyingFathead.
@@ -437,6 +439,19 @@ class TelegramBot:
         For more information, visit: https://github.com/FlyingFathead/TelegramBot-OpenAI-API
         """
         await update.message.reply_text(about_text)
+
+    # command (admin only): /usage
+    async def usage_command(self, update: Update, context: CallbackContext) -> None:
+        if self.bot_owner_id == '0':
+            await update.message.reply_text("The usage command is disabled.")
+            return
+
+        if str(update.message.from_user.id) == self.bot_owner_id:
+            token_usage_info = f"Tokens spent today: {self.total_token_usage}\n" \
+                            f"Current token cap: {'disabled' if self.max_tokens_config == 0 else self.max_tokens_config}"
+            await update.message.reply_text(token_usage_info)
+        else:
+            await update.message.reply_text("You don't have permission to use this command.")
 
     # Function to handle errors
     def error(self, update: Update, context: CallbackContext) -> None:
@@ -451,6 +466,7 @@ class TelegramBot:
         # Register additional command handlers
         application.add_handler(CommandHandler("help", self.help_command))
         application.add_handler(CommandHandler("about", self.about_command))
+        application.add_handler(CommandHandler("usage", self.usage_command))
 
         application.add_error_handler(self.error)
         application.run_polling()

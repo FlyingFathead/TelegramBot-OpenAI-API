@@ -24,6 +24,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.27 - added `/usage` command to track token usage (for bot owner only, 0 to disable in `config.ini`)
 - v0.26 - added separate chat logging and a global limiter functionality for requests/min (see `config.ini`)
 - v0.25 - daily token usage limit functionality
   - added a functionality to set daily token usage limits (for bot cost control), see `config.ini`
