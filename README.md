@@ -3,7 +3,7 @@ A simple Python-based Telegram bot for OpenAI API
 
 # Prerequisites
 - Tested & working on Python 3.10.12
-- Required Python packages:
+- Required Python packages (tested & working with these, install with `pip install -r requirements.txt` for potentially newer versions):
 ```
 openai==1.6.1
 python-telegram-bot==20.7
@@ -17,7 +17,7 @@ Other requirements:
 - OpenAI API token
 
 # Installing
-- Install the required packages with: `pip install -r requirements.txt`
+- Install the required packages either from the list above or with: `pip install -r requirements.txt`
 - Set up your Telegram bot token either as `TELEGRAM_BOT_TOKEN` environment variable or put it into a text file named `bot_token.txt` inside the main program directory
 - Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
 - Adjust your configuration and settings in `config.ini` to your liking
