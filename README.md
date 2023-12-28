@@ -24,6 +24,9 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.25 - daily token usage limit functionality
+	- added a functionality to set daily token usage limits (for bot cost control), see `config.ini`
+- v0.24 - bug fixes & rate limit pre-alpha
 - v0.23 - option to log to file added, see new logging options in `config.ini`
 - v0.22 - `escape_markdown` moved into a separate `.py` file, it was unused anyway
 - v0.21 - Comprehensive Refactoring and Introduction of Object-Oriented Design
