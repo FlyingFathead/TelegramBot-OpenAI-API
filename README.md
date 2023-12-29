@@ -26,7 +26,7 @@ Other requirements:
 
 # Changelog
 ## v0.29 - **WhisperAPI transcriptions via voice messages added** 
-  - uses the same OpenAI API token as the regular chat
+- v0.29 uses the same OpenAI API token as the regular text chat version
   - see the `config.ini` to turn the option on or off
   - WIP for additional transcription features
 - v0.28 - customizable `/start` greeting in `config.ini`
