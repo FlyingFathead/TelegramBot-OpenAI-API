@@ -5,7 +5,11 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.28"
+version_number = "0.30"
+
+# test modules
+# import aiohttp  # For asynchronous HTTP requests
+import requests
 
 # main modules
 import datetime
@@ -14,6 +18,7 @@ import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
+
 import openai
 import json
 import httpx
@@ -92,6 +97,13 @@ class TelegramBot:
         self.retry_delay = self.config.getint('RetryDelay', 25)
         self.temperature = self.config.getfloat('Temperature', 0.7)
         self.timeout = self.config.getfloat('Timeout', 30.0)
+
+        self.enable_whisper = self.config.getboolean('EnableWhisper', True)
+        self.max_voice_message_length = self.config.getint('MaxDurationMinutes', 5)
+
+        self.data_directory = self.config.get('DataDirectory', 'data')  # Default to 'data' if not set
+        self.max_storage_mb = self.config.getint('MaxStorageMB', 100) # Default to 100 MB if not set
+
         self.logfile_enabled = self.config.getboolean('LogFileEnabled', True)
         self.logfile_file = self.config.get('LogFile', 'bot.log')
         self.chat_logging_enabled = self.config.getboolean('ChatLoggingEnabled', False)
@@ -252,16 +264,115 @@ class TelegramBot:
 
         return text
 
-    # message handling logic
+    # voice message handling logic    
+    async def handle_voice_message(self, update: Update, context: CallbackContext) -> None:
+        # print("Voice message received.", flush=True)  # Debug print
+        logger.info("Voice message received.")  # Log the message
+
+        if self.enable_whisper:
+            await update.message.reply_text("<i>Voice message received. Transcribing...</i>", parse_mode=ParseMode.HTML)
+
+            # Ensure the data directory exists
+            if not os.path.exists(self.data_directory):
+                os.makedirs(self.data_directory)
+
+            # Retrieve the File object of the voice message
+            file = await context.bot.get_file(update.message.voice.file_id)
+
+            # Construct the URL to download the voice message
+            file_url = f"{file.file_path}"
+
+            transcription = None  # Initialize transcription
+
+            # Download the file using requests
+            response = requests.get(file_url)
+            if response.status_code == 200:
+                voice_file_path = os.path.join(self.data_directory, f"{file.file_id}.ogg")
+                with open(voice_file_path, 'wb') as f:
+                    f.write(response.content)
+
+                # Add a message to indicate successful download
+                logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
+
+                # Process the voice message with WhisperAPI
+                transcription = await self.process_voice_message(voice_file_path)
+
+                # Add a flushing statement to check the transcription
+                logger.info(f"Transcription: {transcription}")
+
+            if transcription:
+                await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
+
+                # Store the transcribed text in `context.user_data`
+                context.user_data['transcribed_text'] = transcription
+
+                # After storing, call handle_message as if it was a text message
+                # `context.user_data` will be accessed in `handle_message` to get transcribed text
+                await self.handle_message(update, context)
+
+            else:
+                # await update.message.reply_text("Voice message transcription failed.")
+                # If transcription fails or is unavailable
+                await context.bot.send_message(chat_id=update.effective_chat.id, text="Voice message transcription failed.")                
+        else:
+            # If Whisper API is disabled, send a different response or handle accordingly
+            await update.message.reply_text("Voice message transcription is currently disabled.")
+
+    # the logic to interact with WhisperAPI here
+    async def process_voice_message(self, file_path: str) -> str:
+        if self.enable_whisper:
+            try:
+                # Whisper API ...
+                with open(file_path, "rb") as audio_file:
+                    
+                    # print out some debugging
+                    logger.info(f"Audio file being sent to OpenAI: {audio_file}")
+
+                    transcript_response = await openai.AsyncOpenAI().audio.transcriptions.create(
+                        file=audio_file,
+                        model="whisper-1",
+                        response_format="json"
+                    )
+                    # Accessing the transcription text directly
+                    # return transcript_response['text'] if 'text' in transcript_response else 'No transcription available.'
+                    # Accessing the transcription text directly
+
+                    logger.info(f"Transcription Response: {transcript_response}")
+
+                    transcription_text = transcript_response.text.strip() if hasattr(transcript_response, 'text') else None
+
+                    if transcription_text:
+                        # Add the emojis as Unicode characters to the transcription
+                        transcription_with_emoji = "🎤📝\n<b>" + transcription_text + "</b>"
+
+                        return transcription_with_emoji
+                    else:
+                        return 'No transcription available.'
+
+            except FileNotFoundError as e:
+                self.logger.error(f"File not found: {e}")
+            except Exception as e:
+                self.logger.error(f"Unexpected error: {e}")
+                return 'An unexpected error occurred during transcription.'
+
+    # text message handling logic
     async def handle_message(self, update: Update, context: CallbackContext) -> None:
         # Before anything else, check the global rate limit
         if self.check_global_rate_limit():
             await context.bot.send_message(chat_id=update.message.chat_id, text="The bot is currently busy. Please try again in a minute.")
             return
- 
+     
+        # process a text message
         try:
 
-            user_message = update.message.text
+            # Check if there is a transcribed text available
+            if 'transcribed_text' in context.user_data:
+                user_message = context.user_data['transcribed_text']
+                # Clear the transcribed text after using it
+                del context.user_data['transcribed_text']
+            else:
+                user_message = update.message.text
+            
             chat_id = update.message.chat_id
             user_token_count = self.count_tokens(user_message)
 
@@ -411,6 +522,8 @@ class TelegramBot:
             # Update the chat history in context with the new messages
             context.chat_data['chat_history'] = chat_history
 
+            # await self.process_text_message(update, context)
+
         except Exception as e:
             self.logger.error("Unhandled exception:", exc_info=e)
             print(f"Unhandled exception: {e}")
@@ -438,6 +551,7 @@ class TelegramBot:
         This is an OpenAI-powered Telegram chatbot created by FlyingFathead.
         Version: v{self.version_number}
         For more information, visit: https://github.com/FlyingFathead/TelegramBot-OpenAI-API
+        (The original author is NOT responsible for any chatbots created using the code)
         """
         await update.message.reply_text(about_text)
 
@@ -461,9 +575,11 @@ class TelegramBot:
     def run(self):
         application = Application.builder().token(self.telegram_bot_token).build()
         application.get_updates_read_timeout = self.timeout
+
         application.add_handler(CommandHandler("start", self.start))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
-        
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)) # Text handler
+        application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))  # Voice handler
+
         # Register additional command handlers
         application.add_handler(CommandHandler("help", self.help_command))
         application.add_handler(CommandHandler("about", self.about_command))

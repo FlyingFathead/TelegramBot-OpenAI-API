@@ -1,9 +1,11 @@
 # utils.py
+import os
 import re
 import shutil
 import sys
 import datetime
 from functools import partial
+# from pydub import AudioSegment
 
 # set `now`
 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -54,3 +56,35 @@ def escape_markdown_v2(text):
         text = text.replace(placeholder, block)
 
     return text
+
+# Calculate the total size of files in the specified directory.
+def get_directory_size(path: str) -> int:    
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
+
+# Cleanup the oldest files in the specified directory when storage limit is exceeded.
+def cleanup_data_directory(path: str, max_storage_mb: int):    
+    files = [os.path.join(path, f) for f in os.listdir(path)]
+    files.sort(key=lambda x: os.path.getmtime(x))
+
+    while get_directory_size(path) >= max_storage_mb * 1024 * 1024 and files:
+        os.remove(files.pop(0)) # Remove the oldest file
+
+# examine an audio file's length (for WhisperAPI transcriptions)
+# ~
+# This function doesn't inherently need to be async, as pydub's processing is synchronous.
+# However, if you're performing asynchronous file I/O or need to integrate with other async code, it can be async.
+""" def get_voice_message_duration(voice_file_path):
+    # Load the voice message file with pydub
+    audio = AudioSegment.from_file(voice_file_path)
+    
+    # Calculate the duration in milliseconds and convert to minutes
+    duration_seconds = len(audio) / 1000
+    duration_minutes = duration_seconds / 60
+    
+    return duration_minutes
+ """

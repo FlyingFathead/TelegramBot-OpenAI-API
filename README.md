@@ -7,6 +7,7 @@ A simple Python-based Telegram bot for OpenAI API
 ```
 openai==1.6.1
 python-telegram-bot==20.7
+requests==2.31.0
 transformers==4.36.2
 configparser==6.0.0
 httpx==0.25.2
@@ -24,6 +25,10 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+## v0.29 - **WhisperAPI transcriptions via voice messages added** 
+  - uses the same OpenAI API token as the regular chat
+  - see the `config.ini` to turn the option on or off
+  - WIP for additional transcription features
 - v0.28 - customizable `/start` greeting in `config.ini`
 - v0.27 - added `/usage` command to track token usage (for bot owner only, 0 to disable in `config.ini`)
 - v0.26 - added separate chat logging and a global limiter functionality for requests/min (see `config.ini`)

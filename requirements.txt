@@ -3,3 +3,4 @@ httpx>=0.25.2
 openai>=1.6.1
 python-telegram-bot>=20.7
 transformers>=4.36.2
+requests>=2.31.0
