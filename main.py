@@ -92,14 +92,17 @@ class TelegramBot:
         config.read('config.ini')
         self.config = config['DEFAULT']
         self.model = self.config.get('Model', 'gpt-3.5-turbo')
+        self.temperature = self.config.getfloat('Temperature', 0.7)
+        self.timeout = self.config.getfloat('Timeout', 30.0)        
         self.max_tokens = self.config.getint('MaxTokens', 4096)
-        self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
-        self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
-        self.bot_owner_id = self.config.get('BotOwnerID', '0')
         self.max_retries = self.config.getint('MaxRetries', 3)
         self.retry_delay = self.config.getint('RetryDelay', 25)
-        self.temperature = self.config.getfloat('Temperature', 0.7)
-        self.timeout = self.config.getfloat('Timeout', 30.0)
+        self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+        self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
+
+        self.bot_owner_id = self.config.get('BotOwnerID', '0')
+        self.is_bot_disabled = self.config.getboolean('IsBotDisabled', False)
+        self.bot_disabled_msg = self.config.get('BotDisabledMsg', 'The bot is currently disabled.')
 
         self.enable_whisper = self.config.getboolean('EnableWhisper', True)
         self.max_voice_message_length = self.config.getint('MaxDurationMinutes', 5)
@@ -274,6 +277,12 @@ class TelegramBot:
 
     # voice message handling logic    
     async def handle_voice_message(self, update: Update, context: CallbackContext) -> None:
+        
+        # send a "holiday message" if the bot is on a break
+        if self.is_bot_disabled:
+            await context.bot.send_message(chat_id=update.message.chat_id, text=self.bot_disabled_msg)
+            return
+
         # print("Voice message received.", flush=True)  # Debug print
         logger.info("Voice message received.")  # Log the message
 
@@ -309,6 +318,9 @@ class TelegramBot:
                 logger.info(f"Transcription: {transcription}")
 
             if transcription:
+                # Log the transcription
+                self.log_message('Transcription', update.message.from_user.id, transcription)
+
                 await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
 
                 # Store the transcribed text in `context.user_data`
@@ -365,6 +377,12 @@ class TelegramBot:
 
     # text message handling logic
     async def handle_message(self, update: Update, context: CallbackContext) -> None:
+
+        # send a "holiday message" if the bot is on a break
+        if self.is_bot_disabled:
+            await context.bot.send_message(chat_id=update.message.chat_id, text=self.bot_disabled_msg)
+            return
+
         # Before anything else, check the global rate limit
         if self.check_global_rate_limit():
             await context.bot.send_message(chat_id=update.message.chat_id, text="The bot is currently busy. Please try again in a minute.")
