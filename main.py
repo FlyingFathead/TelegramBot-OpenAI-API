@@ -5,7 +5,10 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.30"
+version_number = "0.31"
+
+# latest:
+# (v0.31): `trim_chat_history`
 
 # test modules
 # import aiohttp  # For asynchronous HTTP requests
@@ -203,10 +206,15 @@ class TelegramBot:
 
     # trim the chat history to meet up with max token limits
     def trim_chat_history(self, chat_history, max_total_tokens):
-        total_tokens = sum(len(message['content'].split()) for message in chat_history)
+        total_tokens = sum(self.count_tokens(message['content']) for message in chat_history)
+
+        # Continue removing messages until the total token count is within the limit
         while total_tokens > max_total_tokens and len(chat_history) > 1:
+            # Remove the oldest message
             removed_message = chat_history.pop(0)
-            total_tokens -= len(removed_message['content'].split())
+
+            # Recalculate the total token count after removal
+            total_tokens = sum(self.count_tokens(message['content']) for message in chat_history)
 
     # max token estimates
     def estimate_max_tokens(self, input_text, max_allowed_tokens):
