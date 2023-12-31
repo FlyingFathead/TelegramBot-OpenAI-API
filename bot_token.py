@@ -2,13 +2,21 @@
 import os
 import sys
 
-def get_bot_token():
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if bot_token is None:
-        try:
-            with open('bot_token.txt', 'r') as file:
-                bot_token = file.read().strip()
-        except FileNotFoundError:
-            print("The TELEGRAM_BOT_TOKEN environment variable is not set, and `bot_token.txt` was not found. Please configure the either the `TELEGRAM_BOT_TOKEN` environment variable, OR insert your TG bot token inside a text file in this directory named `bot_token.txt`.")
-            sys.exit(1)
-    return bot_token
+# set `prefer_env` to `True` if you wish to prioritize the environment variable over the configuration text file (determines load order)
+def get_bot_token(prefer_env=True):
+    if prefer_env:
+        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+        if bot_token is not None:
+            return bot_token
+
+    try:
+        with open('bot_token.txt', 'r') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        if not prefer_env:
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            if bot_token is not None:
+                return bot_token
+
+        print("The TELEGRAM_BOT_TOKEN environment variable is not set, and `bot_token.txt` was not found.")
+        sys.exit(1)
