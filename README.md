@@ -25,6 +25,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.31 - Context memory token counter adjusted & fixed to be more precise
 ## v0.29 - **WhisperAPI transcriptions via voice messages added** 
 - WhisperAPI voice messages use the same OpenAI API token as the regular text chat version
   - see the `config.ini` to turn the option on or off
