@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.35"
+version_number = "0.36"
 
 # test modules
 # import aiohttp  # For asynchronous HTTP requests
@@ -84,7 +84,7 @@ class TelegramBot:
 
         self.global_request_count = 0
         self.rate_limit_reset_time = datetime.datetime.now()
-        self.max_global_requests_per_minute = self.config.getint('MaxGlobalRequestsPerMinute', 0)
+        self.max_global_requests_per_minute = self.config.getint('MaxGlobalRequestsPerMinute', 60)
 
     def load_config(self):
         config = configparser.ConfigParser()
@@ -598,12 +598,17 @@ class TelegramBot:
         application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))  # Voice handler
 
         # Register command handlers from bot_commands module
-        application.add_handler(CommandHandler("start", partial(bot_commands.start, start_command_response=self.start_command_response)))
-        application.add_handler(CommandHandler("help", bot_commands.help_command))
+        # user commands
         application.add_handler(CommandHandler("about", partial(bot_commands.about_command, version_number=self.version_number)))
-        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
+        application.add_handler(CommandHandler("help", bot_commands.help_command))
+        application.add_handler(CommandHandler("start", partial(bot_commands.start, start_command_response=self.start_command_response)))        
+        
+        # admin-only commands
         application.add_handler(CommandHandler("admin", partial(bot_commands.admin_command, bot_owner_id=self.bot_owner_id)))
-        application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))
+        # application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))        
+        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
+        # application.add_handler(CommandHandler("updateconfig", partial(bot_commands.update_config_command, bot_owner_id=self.bot_owner_id)))        
+        application.add_handler(CommandHandler("viewconfig", partial(bot_commands.view_config_command, bot_owner_id=self.bot_owner_id)))
 
         application.add_error_handler(self.error)
         application.run_polling()
