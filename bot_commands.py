@@ -6,7 +6,7 @@ from telegram.ext import CallbackContext
 async def start(update: Update, context: CallbackContext, start_command_response):
     await update.message.reply_text(start_command_response)
 
-# /admin (admin command)
+# /admin (admin commands help menu)
 async def admin_command(update: Update, context: CallbackContext, bot_owner_id):
     if bot_owner_id == '0':
         await update.message.reply_text("The `/admin` command is disabled.")
@@ -17,6 +17,7 @@ async def admin_command(update: Update, context: CallbackContext, bot_owner_id):
         Admin Commands:
         - /restart: Restart the bot.
         - /updateconfig: Update bot configurations.
+        - /usage: View the bot's daily token usage.
         - /viewlogs: View recent logs.
         """
         await update.message.reply_text(admin_commands)
@@ -30,7 +31,7 @@ async def restart_command(update: Update, context: CallbackContext, bot_owner_id
         return
 
     if str(update.message.from_user.id) == bot_owner_id:
-        # Implement restart logic here
+        # WIP: Implement restart logic here
         await update.message.reply_text("Restarting the bot...")
     else:
         await update.message.reply_text("You are not authorized to use this command.")
@@ -56,7 +57,7 @@ async def help_command(update: Update, context: CallbackContext):
     - /start: Start a conversation with the bot.
     - /help: Display this help message.
     - /about: Learn more about this bot.
-    - /usage: (For bot owner only) Display current token usage and cap.
+    - /admin: (For bot owner only!) Display admin commands.
     
     Just type your message to chat with the bot!
     """
