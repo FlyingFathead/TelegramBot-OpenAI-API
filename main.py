@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.31"
+version_number = "0.32"
 
 # latest:
 # (v0.31): `trim_chat_history`
@@ -162,22 +162,55 @@ class TelegramBot:
         return len(tokenizer.encode(text))
 
     # read and write token usage
+    # detect date changes and reset token counter accordingly
     def read_total_token_usage(self):
         try:
             with open(self.token_usage_file, 'r') as file:
                 data = json.load(file)
-                if data['date'] == datetime.datetime.utcnow().strftime('%Y-%m-%d'):
+                current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+                if data['date'] == current_date:
                     return int(data['usage'])  # Convert to int
                 else:
+                    # Reset token usage for the new day and write to file
+                    self.reset_total_token_usage()
+                    reset_message = f"Date change detected. Resetting token counter for new day: {current_date}"
+                    print(reset_message)  # Print to console
+                    self.logger.info(reset_message)  # Log to bot.log
                     return 0
         except (FileNotFoundError, json.JSONDecodeError):
+            # Reset token usage if file not found or JSON error
+            self.reset_total_token_usage()
             return 0
 
-    def write_total_token_usage(self, usage):
+    # reset token counts if need be
+    def reset_total_token_usage(self):
+        # Reset the token usage in the JSON file and in memory
+        self.total_token_usage = 0        
         data = {
             'date': datetime.datetime.utcnow().strftime('%Y-%m-%d'),
-            'usage': usage
+            'usage': 0
         }
+        with open(self.token_usage_file, 'w') as file:
+            json.dump(data, file)
+
+    # write latest token count data
+    def write_total_token_usage(self, usage):
+        try:
+            with open(self.token_usage_file, 'r') as file:
+                data = json.load(file)
+                current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+                if data['date'] == current_date:
+                    # Write the updated usage for the current date
+                    data['usage'] = usage
+                else:
+                    # If the date has changed, reset the token usage
+                    self.reset_total_token_usage()
+                    return
+        except (FileNotFoundError, json.JSONDecodeError):
+            # If the file is not found or JSON is invalid, reset the token usage
+            self.reset_total_token_usage()
+            return
+
         with open(self.token_usage_file, 'w') as file:
             json.dump(data, file)
 

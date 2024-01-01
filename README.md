@@ -25,6 +25,7 @@ Other requirements:
 - Run with: `python main.py`
 
 # Changelog
+- v0.32 - Daily token counter reset polling & small bugfixes
 - v0.31 - Context memory token counter adjusted & fixed to be more precise
 - v0.30 - Whisper API interaction fine adjustments & small fixes
 - v0.29 - **WhisperAPI transcriptions via voice messages added** 
