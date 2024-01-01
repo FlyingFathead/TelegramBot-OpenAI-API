@@ -5,10 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.33"
-
-# latest:
-# (v0.31): `trim_chat_history`
+version_number = "0.34"
 
 # test modules
 # import aiohttp  # For asynchronous HTTP requests
