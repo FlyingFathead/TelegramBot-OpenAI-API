@@ -6,6 +6,10 @@ from telegram.constants import ParseMode
 from telegram.helpers import escape_markdown
 from functools import partial
 
+import json
+import os
+import datetime
+
 # ~~~~~~~~~~~~~~
 # admin commands
 # ~~~~~~~~~~~~~~
@@ -39,17 +43,35 @@ async def restart_command(update: Update, context: CallbackContext, bot_owner_id
         await update.message.reply_text("You are not authorized to use this command.")
 
 # /usage (admin command)
-async def usage_command(update: Update, context: CallbackContext, bot_owner_id, total_token_usage, max_tokens_config):
+async def usage_command(update: Update, context: CallbackContext, bot_owner_id, token_usage_file, max_tokens_config):
     if bot_owner_id == '0':
         await update.message.reply_text("The `/usage` command is disabled.")
         return
 
-    if str(update.message.from_user.id) == bot_owner_id:
-        token_usage_info = f"Tokens spent today: {total_token_usage}\n" \
-                        f"Current token cap: {'disabled' if max_tokens_config == 0 else max_tokens_config}"
-        await update.message.reply_text(token_usage_info)
-    else:
+    if str(update.message.from_user.id) != bot_owner_id:
         await update.message.reply_text("You don't have permission to use this command.")
+        return
+
+    try:
+        if os.path.exists(token_usage_file):
+            with open(token_usage_file, 'r') as file:
+                token_usage_history = json.load(file)
+        else:
+            token_usage_history = {}
+    except json.JSONDecodeError:
+        await update.message.reply_text("Error reading token usage history.")
+        return
+
+    current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    today_usage = token_usage_history.get(current_date, 0)
+    token_cap_info = f"Today's usage: {today_usage} tokens\n" \
+                     f"Daily token cap: {'No cap' if max_tokens_config == 0 else f'{max_tokens_config} tokens'}\n\n" \
+                     "Token Usage History:\n"
+
+    for date, usage in token_usage_history.items():
+        token_cap_info += f"{date}: {usage} tokens\n"
+
+    await update.message.reply_text(token_cap_info)
 
 # /viewconfig (admin command)
 async def view_config_command(update: Update, context: CallbackContext, bot_owner_id):

@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.37"
+version_number = "0.38"
 
 # test modules
 # import aiohttp  # For asynchronous HTTP requests
@@ -166,49 +166,23 @@ class TelegramBot:
         try:
             with open(self.token_usage_file, 'r') as file:
                 data = json.load(file)
-                current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-                if data['date'] == current_date:
-                    return int(data['usage'])  # Convert to int
-                else:
-                    # Reset token usage for the new day and write to file
-                    self.reset_total_token_usage()
-                    reset_message = f"Date change detected. Resetting token counter for new day: {current_date}"
-                    print(reset_message)  # Print to console
-                    self.logger.info(reset_message)  # Log to bot.log
-                    return 0
+            current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+            # Return the usage for the current date, or 0 if not present
+            return data.get(current_date, 0)
         except (FileNotFoundError, json.JSONDecodeError):
-            # Reset token usage if file not found or JSON error
-            self.reset_total_token_usage()
+            # If the file doesn't exist or is invalid, return 0
             return 0
-
-    # reset token counts if need be
-    def reset_total_token_usage(self):
-        # Reset the token usage in the JSON file and in memory
-        self.total_token_usage = 0        
-        data = {
-            'date': datetime.datetime.utcnow().strftime('%Y-%m-%d'),
-            'usage': 0
-        }
-        with open(self.token_usage_file, 'w') as file:
-            json.dump(data, file)
 
     # write latest token count data
     def write_total_token_usage(self, usage):
         try:
             with open(self.token_usage_file, 'r') as file:
                 data = json.load(file)
-                current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-                if data['date'] == current_date:
-                    # Write the updated usage for the current date
-                    data['usage'] = usage
-                else:
-                    # If the date has changed, reset the token usage
-                    self.reset_total_token_usage()
-                    return
         except (FileNotFoundError, json.JSONDecodeError):
-            # If the file is not found or JSON is invalid, reset the token usage
-            self.reset_total_token_usage()
-            return
+            data = {}  # Initialize a new dictionary if the file doesn't exist or is invalid
+
+        current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+        data[current_date] = usage  # Update the current date's usage
 
         with open(self.token_usage_file, 'w') as file:
             json.dump(data, file)
@@ -620,8 +594,13 @@ class TelegramBot:
         # admin-only commands
         application.add_handler(CommandHandler("admin", partial(bot_commands.admin_command, bot_owner_id=self.bot_owner_id)))
         # application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))        
-        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
+        # application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
         # application.add_handler(CommandHandler("updateconfig", partial(bot_commands.update_config_command, bot_owner_id=self.bot_owner_id)))        
+        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, 
+                                                        bot_owner_id=self.bot_owner_id, 
+                                                        token_usage_file=self.token_usage_file, 
+                                                        max_tokens_config=self.max_tokens_config)))
+        
         application.add_handler(CommandHandler("viewconfig", partial(bot_commands.view_config_command, bot_owner_id=self.bot_owner_id)))
 
         application.add_error_handler(self.error)

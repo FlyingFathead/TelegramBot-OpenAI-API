@@ -30,6 +30,7 @@ Other requirements:
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.38 - keep better record of daily token usage, streamlined
 - v0.37 - better enforcing of voice msg limits
 - v0.36 - bot command fixes and adjustments
 - v0.35 - modularized bot commands to `bot_commands.py`, fixed `configmerger.py` version
