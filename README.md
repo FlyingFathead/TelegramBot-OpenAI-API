@@ -1,5 +1,6 @@
 # TelegramBot-OpenAI-API
-A simple Python-based Telegram bot for OpenAI API
+- A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
+- **Supports voice messages over Whisper API** (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
 
 # Prerequisites
 - Tested & working on Python 3.10.12
