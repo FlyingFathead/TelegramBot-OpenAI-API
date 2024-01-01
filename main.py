@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.32"
+version_number = "0.33"
 
 # latest:
 # (v0.31): `trim_chat_history`
@@ -335,38 +335,39 @@ class TelegramBot:
             transcription = None  # Initialize transcription
 
             # Download the file using requests
-            response = requests.get(file_url)
-            if response.status_code == 200:
-                voice_file_path = os.path.join(self.data_directory, f"{file.file_id}.ogg")
-                with open(voice_file_path, 'wb') as f:
-                    f.write(response.content)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(file_url)
+                if response.status_code == 200:
+                    voice_file_path = os.path.join(self.data_directory, f"{file.file_id}.ogg")
+                    with open(voice_file_path, 'wb') as f:
+                        f.write(response.content)
 
-                # Add a message to indicate successful download
-                logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
+                    # Add a message to indicate successful download
+                    logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
 
-                # Process the voice message with WhisperAPI
-                transcription = await self.process_voice_message(voice_file_path)
+                    # Process the voice message with WhisperAPI
+                    transcription = await self.process_voice_message(voice_file_path)
 
-                # Add a flushing statement to check the transcription
-                logger.info(f"Transcription: {transcription}")
+                    # Add a flushing statement to check the transcription
+                    logger.info(f"Transcription: {transcription}")
 
-            if transcription:
-                # Log the transcription
-                self.log_message('Transcription', update.message.from_user.id, transcription)
+                if transcription:
+                    # Log the transcription
+                    self.log_message('Transcription', update.message.from_user.id, transcription)
 
-                await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
+                    await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
 
-                # Store the transcribed text in `context.user_data`
-                context.user_data['transcribed_text'] = transcription
+                    # Store the transcribed text in `context.user_data`
+                    context.user_data['transcribed_text'] = transcription
 
-                # After storing, call handle_message as if it was a text message
-                # `context.user_data` will be accessed in `handle_message` to get transcribed text
-                await self.handle_message(update, context)
+                    # After storing, call handle_message as if it was a text message
+                    # `context.user_data` will be accessed in `handle_message` to get transcribed text
+                    await self.handle_message(update, context)
 
-            else:
-                # await update.message.reply_text("Voice message transcription failed.")
-                # If transcription fails or is unavailable
-                await context.bot.send_message(chat_id=update.effective_chat.id, text="Voice message transcription failed.")                
+                else:
+                    # await update.message.reply_text("Voice message transcription failed.")
+                    # If transcription fails or is unavailable
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text="Voice message transcription failed.")                
         else:
             # If Whisper API is disabled, send a different response or handle accordingly
             await update.message.reply_text("Voice message transcription is currently disabled.")
@@ -511,11 +512,12 @@ class TelegramBot:
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
                     }
-                    response = httpx.post("https://api.openai.com/v1/chat/completions", 
-                                        data=json.dumps(payload), 
-                                        headers=headers,
-                                        timeout=self.timeout)
-                    response_json = response.json()
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post("https://api.openai.com/v1/chat/completions",
+                                                    data=json.dumps(payload),
+                                                    headers=headers,
+                                                    timeout=self.timeout)
+                        response_json = response.json()
 
                     # Log the API request payload
                     self.logger.info(f"API Request Payload: {payload}")

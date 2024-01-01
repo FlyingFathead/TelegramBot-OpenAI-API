@@ -25,7 +25,12 @@ Other requirements:
 - Adjust your configuration and settings in `config.ini` to your liking
 - Run with: `python main.py`
 
+# Maintenance / updating
+- Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`.
+
 # Changelog
+- v0.34 - added `configmerger.py` to ease updating the bot (merge old configuration flags with new versions)
+- v0.33 - more performance fixes and added+unified async functionalities 
 - v0.32 - Daily token counter reset polling & small bugfixes
 - v0.31 - Context memory token counter adjusted & fixed to be more precise
 - v0.30 - Whisper API interaction fine adjustments & small fixes
