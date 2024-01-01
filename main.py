@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.36"
+version_number = "0.37"
 
 # test modules
 # import aiohttp  # For asynchronous HTTP requests
@@ -303,6 +303,9 @@ class TelegramBot:
 
         return text
 
+# ~~~~~~~~~~~~~~~~~~~~~
+# voice message handler
+# ~~~~~~~~~~~~~~~~~~~~~
     # voice message handling logic    
     async def handle_voice_message(self, update: Update, context: CallbackContext) -> None:
         
@@ -340,6 +343,15 @@ class TelegramBot:
                     # Add a message to indicate successful download
                     logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
 
+                    # Check the duration of the voice message
+                    voice_duration = await utils.get_voice_message_duration(voice_file_path)
+
+                    # Compare against the max allowed duration
+                    if voice_duration > self.max_voice_message_length:
+                        await update.message.reply_text("Your voice message is too long. Please keep it under {} minutes.".format(self.max_voice_message_length))
+                        logger.info(f"Voice file rejected for being too long: {voice_file_path}")
+                        return
+
                     # Process the voice message with WhisperAPI
                     transcription = await self.process_voice_message(voice_file_path)
 
@@ -366,6 +378,8 @@ class TelegramBot:
         else:
             # If Whisper API is disabled, send a different response or handle accordingly
             await update.message.reply_text("Voice message transcription is currently disabled.")
+
+
 
     # the logic to interact with WhisperAPI here
     async def process_voice_message(self, file_path: str) -> str:

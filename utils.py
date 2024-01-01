@@ -5,7 +5,10 @@ import shutil
 import sys
 import datetime
 from functools import partial
-# from pydub import AudioSegment
+from pydub import AudioSegment
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from pydub import AudioSegment
 
 # set `now`
 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -78,13 +81,12 @@ def cleanup_data_directory(path: str, max_storage_mb: int):
 # ~
 # This function doesn't inherently need to be async, as pydub's processing is synchronous.
 # However, if you're performing asynchronous file I/O or need to integrate with other async code, it can be async.
-""" def get_voice_message_duration(voice_file_path):
-    # Load the voice message file with pydub
-    audio = AudioSegment.from_file(voice_file_path)
-    
-    # Calculate the duration in milliseconds and convert to minutes
+# when in async mode
+executor = ThreadPoolExecutor(10)  # Adjust the number of workers based on your needs
+# the function
+async def get_voice_message_duration(voice_file_path):
+    loop = asyncio.get_running_loop()
+    audio = await loop.run_in_executor(executor, AudioSegment.from_file, voice_file_path)
     duration_seconds = len(audio) / 1000
     duration_minutes = duration_seconds / 60
-    
     return duration_minutes
- """

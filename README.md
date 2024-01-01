@@ -6,12 +6,13 @@
 - Tested & working on Python 3.10.12
 - Required Python packages (tested & working with these, install with `pip install -r requirements.txt` for potentially newer versions):
 ```
-openai==1.6.1
-python-telegram-bot==20.7
-requests==2.31.0
-transformers==4.36.2
-configparser==6.0.0
-httpx==0.25.2
+configparser>=6.0.0
+httpx>=0.25.2
+openai>=1.6.1
+pydub>=0.25.1
+python-telegram-bot>=20.7
+transformers>=4.36.2
+requests>=2.31.0
 ```
 
 Other requirements:
@@ -29,6 +30,7 @@ Other requirements:
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.37 - better enforcing of voice msg limits
 - v0.36 - bot command fixes and adjustments
 - v0.35 - modularized bot commands to `bot_commands.py`, fixed `configmerger.py` version
 - v0.34 - added `configmerger.py` to ease updating the bot (merge old configuration flags with new versions)
