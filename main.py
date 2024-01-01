@@ -18,6 +18,7 @@ import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
+from functools import partial
 
 import openai
 import json
@@ -38,6 +39,7 @@ from functools import partial
 # tg-bot specific stuff
 from bot_token import get_bot_token
 from api_key import get_api_key
+import bot_commands
 import utils
 
 # Call the startup message function
@@ -232,10 +234,6 @@ class TelegramBot:
 
         # Rename the current log file to the archive file name
         os.rename(log_file_path, archive_log_file_path)
-
-    # Function to handle start command
-    async def start(self, update: Update, context: CallbackContext) -> None:
-        await update.message.reply_text(self.start_command_response)
 
     # trim the chat history to meet up with max token limits
     def trim_chat_history(self, chat_history, max_total_tokens):
@@ -589,43 +587,6 @@ class TelegramBot:
             traceback.print_exc()
             await update.message.reply_text("An unexpected error occurred. Please try again.")
 
-    # command: /help
-    async def help_command(self, update: Update, context: CallbackContext) -> None:
-        help_text = """
-        Welcome to this OpenAI API-powered chatbot! Here are some commands you can use:
-
-        - /start: Start a conversation with the bot.
-        - /help: Display this help message.
-        - /about: Learn more about this bot.
-        - /usage: (For bot owner only) Display current token usage and cap.
-        
-        Just type your message to chat with the bot!
-        """
-        await update.message.reply_text(help_text)
-
-    # command: /about
-    async def about_command(self, update: Update, context: CallbackContext) -> None:
-        about_text = f"""
-        This is an OpenAI-powered Telegram chatbot created by FlyingFathead.
-        Version: v{self.version_number}
-        For more information, visit: https://github.com/FlyingFathead/TelegramBot-OpenAI-API
-        (The original author is NOT responsible for any chatbots created using the code)
-        """
-        await update.message.reply_text(about_text)
-
-    # command (admin only): /usage
-    async def usage_command(self, update: Update, context: CallbackContext) -> None:
-        if self.bot_owner_id == '0':
-            await update.message.reply_text("The usage command is disabled.")
-            return
-
-        if str(update.message.from_user.id) == self.bot_owner_id:
-            token_usage_info = f"Tokens spent today: {self.total_token_usage}\n" \
-                            f"Current token cap: {'disabled' if self.max_tokens_config == 0 else self.max_tokens_config}"
-            await update.message.reply_text(token_usage_info)
-        else:
-            await update.message.reply_text("You don't have permission to use this command.")
-
     # Function to handle errors
     def error(self, update: Update, context: CallbackContext) -> None:
         self.logger.warning('Update "%s" caused error "%s"', update, context.error)
@@ -633,15 +594,16 @@ class TelegramBot:
     def run(self):
         application = Application.builder().token(self.telegram_bot_token).build()
         application.get_updates_read_timeout = self.timeout
-
-        application.add_handler(CommandHandler("start", self.start))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)) # Text handler
         application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))  # Voice handler
 
-        # Register additional command handlers
-        application.add_handler(CommandHandler("help", self.help_command))
-        application.add_handler(CommandHandler("about", self.about_command))
-        application.add_handler(CommandHandler("usage", self.usage_command))
+        # Register command handlers from bot_commands module
+        application.add_handler(CommandHandler("start", partial(bot_commands.start, start_command_response=self.start_command_response)))
+        application.add_handler(CommandHandler("help", bot_commands.help_command))
+        application.add_handler(CommandHandler("about", partial(bot_commands.about_command, version_number=self.version_number)))
+        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
+        application.add_handler(CommandHandler("admin", partial(bot_commands.admin_command, bot_owner_id=self.bot_owner_id)))
+        application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))
 
         application.add_error_handler(self.error)
         application.run_polling()

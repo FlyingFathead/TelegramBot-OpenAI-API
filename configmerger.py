@@ -1,4 +1,4 @@
-import configparser
+import sys
 import re
 
 def update_config(main_config_file, custom_config_file):
@@ -24,5 +24,13 @@ def update_config(main_config_file, custom_config_file):
     with open(main_config_file, 'w') as file:
         file.writelines(updated_lines)
 
-# Usage
-update_config('config.ini', 'keke_config.txt')
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: configmerger.py <main_config_file> <custom_config_file>")
+        sys.exit(1)
+
+    main_config_file = sys.argv[1]
+    custom_config_file = sys.argv[2]
+
+    update_config(main_config_file, custom_config_file)
+    print(f"Configuration from {custom_config_file} has been merged into {main_config_file}.")
