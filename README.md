@@ -1,6 +1,7 @@
 # TelegramBot-OpenAI-API
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
 - **Supports voice messages over Whisper API** (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
+- Daily token usage tracking & rate limiting for API usage / cost management
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -30,7 +31,7 @@ Other requirements:
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
-- v0.38 - keep better record of daily token usage, streamlined (**note**: you will need to clear out your existing `token_usage.json`, the file structure has changed)
+- v0.38 - keep better record of daily token usage, streamlined (**note**: you will need to clear out your existing `token_usage.json`, the file structure has changed from the previous version)
 - v0.37 - better enforcing of voice msg limits
 - v0.36 - bot command fixes and adjustments
 - v0.35 - modularized bot commands to `bot_commands.py`, fixed `configmerger.py` version
@@ -72,6 +73,9 @@ Other requirements:
 - v0.06 - API system message fixed
 - v0.05 - retry, max retries, retry delay
 - v0.04 - chat history trimming
+
+# Contribute
+- All contributions appreciated! Feel free to also post any bugs and other issues on the repo's "Issues" page.
 
 # About
 - Written by [FlyingFathead](https://github.com/FlyingFathead/)
