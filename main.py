@@ -5,10 +5,9 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.38"
+version_number = "0.39"
 
-# test modules
-# import aiohttp  # For asynchronous HTTP requests
+# experimental modules
 import requests
 
 # main modules
@@ -41,6 +40,7 @@ from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands
 import utils
+from modules import count_tokens, read_total_token_usage, write_total_token_usage, markdown_to_html
 
 # Call the startup message function
 utils.print_startup_message(version_number)
@@ -155,34 +155,16 @@ class TelegramBot:
 
     # count token usage
     def count_tokens(self, text):
-        return len(tokenizer.encode(text))
-
+        return count_tokens(text, tokenizer)
+    
     # read and write token usage
     # detect date changes and reset token counter accordingly
     def read_total_token_usage(self):
-        try:
-            with open(self.token_usage_file, 'r') as file:
-                data = json.load(file)
-            current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-            # Return the usage for the current date, or 0 if not present
-            return data.get(current_date, 0)
-        except (FileNotFoundError, json.JSONDecodeError):
-            # If the file doesn't exist or is invalid, return 0
-            return 0
+        return read_total_token_usage(self.token_usage_file)
 
     # write latest token count data
     def write_total_token_usage(self, usage):
-        try:
-            with open(self.token_usage_file, 'r') as file:
-                data = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
-            data = {}  # Initialize a new dictionary if the file doesn't exist or is invalid
-
-        current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-        data[current_date] = usage  # Update the current date's usage
-
-        with open(self.token_usage_file, 'w') as file:
-            json.dump(data, file)
+        write_total_token_usage(self.token_usage_file, usage)
 
     # logging functionality
     def log_message(self, message_type, user_id, message):
@@ -245,34 +227,6 @@ class TelegramBot:
     # split long messages
     def split_large_messages(self, message, max_length=4096):
         return [message[i:i+max_length] for i in range(0, len(message), max_length)]
-
-    # convert markdowns to html
-    def markdown_to_html(self, text):
-        # Escape HTML special characters
-        text = (text.replace('&', '&amp;')
-                    .replace('<', '&lt;')
-                    .replace('>', '&gt;')
-                    .replace('"', '&quot;'))
-
-        # Convert markdown code blocks to HTML <pre> tags
-        text = re.sub(r'```(.*?)```', r'<pre>\1</pre>', text, flags=re.DOTALL)
-
-        # Convert markdown inline code to HTML <code> tags
-        text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
-
-        # Convert bold text using markdown syntax to HTML <b> tags
-        text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
-
-        # Convert italic text using markdown syntax to HTML <i> tags
-        # The regex here is looking for a standalone asterisk or underscore that could denote italics
-        # It's also making sure that it doesn't capture bold syntax by checking that an asterisk or underscore is not followed or preceded by another asterisk or underscore
-        text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
-        text = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', text)
-
-        # Convert [text](url) to clickable links
-        text = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', text)
-
-        return text
 
 # ~~~~~~~~~~~~~~~~~~~~~
 # voice message handler
@@ -524,9 +478,8 @@ class TelegramBot:
                     context.chat_data['chat_history'] = chat_history
 
                     print("Reply message before escaping:", bot_reply, flush=True)
-                    # escaped_reply = escape_markdown(bot_reply, version=2)
-                    # escaped_reply = escape_markdown_v2(bot_reply)
-                    escaped_reply = self.markdown_to_html(bot_reply)
+
+                    escaped_reply = markdown_to_html(bot_reply)
                     print("Reply message after escaping:", escaped_reply, flush=True)
 
                     # Log the bot's response
