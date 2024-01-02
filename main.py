@@ -58,15 +58,6 @@ class TelegramBot:
 
     def __init__(self):
 
-        # Load configuration first
-        self.load_config()
-
-        # Initialize logging
-        self.initialize_logging()
-
-        # Initialize chat logging if enabled
-        self.initialize_chat_logging()
-
         # Attempt to get bot & API tokens
         try:
             self.telegram_bot_token = get_bot_token()
@@ -74,6 +65,12 @@ class TelegramBot:
         except FileNotFoundError as e:
             self.logger.error(f"Required configuration not found: {e}")
             sys.exit(1)
+
+        # Load configuration first
+        self.load_config()
+
+        # Initialize logging
+        self.initialize_logging()
 
         # Initialize chat logging if enabled
         self.initialize_chat_logging()
