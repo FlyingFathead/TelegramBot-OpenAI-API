@@ -62,6 +62,8 @@ def markdown_to_html(text):
             # Remove the language hint and backticks from the actual code
             code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
             code_content = code_content.rstrip('`').rstrip()
+            # Escape HTML characters in code content
+            code_content = escape_html(code_content)
             # Wrap the code with <pre> and <code>
             parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
 
