@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.39"
+version_number = "0.39.1"
 
 # experimental modules
 import requests
@@ -284,16 +284,21 @@ class TelegramBot:
                     logger.info(f"Transcription: {transcription}")
 
                 if transcription:
-                    # Log the transcription
-                    self.log_message('Transcription', update.message.from_user.id, transcription)
+                    
+                    # Remove HTML bold tags for processing
+                    transcription_for_model = transcription.replace("<b>", "[Whisper STT Transcribed Voice Message] ").replace("</b>", " [End]")
+                    
+                    # Store the cleaned transcription in `context.user_data` for further processing
+                    context.user_data['transcribed_text'] = transcription_for_model
 
+                    # Log the transcription
+                    self.log_message('Transcription', update.message.from_user.id, transcription_for_model)
+
+                    # Send the transcription back to the user as is (with HTML tags for formatting)
                     await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
 
-                    # Store the transcribed text in `context.user_data`
-                    context.user_data['transcribed_text'] = transcription
-
-                    # After storing, call handle_message as if it was a text message
-                    # `context.user_data` will be accessed in `handle_message` to get transcribed text
+                    # Now pass the cleaned transcription to the handle_message method
+                    # which will then use it as part of the conversation with the model
                     await self.handle_message(update, context)
 
                 else:

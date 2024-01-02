@@ -20,11 +20,18 @@ def hz_line(character='-'):
     print(line)
     sys.stdout.flush()  # Flush the output to the terminal immediately
 
+# print the startup message
 def print_startup_message(version_number):
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     hz_line()
     print(f"[{now}] Telegram bot v.{version_number} for OpenAI API starting up...", flush=True)
     hz_line()
+
+# remove html tags
+def remove_html_tags(text):
+    """Remove html tags from a string"""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
 
 # escape markdown v2, v0.12 [currently not in use because this is a ... it's a thing]
 def escape_markdown_v2(text):
