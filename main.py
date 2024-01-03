@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.39.3"
+version_number = "0.39.4"
 
 # experimental modules
 import requests
@@ -42,6 +42,7 @@ import bot_commands
 import utils
 from modules import count_tokens, read_total_token_usage, write_total_token_usage
 from modules import markdown_to_html, check_global_rate_limit
+from modules import log_message, rotate_log_file
 
 # Call the startup message function
 utils.print_startup_message(version_number)
@@ -157,25 +158,7 @@ class TelegramBot:
 
     # logging functionality
     def log_message(self, message_type, user_id, message):
-        if not self.chat_logging_enabled:
-            return
-
-        # Check if the current log file size exceeds the maximum size (now in bytes)
-        if os.path.exists(self.chat_log_file) and os.path.getsize(self.chat_log_file) >= self.chat_log_max_size:
-            self.rotate_log_file(self.chat_log_file)
-
-        # Now proceed with logging
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        with open(self.chat_log_file, 'a', encoding='utf-8') as log_file:
-            log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
-
-    def rotate_log_file(self, log_file_path):
-        # Rename the existing log file by adding a timestamp
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        archive_log_file_path = f"{log_file_path}_{timestamp}"
-
-        # Rename the current log file to the archive file name
-        os.rename(log_file_path, archive_log_file_path)
+        log_message(self.chat_log_file, self.chat_log_max_size, message_type, user_id, message, self.chat_logging_enabled)
 
     # trim the chat history to meet up with max token limits
     def trim_chat_history(self, chat_history, max_total_tokens):

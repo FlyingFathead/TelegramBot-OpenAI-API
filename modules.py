@@ -1,4 +1,5 @@
 # modules.py
+import os
 import json
 import datetime
 from transformers import GPT2Tokenizer
@@ -93,3 +94,25 @@ def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_
     # Increment the request count as the rate limit has not been exceeded
     global_request_count += 1
     return False, global_request_count, rate_limit_reset_time
+
+def log_message(chat_log_file, chat_log_max_size, message_type, user_id, message, chat_logging_enabled=True):
+    if not chat_logging_enabled:
+        return
+
+    # Check if the current log file size exceeds the maximum size (now in bytes)
+    if os.path.exists(chat_log_file) and os.path.getsize(chat_log_file) >= chat_log_max_size:
+        rotate_log_file(chat_log_file)
+
+    # Now proceed with logging
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open(chat_log_file, 'a', encoding='utf-8') as log_file:
+        log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
+
+def rotate_log_file(log_file_path):
+    # Rename the existing log file by adding a timestamp
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    archive_log_file_path = f"{log_file_path}_{timestamp}"
+
+    # Rename the current log file to the archive file name
+    os.rename(log_file_path, archive_log_file_path)
+    

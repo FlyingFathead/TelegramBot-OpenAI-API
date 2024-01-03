@@ -5,7 +5,6 @@ import shutil
 import sys
 import datetime
 from functools import partial
-from pydub import AudioSegment
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
