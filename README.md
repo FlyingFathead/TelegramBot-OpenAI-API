@@ -18,7 +18,7 @@ requests>=2.31.0
 
 ## Other requirements:
 - Telegram API bot token 
-  - message and use the `@BotFather` bot on Telegram to set up and get one
+  - use the `@BotFather` bot on Telegram to set up and get one (message the bot)
 - OpenAI API token
   - from: https://platform.openai.com/
 
