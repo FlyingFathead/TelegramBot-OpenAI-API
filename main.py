@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.39.4"
+version_number = "0.39.5"
 
 # experimental modules
 import requests
@@ -421,7 +421,7 @@ class TelegramBot:
                     # Make the API request
                     headers = {
                         "Content-Type": "application/json",
-                        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+                        "Authorization": f"Bearer {openai.api_key}"
                     }
                     async with httpx.AsyncClient() as client:
                         response = await client.post("https://api.openai.com/v1/chat/completions",

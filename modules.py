@@ -95,6 +95,7 @@ def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_
     global_request_count += 1
     return False, global_request_count, rate_limit_reset_time
 
+# logging functionalities
 def log_message(chat_log_file, chat_log_max_size, message_type, user_id, message, chat_logging_enabled=True):
     if not chat_logging_enabled:
         return
@@ -108,6 +109,7 @@ def log_message(chat_log_file, chat_log_max_size, message_type, user_id, message
     with open(chat_log_file, 'a', encoding='utf-8') as log_file:
         log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
 
+# rotate the log file
 def rotate_log_file(log_file_path):
     # Rename the existing log file by adding a timestamp
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -115,4 +117,3 @@ def rotate_log_file(log_file_path):
 
     # Rename the current log file to the archive file name
     os.rename(log_file_path, archive_log_file_path)
-    
