@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.39.2"
+version_number = "0.39.3"
 
 # experimental modules
 import requests
@@ -40,7 +40,8 @@ from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands
 import utils
-from modules import count_tokens, read_total_token_usage, write_total_token_usage, markdown_to_html
+from modules import count_tokens, read_total_token_usage, write_total_token_usage
+from modules import markdown_to_html, check_global_rate_limit
 
 # Call the startup message function
 utils.print_startup_message(version_number)
@@ -134,24 +135,12 @@ class TelegramBot:
 
     # Check and update the global rate limit.
     def check_global_rate_limit(self):
-        # Bypass rate limit check if max_global_requests_per_minute is set to 0
-        if self.max_global_requests_per_minute == 0:
-            return False
-
-        current_time = datetime.datetime.now()
-
-        # Reset the rate limit counter if a minute has passed
-        if current_time >= self.rate_limit_reset_time:
-            self.global_request_count = 0
-            self.rate_limit_reset_time = current_time + datetime.timedelta(minutes=1)
-
-        # Check if the global request count exceeds the limit
-        if self.global_request_count >= self.max_global_requests_per_minute:
-            return True  # Rate limit exceeded
-
-        # Increment the request count as the rate limit has not been exceeded
-        self.global_request_count += 1
-        return False
+        result, self.global_request_count, self.rate_limit_reset_time = check_global_rate_limit(
+            self.max_global_requests_per_minute, 
+            self.global_request_count, 
+            self.rate_limit_reset_time
+        )
+        return result
 
     # count token usage
     def count_tokens(self, text):

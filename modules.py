@@ -72,3 +72,24 @@ def markdown_to_html(text):
     # return text
     # Reassemble the parts into the final HTML
     return ''.join(parts)   
+
+# Check and update the global rate limit.
+def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_limit_reset_time):
+    # Bypass rate limit check if max_requests_per_minute is set to 0
+    if max_requests_per_minute == 0:
+        return False, global_request_count, rate_limit_reset_time
+
+    current_time = datetime.datetime.now()
+
+    # Reset the rate limit counter if a minute has passed
+    if current_time >= rate_limit_reset_time:
+        global_request_count = 0
+        rate_limit_reset_time = current_time + datetime.timedelta(minutes=1)
+
+    # Check if the global request count exceeds the limit
+    if global_request_count >= max_requests_per_minute:
+        return True, global_request_count, rate_limit_reset_time  # Rate limit exceeded
+
+    # Increment the request count as the rate limit has not been exceeded
+    global_request_count += 1
+    return False, global_request_count, rate_limit_reset_time
