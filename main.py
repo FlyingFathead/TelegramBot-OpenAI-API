@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.39.5"
+version_number = "0.40"
 
 # experimental modules
 import requests
@@ -113,6 +113,10 @@ class TelegramBot:
         self.chat_logging_enabled = self.config.getboolean('ChatLoggingEnabled', False)
         self.chat_log_max_size = self.config.getint('ChatLogMaxSizeMB', 10) * 1024 * 1024  # Convert MB to bytes
         self.chat_log_file = self.config.get('ChatLogFile', 'chat.log')
+
+        # Session management settings
+        self.session_timeout_minutes = self.config.getint('SessionTimeoutMinutes', 60)  # Default to 1 minute if not set
+        self.max_retained_messages = self.config.getint('MaxRetainedMessages', 2)     # Default to 0 (clear all) if not set
 
     def initialize_logging(self):
         self.logger = logging.getLogger('TelegramBotLogger')
@@ -281,8 +285,6 @@ class TelegramBot:
             # If Whisper API is disabled, send a different response or handle accordingly
             await update.message.reply_text("Voice message transcription is currently disabled.")
 
-
-
     # the logic to interact with WhisperAPI here
     async def process_voice_message(self, file_path: str) -> str:
         if self.enable_whisper:
@@ -320,6 +322,9 @@ class TelegramBot:
                 self.logger.error(f"Unexpected error: {e}")
                 return 'An unexpected error occurred during transcription.'
 
+# ~~~~~~~~~~~~~~~~~~~~
+# text message handler
+# ~~~~~~~~~~~~~~~~~~~~
     # text message handling logic
     async def handle_message(self, update: Update, context: CallbackContext) -> None:
 
@@ -348,8 +353,8 @@ class TelegramBot:
             user_token_count = self.count_tokens(user_message)
 
             # Debug print to check types
-            print(f"[Token counting/debug] user_token_count type: {type(user_token_count)}, value: {user_token_count}", flush=True)
-            print(f"[Token counting/debug] self.total_token_usage type: {type(self.total_token_usage)}, value: {self.total_token_usage}", flush=True)
+            self.logger.info(f"[Token counting/debug] user_token_count type: {type(user_token_count)}, value: {user_token_count}")
+            self.logger.info(f"[Token counting/debug] self.total_token_usage type: {type(self.total_token_usage)}, value: {self.total_token_usage}")
 
             # Convert max_tokens_config to an integer
             # Attempt to read max_tokens_config as an integer
@@ -357,9 +362,9 @@ class TelegramBot:
                 # max_tokens_config = int(self.config.get('GlobalMaxTokenUsagePerDay', '100000'))
                 max_tokens_config = self.config.getint('GlobalMaxTokenUsagePerDay', 100000)
                 is_no_limit = max_tokens_config == 0
-                print(f"[Token counting/debug] max_tokens_config type: {type(max_tokens_config)}, value: {max_tokens_config}", flush=True)
+                self.logger.info(f"[Token counting/debug] max_tokens_config type: {type(max_tokens_config)}, value: {max_tokens_config}")
                 # Debug: Print the value read from token_usage.json
-                print(f"[Debug] Total token usage from file: {self.total_token_usage}", flush=True)
+                self.logger.info(f"[Debug] Total token usage from file: {self.total_token_usage}")
 
             except ValueError:
                 # Handle the case where the value in config.ini is not a valid integer
@@ -373,10 +378,11 @@ class TelegramBot:
                 return
 
             # Debug: Print before token limit checks
-            print(f"[Debug] is_no_limit: {is_no_limit}, user_token_count: {user_token_count}, max_tokens_config: {max_tokens_config}", flush=True)
+            self.logger.info(f"[Debug] is_no_limit: {is_no_limit}, user_token_count: {user_token_count}, max_tokens_config: {max_tokens_config}")
 
             # get date & time for timestamps
             now_utc = datetime.datetime.utcnow()
+            current_time = now_utc
             utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
             day_of_week = now_utc.strftime("%A")
             user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
@@ -386,6 +392,40 @@ class TelegramBot:
 
             # Log the incoming user message
             self.logger.info(f"Received message from {update.message.from_user.username} ({chat_id}): {user_message}")
+
+            # Check if session timeout is enabled and if session is timed out
+            if self.session_timeout_minutes > 0:
+                timeout_seconds = self.session_timeout_minutes * 60  # Convert minutes to seconds
+                if 'last_message_time' in context.chat_data:
+                    last_message_time = context.chat_data['last_message_time']
+                    elapsed_time = (current_time - last_message_time).total_seconds()
+
+                    if elapsed_time > timeout_seconds:
+                        # Log the length of chat history before trimming
+                        chat_history_length_before = len(context.chat_data.get('chat_history', []))
+                        self.logger.info(f"Chat history length before trimming: {chat_history_length_before}")
+
+                        # Session timeout logic
+                        if self.max_retained_messages == 0:
+                            # Clear entire history
+                            context.chat_data['chat_history'] = []
+                            self.logger.info(f"'MaxRetainedMessages' set to 0, cleared the entire chat history due to session timeout.")
+                        else:
+                            # Keep the last N messages
+                            context.chat_data['chat_history'] = context.chat_data['chat_history'][-self.max_retained_messages:]
+                            self.logger.info(f"Retained the last {self.max_retained_messages} messages due to session timeout.")
+
+                        # Log the length of chat history after trimming
+                        chat_history_length_after = len(context.chat_data.get('chat_history', []))
+                        self.logger.info(f"Chat history length after trimming: {chat_history_length_after}")
+
+                        self.logger.info(f"[DebugInfo] Session timed out. Chat history updated.")
+            else:
+                # Log the skipping of session timeout check
+                self.logger.info(f"[DebugInfo] Session timeout check skipped as 'SessionTimeoutMinutes' is set to 0.")            
+
+            # Update the time of the last message
+            context.chat_data['last_message_time'] = current_time
 
             # Log the current chat history
             self.logger.debug(f"Current chat history: {context.chat_data.get('chat_history')}")
@@ -454,10 +494,11 @@ class TelegramBot:
                     # Update the chat history in context with the new messages
                     context.chat_data['chat_history'] = chat_history
 
-                    print("Reply message before escaping:", bot_reply, flush=True)
+                    # view the output (i.e. for markdown etc formatting debugging)
+                    logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
                     escaped_reply = markdown_to_html(bot_reply)
-                    print("Reply message after escaping:", escaped_reply, flush=True)
+                    logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                     # Log the bot's response
                     self.log_message('Bot', self.telegram_bot_token, bot_reply)
