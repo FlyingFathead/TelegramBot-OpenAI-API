@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.40"
+version_number = "0.40.1"
 
 # experimental modules
 import requests
@@ -262,7 +262,7 @@ class TelegramBot:
                 if transcription:
                     
                     # Remove HTML bold tags for processing
-                    transcription_for_model = transcription.replace("<b>", "[Whisper STT Transcribed Voice Message] ").replace("</b>", " [End]")
+                    transcription_for_model = transcription.replace("<b>", "[Whisper STT transcribed message from the user] ").replace("</b>", " [end]")
                     
                     # Store the cleaned transcription in `context.user_data` for further processing
                     context.user_data['transcribed_text'] = transcription_for_model
