@@ -227,9 +227,12 @@ class TelegramBot:
     def run(self):
         application = Application.builder().token(self.telegram_bot_token).build()
         application.get_updates_read_timeout = self.timeout
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)) # Text handler
-        # application.add_handler(MessageHandler(filters.VOICE, self.voice_message_handler))  # Voice handler
-        application.add_handler(MessageHandler(filters.VOICE, partial(handle_voice_message, self)))  # Voice handler
+        
+        # Text handler
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        
+        # Voice handler
+        application.add_handler(MessageHandler(filters.VOICE, partial(handle_voice_message, self)))
         
         # Register command handlers from bot_commands module
         # user commands
