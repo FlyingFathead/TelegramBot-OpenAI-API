@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.41"
+version_number = "0.42"
 
 # experimental modules
 import requests
@@ -119,6 +119,10 @@ class TelegramBot:
         # Session management settings
         self.session_timeout_minutes = self.config.getint('SessionTimeoutMinutes', 60)  # Default to 1 minute if not set
         self.max_retained_messages = self.config.getint('MaxRetainedMessages', 2)     # Default to 0 (clear all) if not set
+
+        # User commands
+        self.reset_command_enabled = self.config.getboolean('ResetCommandEnabled', False)
+        self.admin_only_reset = self.config.getboolean('AdminOnlyReset', True)
 
     def initialize_logging(self):
         self.logger = logging.getLogger('TelegramBotLogger')
@@ -237,7 +241,10 @@ class TelegramBot:
         # Register command handlers from bot_commands module
         # user commands
         application.add_handler(CommandHandler("about", partial(bot_commands.about_command, version_number=self.version_number)))
-        application.add_handler(CommandHandler("help", bot_commands.help_command))
+        # /help
+        application.add_handler(CommandHandler("help", partial(bot_commands.help_command, 
+                                                       reset_enabled=self.reset_command_enabled, 
+                                                       admin_only_reset=self.admin_only_reset)))
         application.add_handler(CommandHandler("start", partial(bot_commands.start, start_command_response=self.start_command_response)))        
         
         # admin-only commands
@@ -250,6 +257,11 @@ class TelegramBot:
                                                         token_usage_file=self.token_usage_file, 
                                                         max_tokens_config=self.max_tokens_config)))
         
+        # Register the /reset command
+        application.add_handler(CommandHandler("reset", partial(bot_commands.reset_command, 
+                                                        bot_owner_id=self.bot_owner_id, 
+                                                        reset_enabled=self.reset_command_enabled, 
+                                                        admin_only_reset=self.admin_only_reset)))
         application.add_handler(CommandHandler("viewconfig", partial(bot_commands.view_config_command, bot_owner_id=self.bot_owner_id)))
 
         application.add_error_handler(self.error)

@@ -9,6 +9,7 @@ from functools import partial
 import json
 import os
 import datetime
+import logging
 
 # ~~~~~~~~~~~~~~
 # admin commands
@@ -25,6 +26,7 @@ async def admin_command(update: Update, context: CallbackContext, bot_owner_id):
         Admin Commands:
         - /viewconfig: View the bot configuration (from `config.ini`).
         - /usage: View the bot's daily token usage.
+        - /reset: Reset the bot's context memory.
         """
         await update.message.reply_text(admin_commands)
     else:
@@ -73,6 +75,29 @@ async def usage_command(update: Update, context: CallbackContext, bot_owner_id, 
 
     await update.message.reply_text(token_cap_info)
 
+# /reset
+async def reset_command(update: Update, context: CallbackContext, bot_owner_id, reset_enabled, admin_only_reset):
+    # Check if the /reset command is enabled
+    if not reset_enabled:
+        logging.info(f"User tried to use the `/reset` command, but it was disabled.")
+        await update.message.reply_text("The `/reset` command is disabled.")
+        return
+
+    # Check if the command is admin-only and if the user is the admin
+    if admin_only_reset and str(update.message.from_user.id) != bot_owner_id:
+        logging.info(f"User tried to use the `/reset` command, but was not authorized to do so.")
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    # If the user is authorized, or if the command is not admin-only
+    if 'chat_history' in context.chat_data:
+        context.chat_data['chat_history'] = []
+        logging.info(f"Memory context was reset successfully with `/reset`.")
+        await update.message.reply_text("Memory context reset successfully.")
+    else:
+        logging.info(f"No memory context to reset with `/reset`.")
+        await update.message.reply_text("No memory context to reset.")
+
 # /viewconfig (admin command)
 async def view_config_command(update: Update, context: CallbackContext, bot_owner_id):
     if bot_owner_id == '0':
@@ -118,15 +143,20 @@ async def about_command(update: Update, context: CallbackContext, version_number
     await update.message.reply_text(about_text)
 
 # /help
-async def help_command(update: Update, context: CallbackContext):
+async def help_command(update: Update, context: CallbackContext, reset_enabled, admin_only_reset):
     help_text = """
     Welcome to this OpenAI API-powered chatbot! Here are some commands you can use:
 
     - /start: Start a conversation with the bot.
     - /help: Display this help message.
     - /about: Learn more about this bot.
-    - /admin: (For bot owner only) Display admin commands.
-    
-    Just type your message to chat with the bot!
     """
+
+    if reset_enabled:
+        help_text += "- /reset: Reset the bot's context memory.\n"
+        if admin_only_reset:
+            help_text += "  (Available to admin only)\n"
+
+    help_text += "- /admin: (For bot owner only) Display admin commands.\n\nJust type your message to chat with the bot!"
+
     await update.message.reply_text(help_text)
