@@ -15,6 +15,7 @@ python-telegram-bot>=20.7
 transformers>=4.36.2
 requests>=2.31.0
 ```
+- (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
 
 ## Other requirements:
 - Telegram API bot token 
