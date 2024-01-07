@@ -45,53 +45,72 @@ async def handle_voice_message(bot, update: Update, context: CallbackContext):
         transcription = None  # Initialize transcription
 
         # Download the file using requests
-        async with httpx.AsyncClient() as client:
-            response = await client.get(file_url)
-            if response.status_code == 200:
-                voice_file_path = os.path.join(bot.data_directory, f"{file.file_id}.ogg")
-                with open(voice_file_path, 'wb') as f:
-                    f.write(response.content)
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(file_url)
+                if response.status_code == 200:
+                    if not response.content:
+                        await update.message.reply_text("Received an empty voice message.")
+                        return
+                    
+                    voice_file_path = os.path.join(bot.data_directory, f"{file.file_id}.ogg")
+                    with open(voice_file_path, 'wb') as f:
+                        f.write(response.content)
 
-                # Add a message to indicate successful download
-                bot.logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
+                    # Add a message to indicate successful download
+                    bot.logger.info(f"Voice message file downloaded successfully as: {voice_file_path}")
 
-                # Check the duration of the voice message
-                voice_duration = await utils.get_voice_message_duration(voice_file_path)
+                    # Check the duration of the voice message
+                    voice_duration = await utils.get_voice_message_duration(voice_file_path)
 
-                # Compare against the max allowed duration
-                if voice_duration > bot.max_voice_message_length:
-                    await update.message.reply_text("Your voice message is too long. Please keep it under {} minutes.".format(bot.max_voice_message_length))
-                    bot.logger.info(f"Voice file rejected for being too long: {voice_file_path}")
+                    # Compare against the max allowed duration
+                    if voice_duration > bot.max_voice_message_length:
+                        await update.message.reply_text("Your voice message is too long. Please keep it under {} minutes.".format(bot.max_voice_message_length))
+                        bot.logger.info(f"Voice file rejected for being too long: {voice_file_path}")
+                        return
+
+                    # Process the voice message with WhisperAPI
+                    transcription = await process_voice_message(voice_file_path, bot.enable_whisper, bot.logger)
+
+                    # Add a flushing statement to check the transcription
+                    bot.logger.info(f"Transcription: {transcription}")
+
+                else:
+                    await update.message.reply_text("Failed to download voice message.")
                     return
 
-                # Process the voice message with WhisperAPI
-                transcription = await process_voice_message(voice_file_path, bot.enable_whisper, bot.logger)
+        except httpx.ReadTimeout:
+            bot.logger.error("Timeout occurred while downloading voice message.")
+            await update.message.reply_text("Failed to download the voice message due to a timeout. Please try again.")
+            return
+        except Exception as e:
+            bot.logger.error(f"Error while processing voice message: {e}")
+            await update.message.reply_text("An error occurred while processing your voice message.")
+            return
 
-                # Add a flushing statement to check the transcription
-                bot.logger.info(f"Transcription: {transcription}")
+        if transcription:
+            
+            # Remove HTML bold tags for processing
+            transcription_for_model = transcription.replace("<b>", "[Whisper STT transcribed message from the user] ").replace("</b>", " [end]")
+            
+            # Store the cleaned transcription in `context.user_data` for further processing
+            context.user_data['transcribed_text'] = transcription_for_model
 
-            if transcription:
-                
-                # Remove HTML bold tags for processing
-                transcription_for_model = transcription.replace("<b>", "[Whisper STT transcribed message from the user] ").replace("</b>", " [end]")
-                
-                # Store the cleaned transcription in `context.user_data` for further processing
-                context.user_data['transcribed_text'] = transcription_for_model
+            # Log the transcription
+            bot.log_message('Transcription', update.message.from_user.id, transcription_for_model)
 
-                # Log the transcription
-                bot.log_message('Transcription', update.message.from_user.id, transcription_for_model)
+            # Send the transcription back to the user as is (with HTML tags for formatting)
+            await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
 
-                # Send the transcription back to the user as is (with HTML tags for formatting)
-                await update.message.reply_text(transcription, parse_mode=ParseMode.HTML)
+            # Now pass the cleaned transcription to the handle_message method
+            # which will then use it as part of the conversation with the model
+            await bot.handle_message(update, context)
 
-                # Now pass the cleaned transcription to the handle_message method
-                # which will then use it as part of the conversation with the model
-                await bot.handle_message(update, context)
+        else:
+            # await update.message.reply_text("Voice message transcription failed.")
+            # If transcription fails or is unavailable
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Voice message transcription failed.")                
 
-            else:
-                # await update.message.reply_text("Voice message transcription failed.")
-                # If transcription fails or is unavailable
-                await context.bot.send_message(chat_id=update.effective_chat.id, text="Voice message transcription failed.")                
     else:
         # If Whisper API is disabled, send a different response or handle accordingly
         await update.message.reply_text("Voice message transcription is currently disabled.")
