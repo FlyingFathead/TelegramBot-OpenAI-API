@@ -18,24 +18,26 @@ import logging
 # /admin (admin commands help menu)
 async def admin_command(update: Update, context: CallbackContext, bot_owner_id):
     if bot_owner_id == '0':
-        await update.message.reply_text("The `/admin` command is disabled.")
+        await update.message.reply_text("The /admin command is disabled.")
         return
 
     if str(update.message.from_user.id) == bot_owner_id:
         admin_commands = """
-        Admin Commands:
-        - /viewconfig: View the bot configuration (from `config.ini`).
-        - /usage: View the bot's daily token usage.
-        - /reset: Reset the bot's context memory.
+Admin Commands:
+- <code>/viewconfig</code>: View the bot configuration (from <code>config.ini</code>).
+- <code>/usage</code>: View the bot's daily token usage.
+- <code>/reset</code>: Reset the bot's context memory.
+- <code>/resetsystemmessage</code>: Reset the system message from <code>config.ini</code>.
+- <code>/setsystemmessage &lt;system message&gt;</code>: Set a new system message (note: not saved into config).
         """
-        await update.message.reply_text(admin_commands)
+        await update.message.reply_text(admin_commands, parse_mode=ParseMode.HTML)
     else:
         await update.message.reply_text("You are not authorized to use this command.")
 
 # /restart (admin command)
 async def restart_command(update: Update, context: CallbackContext, bot_owner_id):
     if bot_owner_id == '0':
-        await update.message.reply_text("The `/restart` command is disabled.")
+        await update.message.reply_text("The /restart command is disabled.")
         return
 
     if str(update.message.from_user.id) == bot_owner_id:
@@ -43,6 +45,37 @@ async def restart_command(update: Update, context: CallbackContext, bot_owner_id
         await update.message.reply_text("Restarting the bot...")
     else:
         await update.message.reply_text("You are not authorized to use this command.")
+
+# /resetsystemmessage (admin command)
+async def reset_system_message_command(update: Update, context: CallbackContext, bot_instance):
+    user_id = update.message.from_user.id
+    if bot_instance.bot_owner_id == '0' or str(user_id) != bot_instance.bot_owner_id:
+        logging.info(f"User {user_id} tried to use /resetsystemmessage but was not authorized.")
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    old_system_message = bot_instance.system_instructions
+    bot_instance.system_instructions = bot_instance.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+    logging.info(f"User {user_id} reset the system message to default.")
+    await update.message.reply_text(f"System message reset to default.\n\nOld Message:\n<code>{old_system_message}</code>\n----------------------\nNew Default Message:\n<code>{bot_instance.system_instructions}</code>", parse_mode=ParseMode.HTML)
+
+# /setsystemmessage (admin command)
+async def set_system_message_command(update: Update, context: CallbackContext, bot_instance):
+    user_id = update.message.from_user.id
+    if bot_instance.bot_owner_id == '0' or str(user_id) != bot_instance.bot_owner_id:
+        logging.info(f"User {user_id} tried to use /setsystemmessage but was not authorized.")
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    new_system_message = ' '.join(context.args)
+    if new_system_message:
+        old_system_message = bot_instance.system_instructions
+        bot_instance.system_instructions = new_system_message
+        logging.info(f"User {user_id} updated the system message to: {new_system_message}")
+        await update.message.reply_text(f"System message updated.\n\nOld Message: <code>{old_system_message}</code>\nNew Message: <code>{new_system_message}</code>", parse_mode=ParseMode.HTML)
+    else:
+        logging.info(f"User {user_id} attempted to set system message but provided no new message.")
+        await update.message.reply_text("Please provide the new system message in the command line, i.e.: /setsystemmessage My new system message to the AI on what it is, where it is, etc.")
 
 # /usage (admin command)
 async def usage_command(update: Update, context: CallbackContext, bot_owner_id, token_usage_file, max_tokens_config):
@@ -79,32 +112,35 @@ async def usage_command(update: Update, context: CallbackContext, bot_owner_id, 
 async def reset_command(update: Update, context: CallbackContext, bot_owner_id, reset_enabled, admin_only_reset):
     # Check if the /reset command is enabled
     if not reset_enabled:
-        logging.info(f"User tried to use the `/reset` command, but it was disabled.")
-        await update.message.reply_text("The `/reset` command is disabled.")
+        logging.info(f"User tried to use the /reset command, but it was disabled.")
+        await update.message.reply_text("The /reset command is disabled.")
         return
 
     # Check if the command is admin-only and if the user is the admin
     if admin_only_reset and str(update.message.from_user.id) != bot_owner_id:
-        logging.info(f"User tried to use the `/reset` command, but was not authorized to do so.")
+        logging.info(f"User tried to use the /reset command, but was not authorized to do so.")
         await update.message.reply_text("You are not authorized to use this command.")
         return
 
     # If the user is authorized, or if the command is not admin-only
     if 'chat_history' in context.chat_data:
         context.chat_data['chat_history'] = []
-        logging.info(f"Memory context was reset successfully with `/reset`.")
+        logging.info(f"Memory context was reset successfully with: /reset")
         await update.message.reply_text("Memory context reset successfully.")
     else:
-        logging.info(f"No memory context to reset with `/reset`.")
+        logging.info(f"No memory context to reset with: /reset")
         await update.message.reply_text("No memory context to reset.")
 
 # /viewconfig (admin command)
 async def view_config_command(update: Update, context: CallbackContext, bot_owner_id):
+    user_id = update.message.from_user.id  # Retrieve the user_id
+
     if bot_owner_id == '0':
-        await update.message.reply_text("The `/viewconfig` command is disabled.")
+        logging.info(f"User {user_id} attempted to view the config with: /viewconfig -- command disabled")
+        await update.message.reply_text("The /viewconfig command is disabled.")
         return
 
-    if str(update.message.from_user.id) == bot_owner_id:
+    if str(user_id) == bot_owner_id:
         try:
             config_contents = "<pre>"
             with open('config.ini', 'r') as file:
@@ -115,13 +151,17 @@ async def view_config_command(update: Update, context: CallbackContext, bot_owne
                     line = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                     config_contents += line
             config_contents += "</pre>"
+            logging.info(f"User {user_id} (owner) viewed the config with: /viewconfig")
             if config_contents:
                 await update.message.reply_text(config_contents, parse_mode=ParseMode.HTML)
             else:
+                logging.info(f"[WARNING] User {user_id} attempted to view the config with: /viewconfig -- no configuration settings were available")
                 await update.message.reply_text("No configuration settings available.")
         except Exception as e:
+            logging.info(f"[ERROR] User {user_id} attempted to view the config with: /viewconfig -- there was an error reading the config file: {e}")
             await update.message.reply_text(f"Error reading configuration file: {e}")
     else:
+        logging.info(f"[ATTENTION] User {user_id} attempted to view the config with: /viewconfig -- access denied")
         await update.message.reply_text("You are not authorized to use this command.")
 
 # ~~~~~~~~~~~~~

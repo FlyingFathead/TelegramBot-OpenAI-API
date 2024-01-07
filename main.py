@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.42"
+version_number = "0.43"
 
 # experimental modules
 import requests
@@ -263,6 +263,10 @@ class TelegramBot:
                                                         reset_enabled=self.reset_command_enabled, 
                                                         admin_only_reset=self.admin_only_reset)))
         application.add_handler(CommandHandler("viewconfig", partial(bot_commands.view_config_command, bot_owner_id=self.bot_owner_id)))
+
+        # Register new admin commands to set or reset the system message
+        application.add_handler(CommandHandler("setsystemmessage", partial(bot_commands.set_system_message_command, bot_instance=self)))
+        application.add_handler(CommandHandler("resetsystemmessage", partial(bot_commands.reset_system_message_command, bot_instance=self)))
 
         application.add_error_handler(self.error)
         application.run_polling()
