@@ -11,6 +11,9 @@ import os
 import datetime
 import logging
 
+# bot's modules
+from token_usage_visualization import generate_usage_chart
+
 # ~~~~~~~~~~~~~~
 # admin commands
 # ~~~~~~~~~~~~~~
@@ -25,7 +28,8 @@ async def admin_command(update: Update, context: CallbackContext, bot_owner_id):
         admin_commands = """
 Admin Commands:
 - <code>/viewconfig</code>: View the bot configuration (from <code>config.ini</code>).
-- <code>/usage</code>: View the bot's daily token usage.
+- <code>/usage</code>: View the bot's daily token usage in plain text.
+- <code>/usagechart</code>: View the bot's daily token usage as a chart.
 - <code>/reset</code>: Reset the bot's context memory.
 - <code>/resetsystemmessage</code>: Reset the system message from <code>config.ini</code>.
 - <code>/setsystemmessage &lt;system message&gt;</code>: Set a new system message (note: not saved into config).
@@ -78,35 +82,55 @@ async def set_system_message_command(update: Update, context: CallbackContext, b
         await update.message.reply_text("Please provide the new system message in the command line, i.e.: /setsystemmessage My new system message to the AI on what it is, where it is, etc.")
 
 # /usage (admin command)
-async def usage_command(update: Update, context: CallbackContext, bot_owner_id, token_usage_file, max_tokens_config):
-    if bot_owner_id == '0':
+async def usage_command(update: Update, context: CallbackContext, bot_instance):
+    if bot_instance.bot_owner_id == '0':
         await update.message.reply_text("The `/usage` command is disabled.")
         return
 
-    if str(update.message.from_user.id) != bot_owner_id:
+    if str(update.message.from_user.id) != bot_instance.bot_owner_id:
         await update.message.reply_text("You don't have permission to use this command.")
         return
 
     try:
-        if os.path.exists(token_usage_file):
-            with open(token_usage_file, 'r') as file:
+        if os.path.exists(bot_instance.token_usage_file):
+            with open(bot_instance.token_usage_file, 'r') as file:
                 token_usage_history = json.load(file)
+
+            # Prune token usage history
+            current_date = datetime.datetime.utcnow()
+            cutoff_date = current_date - datetime.timedelta(days=bot_instance.max_history_days)
+            token_usage_history = {date: usage for date, usage in token_usage_history.items() if datetime.datetime.strptime(date, '%Y-%m-%d') >= cutoff_date}
         else:
             token_usage_history = {}
     except json.JSONDecodeError:
         await update.message.reply_text("Error reading token usage history.")
         return
 
-    current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-    today_usage = token_usage_history.get(current_date, 0)
+    today_usage = token_usage_history.get(current_date.strftime('%Y-%m-%d'), 0)
     token_cap_info = f"Today's usage: {today_usage} tokens\n" \
-                     f"Daily token cap: {'No cap' if max_tokens_config == 0 else f'{max_tokens_config} tokens'}\n\n" \
+                     f"Daily token cap: {'No cap' if bot_instance.max_tokens_config == 0 else f'{bot_instance.max_tokens_config} tokens'}\n\n" \
                      "Token Usage History:\n"
 
-    for date, usage in token_usage_history.items():
+    for date, usage in sorted(token_usage_history.items()):
         token_cap_info += f"{date}: {usage} tokens\n"
 
     await update.message.reply_text(token_cap_info)
+
+# /usagechart (admin command, to get chart type usage statistics)
+async def usage_chart_command(update: Update, context: CallbackContext, bot_instance, token_usage_file):
+    if bot_instance.bot_owner_id == '0':
+        await update.message.reply_text("The `/usagechart` command is disabled.")
+        return
+
+    if str(update.message.from_user.id) != bot_instance.bot_owner_id:
+        await update.message.reply_text("You don't have permission to use this command.")
+        return
+    
+    output_image_file = 'token_usage_chart.png'
+    generate_usage_chart(token_usage_file, output_image_file)
+    
+    with open(output_image_file, 'rb') as file:
+        await context.bot.send_photo(chat_id=update.message.chat_id, photo=file)
 
 # /reset
 async def reset_command(update: Update, context: CallbackContext, bot_owner_id, reset_enabled, admin_only_reset):

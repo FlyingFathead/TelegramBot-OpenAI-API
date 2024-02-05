@@ -45,6 +45,7 @@ from modules import markdown_to_html, check_global_rate_limit
 from modules import log_message, rotate_log_file
 from text_message_handler import handle_message
 from voice_message_handler import handle_voice_message
+from token_usage_visualization import generate_usage_chart
 
 # Call the startup message function
 utils.print_startup_message(version_number)
@@ -116,6 +117,8 @@ class TelegramBot:
         self.logfile_file = self.config.get('LogFile', 'bot.log')
         self.chat_logging_enabled = self.config.getboolean('ChatLoggingEnabled', False)
         self.chat_log_max_size = self.config.getint('ChatLogMaxSizeMB', 10) * 1024 * 1024  # Convert MB to bytes
+
+        self.max_history_days = self.config.getint('MaxHistoryDays', 30)
         self.chat_log_file = self.config.get('ChatLogFile', 'chat.log')
 
         # Session management settings
@@ -254,6 +257,7 @@ class TelegramBot:
         # application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))        
         # application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
         # application.add_handler(CommandHandler("updateconfig", partial(bot_commands.update_config_command, bot_owner_id=self.bot_owner_id)))        
+        application.add_handler(CommandHandler("usagechart", partial(bot_commands.usage_chart_command, bot_instance=self, token_usage_file='token_usage.json')))
         application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, 
                                                         bot_owner_id=self.bot_owner_id, 
                                                         token_usage_file=self.token_usage_file, 

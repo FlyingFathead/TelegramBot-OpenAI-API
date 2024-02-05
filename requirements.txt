@@ -7,3 +7,4 @@ transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
 timezonefinder>=6.4.0
+matplotlib>=3.8.2
