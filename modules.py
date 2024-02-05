@@ -5,8 +5,10 @@ import datetime
 from transformers import GPT2Tokenizer
 import re
 
-# count tokens
+# count tokens (w/ check)
 def count_tokens(text, tokenizer):
+    if text is None:
+        return 0
     return len(tokenizer.encode(text))
 
 # read total token usage
@@ -15,10 +17,15 @@ def read_total_token_usage(token_usage_file):
         with open(token_usage_file, 'r') as file:
             data = json.load(file)
         current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-        # Return the usage for the current date, or 0 if not present
-        return data.get(current_date, 0)
+        
+        # If the current date is not in data, reset the token count
+        if current_date not in data:
+            data[current_date] = 0
+
+        # Return the usage for the current date
+        return data[current_date]
     except (FileNotFoundError, json.JSONDecodeError):
-        # If the file doesn't exist or is invalid, return 0
+        # If the file doesn't exist or is invalid, return 0 and reset the count
         return 0
 
 # write latest token count data
