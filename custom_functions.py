@@ -21,7 +21,7 @@ async def observe_chat():
 custom_functions = [
     {
         'name': 'get_weather',
-        'description': '[Use only if weather is asked for a certain location!] Fetches weather data from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts. Use for detailed forecasts at a location, ONLY if user asks.',
+        'description': '[Use only if weather is asked for a certain location!] Fetches weather data from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. fetch ONLY if user asks.',
         'parameters': {
             'type': 'object',
             'properties': {

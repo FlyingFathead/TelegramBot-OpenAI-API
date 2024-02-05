@@ -17,6 +17,8 @@ pydub>=0.25.1
 python-telegram-bot>=20.7
 transformers>=4.36.2
 requests>=2.31.0
+pytz>=2024.1
+timezonefinder>=6.4.0
 ```
 - (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
 

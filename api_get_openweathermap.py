@@ -18,6 +18,9 @@ import os
 import logging
 import openai
 
+from timezonefinder import TimezoneFinder
+import pytz
+
 # async def get_weather(city_name, forecast_type='current', exclude='', units='metric', lang='fi'):
 async def get_weather(city_name, forecast_type='current', exclude='current,minutely,hourly,alerts', units='metric', lang='en'):
     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
@@ -41,7 +44,14 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
             return "Sori, en voinut hakea koordinaatteja."
 
     if forecast_type == 'current':
-        url = f"{base_url}weather?q={city_name}&appid={api_key}&units={units}&lang={lang}"
+        # Retrieve coordinates for the current weather as well
+        lat, lon = await get_coordinates(city_name)
+        if lat is None or lon is None:
+            logging.info("Failed to retrieve coordinates.")            
+            return "Sori, en voinut hakea koordinaatteja."
+                
+        # Now use these coordinates to get the weather data
+        url = f"{base_url}weather?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
 
     elif forecast_type == '3hour':
         # Use the 'forecast' endpoint for 3-hour forecast data
@@ -64,6 +74,7 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
             logging.info(f"OpenWeatherMap API response data: {data}")
 
             if forecast_type == 'current':
+                
                 # Include additional details from the response
                 if 'weather' in data and 'main' in data:
                     weather_description = data['weather'][0]['description']
@@ -77,11 +88,29 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     wind_direction = data['wind']['deg']
                     visibility = data.get('visibility', 'N/A')
                     snow_1h = data.get('snow', {}).get('1h', 'N/A')
+
+                    # Obtain the timezone of the location
+                    tf = TimezoneFinder()
+                    timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
+                    local_timezone = pytz.timezone(timezone_str)
+
                     # Format sunrise and sunset times
                     # sunrise_time = datetime.datetime.fromtimestamp(data['sys']['sunrise']).strftime('%H:%M')
                     # sunset_time = datetime.datetime.fromtimestamp(data['sys']['sunset']).strftime('%H:%M')
-                    sunrise_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunrise']).strftime('%H:%M')
-                    sunset_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunset']).strftime('%H:%M')
+                                                            
+                    # Convert timestamps to datetime objects
+                    sunrise_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunrise'])
+                    sunset_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunset'])
+
+                    # Add tzinfo and convert to local timezone
+                    sunrise_time_local = sunrise_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                    sunset_time_local = sunset_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+
+                    # Format to strings (only time, no date)
+                    sunrise_time_utc_str = sunrise_time_utc.strftime('%H:%M')
+                    sunset_time_utc_str = sunset_time_utc.strftime('%H:%M')
+                    sunrise_time_local_str = sunrise_time_local.strftime('%H:%M')
+                    sunset_time_local_str = sunset_time_local.strftime('%H:%M')
 
                     # Convert temperatures from Celsius to Fahrenheit
                     temp_fahrenheit = (temperature * 9/5) + 32
@@ -99,8 +128,8 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                         f"Näkyvyys: {data.get('visibility', 'N/A')} metriä, "
                         f"Lumisade (viimeisen 1h aikana): {data.get('snow', {}).get('1h', 'N/A')} mm, "
                         f"Pilvisyys: {data['clouds']['all']}%, "
-                        f"Auringonnousu (UTC): {sunrise_time_utc}, "
-                        f"Auringonlasku (UTC): {sunset_time_utc}"
+                        f"Auringonnousu (UTC): {sunrise_time_utc_str} (paikallinen aika): {sunrise_time_local_str}, "
+                        f"Auringonlasku (UTC): {sunset_time_utc_str} (paikallinen aika): {sunset_time_local_str}"
                     )
                     logging.info(f"Formatted weather data being sent to the model: {detailed_weather_info}")
                     return detailed_weather_info
@@ -218,7 +247,7 @@ async def format_and_translate_weather(bot, user_request, weather_info):
     # System message to instruct the model
     format_translate_system_message = {
         "role": "system",
-        "content": "Detect the language of the user request and translate to user's language if needed. Format the data into a neat Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's language. All times in UTC."
+        "content": "DETECT THE LANGUAGE FROM USER'S REQUEST. Translate if needed and format the data into a neat Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's original language."
     }
 
     # Prepare chat history with the user's request, system message, and weather info
