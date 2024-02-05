@@ -97,7 +97,9 @@ class TelegramBot:
         self.max_tokens = self.config.getint('MaxTokens', 4096)
         self.max_retries = self.config.getint('MaxRetries', 3)
         self.retry_delay = self.config.getint('RetryDelay', 25)
-        self.system_instructions = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+        default_system_msg = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
+        self.system_instructions = f"[Bot's current model: {self.model}] {default_system_msg}"
+
         self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
 
         self.bot_owner_id = self.config.get('BotOwnerID', '0')

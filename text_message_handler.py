@@ -1,7 +1,7 @@
 # text_message_handler.py
-# ~~~~~~~~~~~~~~~~~~~~
-# text message handler
-# ~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# github.com/FlyingFathead/TelegramBot-OpenAI-API/
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 import sys
 import httpx
@@ -19,6 +19,10 @@ from telegram.constants import ParseMode
 
 # tg-bot specific stuff
 from modules import markdown_to_html
+
+# the tg-bot's API function calls
+from custom_functions import custom_functions, observe_chat
+from api_get_openweathermap import get_weather, format_and_translate_weather
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
@@ -150,7 +154,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     "model": bot.model,
                     #"messages": context.chat_data['chat_history'],
                     "messages": chat_history_with_system_message,  # Updated to include system message                
-                    "temperature": bot.temperature  # Use the TEMPERATURE variable loaded from config.ini
+                    "temperature": bot.temperature,  # Use the TEMPERATURE variable loaded from config.ini
+                    "functions": custom_functions,
+                    "function_call": 'auto'  # Allows the model to dynamically choose the function                        
                 }
 
                 # Make the API request
@@ -167,6 +173,40 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                 # Log the API request payload
                 bot.logger.info(f"API Request Payload: {payload}")
+
+                #
+                # > function calling
+                #
+
+                # Check for a 'function_call' in the response
+                if 'function_call' in response_json['choices'][0]['message']:
+                    function_call = response_json['choices'][0]['message']['function_call']
+                    function_name = function_call['name']
+
+                    if function_name == 'get_weather':
+                        # Fetch the weather data
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        city_name = arguments.get('city_name', 'DefaultCity')
+                        forecast_type = arguments.get('forecast_type', 'current')
+                        weather_info = await get_weather(city_name, forecast_type)
+
+                        # Send the weather information as a reply
+                        # await context.bot.send_message(chat_id=chat_id, text=weather_info)
+
+                        # Format and potentially translate the weather info
+                        formatted_weather_info = await format_and_translate_weather(bot, user_message, weather_info)
+
+                        # Note about the action taken
+                        action_note = f"[Fetched and sent the following OpenWeatherAPI weather data to the user]: {formatted_weather_info}"
+
+                        # Append the note and formatted weather information to the chat history
+                        chat_history.append({"role": "assistant", "content": action_note})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Send the formatted weather information as a reply
+                        # await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info)
+                        await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info, parse_mode=ParseMode.HTML)
+                        return  # Exit the loop after handling the custom function
 
                 # Extract the response and send it back to the user
                 bot_reply = response_json['choices'][0]['message']['content'].strip()

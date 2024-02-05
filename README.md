@@ -1,6 +1,9 @@
 # TelegramBot-OpenAI-API
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
-- **Supports voice messages over Whisper API** (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
+- **Supports transcribed voice messages over Whisper API**
+  - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
+- **Supports real-time weather info via OpenWeatherMap API and map lookups via MapTiler API**
+  - (with weather forecasts around the world in all OpenAI API supported languages)
 - Daily token usage tracking & rate limiting for API usage / cost management
 
 # Prerequisites
@@ -27,6 +30,7 @@ requests>=2.31.0
 - Install the required packages either from the list above or with: `pip install -r requirements.txt`
 - Set up your Telegram bot token either as `TELEGRAM_BOT_TOKEN` environment variable or put it into a text file named `bot_token.txt` inside the main program directory
 - Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
+- If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly.
 - Adjust your configuration and settings in `config.ini` to your liking
 - Run with: `python main.py`
 
@@ -34,6 +38,7 @@ requests>=2.31.0
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.44 - API function calling, OpenWeatherMap API weather searches and MapTiler API geolookup
 - v0.43.2 - Fixed a small bug in daily token caps
 - v0.43.1 - Better error catching
 - v0.43 - New admin commands: `/setsystemmessage <message>` (valid until bot restart) and `/resetsystemmessage` (reset from `config.ini`)
