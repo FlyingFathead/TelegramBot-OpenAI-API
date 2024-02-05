@@ -2,7 +2,8 @@
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
 - **Supports transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
-- **Supports real-time weather info via OpenWeatherMap API and map lookups via MapTiler API**
+- **Supports real-time weather info via OpenWeatherMap API**
+- **Supports geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
 - Daily token usage tracking & rate limiting for API usage / cost management
 
