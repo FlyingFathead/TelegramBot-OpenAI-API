@@ -18,11 +18,12 @@ import os
 import logging
 import openai
 
+import datetime
 from timezonefinder import TimezoneFinder
 import pytz
 
 # async def get_weather(city_name, forecast_type='current', exclude='', units='metric', lang='fi'):
-async def get_weather(city_name, forecast_type='current', exclude='current,minutely,hourly,alerts', units='metric', lang='en'):
+async def get_weather(city_name, forecast_type='current', exclude='current,minutely,hourly,alerts', units='metric', lang='fi'):
     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
     if not api_key:
         logging.info("[WARNING] OpenWeatherMap API key not set. You need to set the 'OPENWEATHERMAP_API_KEY' environment variable to use OpenWeatherMap API functionalities!")
@@ -95,8 +96,8 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     local_timezone = pytz.timezone(timezone_str)
 
                     # Format sunrise and sunset times
-                    # sunrise_time = datetime.datetime.fromtimestamp(data['sys']['sunrise']).strftime('%H:%M')
-                    # sunset_time = datetime.datetime.fromtimestamp(data['sys']['sunset']).strftime('%H:%M')
+                    # sunrise_time = datetime.fromtimestamp(data['sys']['sunrise']).strftime('%H:%M')
+                    # sunset_time = datetime.fromtimestamp(data['sys']['sunset']).strftime('%H:%M')
                                                             
                     # Convert timestamps to datetime objects
                     sunrise_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunrise'])
@@ -142,11 +143,27 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                 if 'list' in data:
                     forecasts = data['list']
                     formatted_forecasts = []
+
+                    tf = TimezoneFinder()
+                    # Define local_timezone outside the for loop
+                    # Ensure that you have valid latitude and longitude values
+                    lat = data['city']['coord']['lat']
+                    lon = data['city']['coord']['lon']
+                    timezone_str = tf.timezone_at(lat=lat, lng=lon)
+                    local_timezone = pytz.timezone(timezone_str) if timezone_str else pytz.utc
+                    
                     for forecast_data in forecasts[:5]:  # Adjust the range as needed
                         # different formats;
-                        # time = datetime.datetime.fromtimestamp(forecast_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
-                        # time = datetime.datetime.fromtimestamp(forecast_data['dt']).strftime('%d.%m.%Y klo %H:%M')                        
-                        time = datetime.utcfromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
+                        # time = datetime.fromtimestamp(forecast_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
+                        # time = datetime.fromtimestamp(forecast_data['dt']).strftime('%d.%m.%Y klo %H:%M')                                                
+                        time = datetime.datetime.utcfromtimestamp(forecast_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
+
+                        # Convert UTC time to local time
+                        utc_time = datetime.datetime.utcfromtimestamp(forecast_data['dt'])
+                        local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                        local_time_str = local_time.strftime('%Y-%m-%d %H:%M:%S')
+                        utc_time_str = utc_time.strftime('%Y-%m-%d %H:%M:%S')
+
                         temp = forecast_data['main']['temp']
 
                         # fahrenheit conversion
@@ -161,7 +178,7 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                         rain = forecast_data.get('rain', {}).get('3h', 'N/A')  # '3h' key for 3-hour rain volume
 
                         formatted_forecasts.append(
-                            f"- {time} (UTC), Lämpötila: {temp}°C / {temp_fahrenheit:.1f}°F, {description.capitalize()}, Tuuli: {wind_speed} m/s, "
+                            f"- {local_time_str} (Local time) / {utc_time_str} (UTC): Lämpötila: {temp}°C / {temp_fahrenheit:.1f}°F, {description.capitalize()}, Tuuli: {wind_speed} m/s, "
                             f"Ilmanpaine: {pressure} hPa, Ilmankosteus: {humidity}%, Pilvisyys: {clouds}%, "
                             f"Sade (viimeisen 3h aikana): {rain} mm"
                         )
@@ -182,7 +199,7 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     formatted_hourly_forecasts = []
                     for hour_data in hourly_forecasts[:5]:  # Example: Get first 5 hours data
                         # time = datetime.fromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S') # system time conversion
-                        time = datetime.utcfromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
+                        time = datetime.datetime.utcfromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
                         temp = hour_data['temp']
                         description = hour_data['weather'][0]['description']
                         formatted_hourly_forecasts.append(f"{time} (UTC): {temp}°C, {description}")
@@ -199,7 +216,7 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     # Format and return the first few days as an example
                     formatted_daily_forecasts = []
                     for day_data in daily_forecasts[:3]:  # Example: Get first 3 days data
-                        date = datetime.fromtimestamp(day_data['dt']).strftime('%Y-%m-%d')
+                        date = datetime.datetime.fromtimestamp(day_data['dt']).strftime('%Y-%m-%d')
                         min_temp = day_data['temp']['min']
                         max_temp = day_data['temp']['max']
                         description = day_data['weather'][0]['description']
@@ -247,7 +264,7 @@ async def format_and_translate_weather(bot, user_request, weather_info):
     # System message to instruct the model
     format_translate_system_message = {
         "role": "system",
-        "content": "DETECT THE LANGUAGE FROM USER'S REQUEST. Translate if needed and format the data into a neat Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's original language."
+        "content": "Translate if needed (depending on user's language) and format the data into a digestable Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's original language!"
     }
 
     # Prepare chat history with the user's request, system message, and weather info
@@ -261,7 +278,7 @@ async def format_and_translate_weather(bot, user_request, weather_info):
     payload = {
         "model": bot.model,
         "messages": chat_history,
-        "temperature": 0.7
+        "temperature": 0.5
     }
 
     headers = {

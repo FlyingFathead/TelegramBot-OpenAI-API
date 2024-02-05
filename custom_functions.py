@@ -31,7 +31,7 @@ custom_functions = [
                 },
                 'forecast_type': {
                     'type': 'string',
-                    'description': 'Type of weather data. Adjust to the weather request (SPECIFY ONE, use `current` if nothing is specified, `3hour` if the user is asking for forecast): current, 3hour'
+                    'description': 'Type of weather data, "current" for current weather+sunrise sunset data, "3hour" for all upcoming weather/forecast inquiries'
                 },
                 'language': {
                     'type': 'string',
