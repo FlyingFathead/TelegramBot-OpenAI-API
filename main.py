@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.45"
+version_number = "0.45.1"
 
 # experimental modules
 import requests
@@ -258,10 +258,7 @@ class TelegramBot:
         # application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
         # application.add_handler(CommandHandler("updateconfig", partial(bot_commands.update_config_command, bot_owner_id=self.bot_owner_id)))        
         application.add_handler(CommandHandler("usagechart", partial(bot_commands.usage_chart_command, bot_instance=self, token_usage_file='token_usage.json')))
-        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, 
-                                                        bot_owner_id=self.bot_owner_id, 
-                                                        token_usage_file=self.token_usage_file, 
-                                                        max_tokens_config=self.max_tokens_config)))
+        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_instance=self)))
         
         # Register the /reset command
         application.add_handler(CommandHandler("reset", partial(bot_commands.reset_command, 
