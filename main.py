@@ -193,7 +193,7 @@ class TelegramBot:
             wait_seconds = (midnight - now).total_seconds()
             await asyncio.sleep(wait_seconds)
             reset_token_usage_at_midnight(self.token_usage_file)
-            logger.info("Daily token usage counter reset.")
+            self.logger.info("Daily token usage counter reset.")
 
     # running an asyncio loop for this
     def run_asyncio_loop(self):
