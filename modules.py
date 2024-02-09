@@ -13,7 +13,9 @@ logger = logging.getLogger('TelegramBotLogger')
 def count_tokens(text, tokenizer):
     if text is None:
         return 0
-    return len(tokenizer.encode(text))
+    token_count = len(tokenizer.encode(text))
+    logger.info(f"Counting tokens for text: '{text[:30]}...' Results in token count: {token_count}")
+    return token_count
 
 # read total token usage
 def read_total_token_usage(token_usage_file):
@@ -48,22 +50,22 @@ def write_total_token_usage(token_usage_file, usage):
 
 # reset token count at midnight
 def reset_token_usage_at_midnight(token_usage_file):
-    current_time = datetime.datetime.utcnow()
-    reset_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
-    
-    if current_time >= reset_time:
-        try:
+    try:
+        current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+        # Open the token usage file to read the current usage data
+        if os.path.exists(token_usage_file):
             with open(token_usage_file, 'r+') as file:
                 data = json.load(file)
-                current_date = current_time.strftime('%Y-%m-%d')
-                if current_date not in data:
-                    data = {current_date: 0}  # Reset the file with today's date and 0 usage
-                    file.seek(0)
-                    json.dump(data, file)
-                    file.truncate()
-                    logger.info(f"Token usage reset for {current_date}.")
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to reset token usage: {e}")
+                # Reset the token usage for the current date
+                data[current_date] = 0
+                file.seek(0)  # Go back to the start of the file
+                json.dump(data, file)  # Write the updated data
+                file.truncate()  # Remove any remaining content
+            logger.info(f"Token usage reset for {current_date}.")
+        else:
+            logger.error("Token usage file does not exist. No reset performed.")
+    except Exception as e:
+        logger.error(f"Failed to reset token usage: {e}")
 
 # convert markdowns to html
 def escape_html(text):

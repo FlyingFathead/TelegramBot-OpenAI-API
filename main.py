@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.46"
+version_number = "0.46.3"
 
 # experimental modules
 import requests
@@ -82,8 +82,18 @@ class TelegramBot:
         # Initialize chat logging if enabled
         self.initialize_chat_logging()
 
+        # Explicitly set the initial token usage to 0
+        self.total_token_usage = 0
         self.token_usage_file = 'token_usage.json'
+
+        # Log the initial token count
+        self.logger.info(f"Initial token usage set to: {self.total_token_usage}")
+
         self.total_token_usage = self.read_total_token_usage()
+
+        # Log the token count after reading from the file
+        self.logger.info(f"Token usage after reading from file: {self.total_token_usage}")
+
         self.max_tokens_config = self.config.getint('GlobalMaxTokenUsagePerDay', 100000)
 
         self.global_request_count = 0
@@ -288,6 +298,8 @@ class TelegramBot:
         # Register new admin commands to set or reset the system message
         application.add_handler(CommandHandler("setsystemmessage", partial(bot_commands.set_system_message_command, bot_instance=self)))
         application.add_handler(CommandHandler("resetsystemmessage", partial(bot_commands.reset_system_message_command, bot_instance=self)))
+
+        application.add_handler(CommandHandler("resetdailytokens", partial(bot_commands.reset_daily_tokens_command, bot_instance=self)))        
 
         application.add_error_handler(self.error)
 

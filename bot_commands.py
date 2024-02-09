@@ -13,6 +13,7 @@ import logging
 
 # bot's modules
 from token_usage_visualization import generate_usage_chart
+from modules import reset_token_usage_at_midnight 
 
 # ~~~~~~~~~~~~~~
 # admin commands
@@ -49,6 +50,23 @@ async def restart_command(update: Update, context: CallbackContext, bot_owner_id
         await update.message.reply_text("Restarting the bot...")
     else:
         await update.message.reply_text("You are not authorized to use this command.")
+
+# /resetdailytokens (admin command for resetting daily token usage)
+async def reset_daily_tokens_command(update: Update, context: CallbackContext, bot_instance):
+    user_id = update.message.from_user.id
+    if bot_instance.bot_owner_id == '0' or str(user_id) != bot_instance.bot_owner_id:
+        logging.info(f"User {user_id} tried to use /resetdailytokens but was not authorized.")
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    try:
+        # Directly call the function with the path to the token usage file
+        reset_token_usage_at_midnight(bot_instance.token_usage_file)
+        logging.info(f"User {user_id} has reset the daily token usage.")
+        await update.message.reply_text("Daily token usage has been reset.")
+    except Exception as e:
+        logging.error(f"Failed to reset daily token usage: {e}")
+        await update.message.reply_text("Failed to reset daily token usage.")
 
 # /resetsystemmessage (admin command)
 async def reset_system_message_command(update: Update, context: CallbackContext, bot_instance):
@@ -91,13 +109,15 @@ async def usage_command(update: Update, context: CallbackContext, bot_instance):
         await update.message.reply_text("You don't have permission to use this command.")
         return
 
+    # Define current_date before entering the try block
+    current_date = datetime.datetime.utcnow()
+
     try:
         if os.path.exists(bot_instance.token_usage_file):
             with open(bot_instance.token_usage_file, 'r') as file:
                 token_usage_history = json.load(file)
 
-            # Prune token usage history
-            current_date = datetime.datetime.utcnow()
+            # Prune token usage history based on the previously defined current_date
             cutoff_date = current_date - datetime.timedelta(days=bot_instance.max_history_days)
             token_usage_history = {date: usage for date, usage in token_usage_history.items() if datetime.datetime.strptime(date, '%Y-%m-%d') >= cutoff_date}
         else:
@@ -106,6 +126,7 @@ async def usage_command(update: Update, context: CallbackContext, bot_instance):
         await update.message.reply_text("Error reading token usage history.")
         return
 
+    # Since current_date is now defined outside the try block, it will always be available here
     today_usage = token_usage_history.get(current_date.strftime('%Y-%m-%d'), 0)
     token_cap_info = f"Today's usage: {today_usage} tokens\n" \
                      f"Daily token cap: {'No cap' if bot_instance.max_tokens_config == 0 else f'{bot_instance.max_tokens_config} tokens'}\n\n" \
@@ -115,7 +136,7 @@ async def usage_command(update: Update, context: CallbackContext, bot_instance):
         token_cap_info += f"{date}: {usage} tokens\n"
 
     await update.message.reply_text(token_cap_info)
-
+    
 # /usagechart (admin command, to get chart type usage statistics)
 async def usage_chart_command(update: Update, context: CallbackContext, bot_instance, token_usage_file):
     if bot_instance.bot_owner_id == '0':
