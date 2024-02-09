@@ -5,12 +5,13 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.45.1"
+version_number = "0.46"
 
 # experimental modules
 import requests
 
 # main modules
+import threading
 import datetime
 import configparser
 import os
@@ -41,6 +42,7 @@ from api_key import get_api_key
 import bot_commands
 import utils
 from modules import count_tokens, read_total_token_usage, write_total_token_usage
+from modules import reset_token_usage_at_midnight
 from modules import markdown_to_html, check_global_rate_limit
 from modules import log_message, rotate_log_file
 from text_message_handler import handle_message
@@ -171,6 +173,22 @@ class TelegramBot:
     def write_total_token_usage(self, usage):
         write_total_token_usage(self.token_usage_file, usage)
 
+    # time the daily token usage resets
+    async def schedule_daily_reset(self):
+        while True:
+            now = datetime.datetime.utcnow()
+            # Calculate time until just after midnight UTC
+            tomorrow = now + datetime.timedelta(days=1)
+            midnight = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=0, minute=0, second=1)
+            wait_seconds = (midnight - now).total_seconds()
+            await asyncio.sleep(wait_seconds)
+            reset_token_usage_at_midnight(self.token_usage_file)
+            logger.info("Daily token usage counter reset.")
+
+    # running an asyncio loop for this
+    def run_asyncio_loop(self):
+        asyncio.run(self.schedule_daily_reset())
+
     # logging functionality
     def log_message(self, message_type, user_id, message):
         log_message(self.chat_log_file, self.chat_log_max_size, message_type, user_id, message, self.chat_logging_enabled)
@@ -272,6 +290,11 @@ class TelegramBot:
         application.add_handler(CommandHandler("resetsystemmessage", partial(bot_commands.reset_system_message_command, bot_instance=self)))
 
         application.add_error_handler(self.error)
+
+        # Start the asyncio loop for schedule_daily_reset in a separate thread
+        threading.Thread(target=self.run_asyncio_loop, daemon=True).start()
+
+        # Start the polling loop
         application.run_polling()
 
 if __name__ == '__main__':

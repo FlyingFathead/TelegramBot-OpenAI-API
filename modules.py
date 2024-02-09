@@ -1,9 +1,13 @@
 # modules.py
 import os
 import json
+import asyncio
 import datetime
+import logging
 from transformers import GPT2Tokenizer
 import re
+
+logger = logging.getLogger('TelegramBotLogger')
 
 # count tokens (w/ check)
 def count_tokens(text, tokenizer):
@@ -41,6 +45,25 @@ def write_total_token_usage(token_usage_file, usage):
 
     with open(token_usage_file, 'w') as file:
         json.dump(data, file)
+
+# reset token count at midnight
+def reset_token_usage_at_midnight(token_usage_file):
+    current_time = datetime.datetime.utcnow()
+    reset_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1)
+    
+    if current_time >= reset_time:
+        try:
+            with open(token_usage_file, 'r+') as file:
+                data = json.load(file)
+                current_date = current_time.strftime('%Y-%m-%d')
+                if current_date not in data:
+                    data = {current_date: 0}  # Reset the file with today's date and 0 usage
+                    file.seek(0)
+                    json.dump(data, file)
+                    file.truncate()
+                    logger.info(f"Token usage reset for {current_date}.")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to reset token usage: {e}")
 
 # convert markdowns to html
 def escape_html(text):
