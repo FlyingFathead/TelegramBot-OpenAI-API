@@ -49,23 +49,23 @@ def write_total_token_usage(token_usage_file, usage):
         json.dump(data, file)
 
 # reset token count at midnight
-def reset_token_usage_at_midnight(token_usage_file):
+def reset_token_usage_at_midnight(token_usage_file, reset_in_memory_counter_callback=None):
     try:
         current_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-        # Open the token usage file to read the current usage data
         if os.path.exists(token_usage_file):
             with open(token_usage_file, 'r+') as file:
                 data = json.load(file)
-                # Reset the token usage for the current date
-                data[current_date] = 0
-                file.seek(0)  # Go back to the start of the file
-                json.dump(data, file)  # Write the updated data
-                file.truncate()  # Remove any remaining content
-            logger.info(f"Token usage reset for {current_date}.")
+                data[current_date] = 0  # Reset the token usage for the current date
+                file.seek(0)
+                json.dump(data, file)
+                file.truncate()
+            logging.info(f"Token usage reset for {current_date}.")
+            if reset_in_memory_counter_callback:
+                reset_in_memory_counter_callback()  # Reset the in-memory counter if callback is provided
         else:
-            logger.error("Token usage file does not exist. No reset performed.")
+            logging.error("Token usage file does not exist. No reset performed.")
     except Exception as e:
-        logger.error(f"Failed to reset token usage: {e}")
+        logging.error(f"Failed to reset token usage: {e}")
 
 # convert markdowns to html
 def escape_html(text):

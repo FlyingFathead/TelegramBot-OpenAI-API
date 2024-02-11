@@ -60,10 +60,17 @@ async def reset_daily_tokens_command(update: Update, context: CallbackContext, b
         return
 
     try:
-        # Directly call the function with the path to the token usage file
-        reset_token_usage_at_midnight(bot_instance.token_usage_file)
-        logging.info(f"User {user_id} has reset the daily token usage.")
-        await update.message.reply_text("Daily token usage has been reset.")
+        
+        # (old fallback method, JIC)
+        # Reset the in-memory token usage counter
+        # bot_instance.total_token_usage = 0
+        # logging.info("In-memory token usage counter reset.")
+
+        # Pass the reset_total_token_usage method as a callback to reset_token_usage_at_midnight
+        reset_token_usage_at_midnight(bot_instance.token_usage_file, bot_instance.reset_total_token_usage)
+        logging.info(f"User {user_id} has reset the daily token usage, including the in-memory token usage counter.")
+        await update.message.reply_text("Daily token usage has been reset, including the in-memory token usage counter.")
+        
     except Exception as e:
         logging.error(f"Failed to reset daily token usage: {e}")
         await update.message.reply_text("Failed to reset daily token usage.")

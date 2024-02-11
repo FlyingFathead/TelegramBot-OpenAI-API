@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.46.3"
+version_number = "0.47"
 
 # experimental modules
 import requests
@@ -183,6 +183,11 @@ class TelegramBot:
     def write_total_token_usage(self, usage):
         write_total_token_usage(self.token_usage_file, usage)
 
+    # Reset the in-memory token usage counter.
+    def reset_total_token_usage(self):
+        self.total_token_usage = 0
+        logging.info("In-memory token usage counter reset.")
+
     # time the daily token usage resets
     async def schedule_daily_reset(self):
         while True:
@@ -192,7 +197,9 @@ class TelegramBot:
             midnight = datetime.datetime(year=tomorrow.year, month=tomorrow.month, day=tomorrow.day, hour=0, minute=0, second=1)
             wait_seconds = (midnight - now).total_seconds()
             await asyncio.sleep(wait_seconds)
-            reset_token_usage_at_midnight(self.token_usage_file)
+            # reset_token_usage_at_midnight(self.token_usage_file)
+            # Pass the reset_total_token_usage method as a callback
+            reset_token_usage_at_midnight(self.token_usage_file, self.reset_total_token_usage)            
             self.logger.info("Daily token usage counter reset.")
 
     # running an asyncio loop for this
