@@ -69,6 +69,74 @@ custom_functions.append({
     }
 )
 
+# get map image from maptiler (for maptiler's paid plan only)
+"""
+custom_functions.append({
+    'name': 'get_map',
+    'description': 'Generates a static map image for a given location, identified either by direct coordinates or an address.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'address': {
+                'type': 'string',
+                'description': 'Address of the location to fetch the map for. If provided, the service will first resolve the address to coordinates.'
+            },
+            'latitude': {
+                'type': 'number',
+                'description': 'Latitude of the location, required if address is not provided.'
+            },
+            'longitude': {
+                'type': 'number',
+                'description': 'Longitude of the location, required if address is not provided.'
+            },
+            'zoom': {
+                'type': 'number',
+                'description': 'Zoom level of the resulting map image.',
+                'default': 12  # Example default value
+            },
+            'width': {
+                'type': 'number',
+                'description': 'Width of the map image in pixels.',
+                'default': 400  # Example default value
+            },
+            'height': {
+                'type': 'number',
+                'description': 'Height of the map image in pixels.',
+                'default': 300  # Example default value
+            },
+            'mapId': {
+                'type': 'string',
+                'description': 'Identifier of the map style to use for the image.',
+                'default': 'streets'  # Default map style
+            }
+        },
+        'required': []  # Note: Either 'address' or both 'latitude' and 'longitude' should be provided, you'll need to handle this logic in your function implementation.
+    }
+}) """
+
+#
+# > others
+#
+
+""" # location info
+custom_functions.append({
+    'name': 'get_location_info_from_coordinates',
+    'description': 'Provides information and maps for a specific latitude and longitude.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'latitude': {
+                'type': 'number',
+                'description': 'Latitude of the location'
+            },
+            'longitude': {
+                'type': 'number',
+                'description': 'Longitude of the location'
+            }
+        }
+    }
+}) """
+
 """ # this is for searching between coordinates
 custom_functions.append({
     'name': 'get_route',
@@ -91,25 +159,6 @@ custom_functions.append({
             'format': {
                 'type': 'string',
                 'description': 'Format of the route information (e.g., json)'
-            }
-        }
-    }
-}) """
-
-""" # location info
-custom_functions.append({
-    'name': 'get_location_info',
-    'description': 'Provides information and maps for a specific latitude and longitude.',
-    'parameters': {
-        'type': 'object',
-        'properties': {
-            'latitude': {
-                'type': 'number',
-                'description': 'Latitude of the location'
-            },
-            'longitude': {
-                'type': 'number',
-                'description': 'Longitude of the location'
             }
         }
     }

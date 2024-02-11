@@ -24,6 +24,7 @@ from modules import markdown_to_html
 from custom_functions import custom_functions, observe_chat
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather
+from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
@@ -184,6 +185,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     function_call = response_json['choices'][0]['message']['function_call']
                     function_name = function_call['name']
 
+                    # get the weather via openweathermap api
                     if function_name == 'get_weather':
                         # Fetch the weather data
                         arguments = json.loads(function_call.get('arguments', '{}'))
@@ -208,7 +210,35 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info)
                         await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info, parse_mode=ParseMode.HTML)
                         return  # Exit the loop after handling the custom function
-                    
+
+                    # get the map via maptiler
+                    elif function_name == 'get_map':
+                        # Fetch the map data
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        address = arguments.get('address', 'DefaultLocation')
+                        
+                        # First, get the coordinates from the address
+                        coords_info = await get_coordinates_from_address(address)
+                        if isinstance(coords_info, dict):
+                            latitude = coords_info['latitude']
+                            longitude = coords_info['longitude']
+                            
+                            # Now, generate the map image with these coordinates
+                            map_image_url = await get_static_map_image(latitude, longitude, zoom=12, width=400, height=300)  # Example parameters
+
+                            # Note about the action taken
+                            action_note = f"[Generated and sent the map for: {address}]"
+
+                            # Append the note and map URL to the chat history
+                            chat_history.append({"role": "assistant", "content": action_note})
+                            context.chat_data['chat_history'] = chat_history
+
+                            # Send the map URL as a reply
+                            reply_message = f"Here's the map you requested: {map_image_url}"
+                            await context.bot.send_message(chat_id=chat_id, text=reply_message, parse_mode=ParseMode.HTML)
+                            return  # Exit the loop after handling the custom function
+
+                    # get directions to an address
                     elif function_name == 'get_directions_from_addresses':
                         # Extract arguments for direction fetching
                         arguments = json.loads(function_call.get('arguments', '{}'))
