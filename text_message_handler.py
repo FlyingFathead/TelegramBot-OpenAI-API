@@ -22,6 +22,7 @@ from modules import markdown_to_html
 
 # the tg-bot's API function calls
 from custom_functions import custom_functions, observe_chat
+from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather
 
 # text message handling logic
@@ -206,6 +207,46 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Send the formatted weather information as a reply
                         # await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info)
                         await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info, parse_mode=ParseMode.HTML)
+                        return  # Exit the loop after handling the custom function
+                    
+                    elif function_name == 'get_directions_from_addresses':
+                        # Extract arguments for direction fetching
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        start_address = arguments.get('start_address')
+                        end_address = arguments.get('end_address')
+                        profile = arguments.get('profile', 'driving-car')  # Use a default value if not specified
+                        
+                        logging.info(f"Received directions request: start_address={start_address}, end_address={end_address}, profile={profile}")
+                        
+                        # Fetch directions based on addresses
+                        directions_info = await get_directions_from_addresses(start_address, end_address, profile)
+                        
+                        if directions_info:
+                            logging.info(f"Received directions info: {directions_info}")
+                        else:
+                            logging.error("Failed to fetch directions info.")
+                        
+                        # Format and potentially translate the directions info
+                        formatted_directions_info = await format_and_translate_directions(bot, user_message, directions_info)
+                        
+                        if formatted_directions_info:
+                            logging.info(f"Formatted directions info for reply: {formatted_directions_info}")
+                        else:
+                            logging.error("Failed to format directions info for reply.")
+                        
+                        # Note about the action taken
+                        action_note = f"[Fetched and sent the following OpenRouteService directions to the user]: {formatted_directions_info}"
+                        
+                        # Append the note and formatted directions information to the chat history
+                        chat_history.append({"role": "assistant", "content": action_note})
+                        context.chat_data['chat_history'] = chat_history
+                        
+                        logging.info("Appended directions info to chat history and sending reply.")
+                        
+                        # Send the formatted directions information as a reply
+                        await context.bot.send_message(chat_id=chat_id, text=formatted_directions_info, parse_mode=ParseMode.HTML)
+                        logging.info("Reply sent to user.")
+                        
                         return  # Exit the loop after handling the custom function
 
                 # Extract the response and send it back to the user

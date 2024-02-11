@@ -14,7 +14,7 @@ def count_tokens(text, tokenizer):
     if text is None:
         return 0
     token_count = len(tokenizer.encode(text))
-    logger.info(f"Counting tokens for text: '{text[:30]}...' Results in token count: {token_count}")
+    logger.debug(f"Counting tokens for text: '{text[:30]}...' Results in token count: {token_count}")
     return token_count
 
 # read total token usage

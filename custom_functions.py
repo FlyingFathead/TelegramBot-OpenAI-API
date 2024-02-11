@@ -6,6 +6,7 @@
 
 import logging
 
+# from api_get_openrouteservice import get_route, get_directions_from_addresses
 # from elasticsearch_handler import search_es  # Import the Elasticsearch search function
 
 async def observe_chat():
@@ -42,6 +43,58 @@ custom_functions = [
     }
     # ... other functions ...
 ]
+
+custom_functions.append({
+        'name': 'get_directions_from_addresses',
+        'description': '[Use when user requests for directions] Provides directions between two addresses using the OpenRouteService API.',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'start_address': {
+                    'type': 'string',
+                    'description': 'Starting address of the route'
+                },
+                'end_address': {
+                    'type': 'string',
+                    'description': 'Ending address of the route'
+                },
+                'profile': {
+                    'type': 'string',
+                    'description': 'Transportation profile (e.g., driving-car, cycling-regular)',
+                    'default': 'driving-car'  # Provide a default value if not specified
+                }
+            },
+            'required': ['start_address', 'end_address']  # Mark required properties
+        }
+    }
+)
+
+""" # this is for searching between coordinates
+custom_functions.append({
+    'name': 'get_route',
+    'description': 'Provides directions between two points using the OpenRouteService API.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'start_coords': {
+                'type': 'string',
+                'description': 'Starting coordinates of the route'
+            },
+            'end_coords': {
+                'type': 'string',
+                'description': 'Ending coordinates of the route'
+            },
+            'profile': {
+                'type': 'string',
+                'description': 'Transportation profile (e.g., driving-car, cycling-regular)'
+            },
+            'format': {
+                'type': 'string',
+                'description': 'Format of the route information (e.g., json)'
+            }
+        }
+    }
+}) """
 
 """ # location info
 custom_functions.append({

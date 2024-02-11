@@ -5,6 +5,7 @@
 - **Supports real-time weather info via OpenWeatherMap API**
 - **Supports geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
+- **Supports navigation instructions via Openrouteservice API**  
 - Daily token usage tracking & rate limiting for API usage / cost management
 
 # Prerequisites
@@ -34,7 +35,8 @@ matplotlib>=3.8.2
 - Install the required packages either from the list above or with: `pip install -r requirements.txt`
 - Set up your Telegram bot token either as `TELEGRAM_BOT_TOKEN` environment variable or put it into a text file named `bot_token.txt` inside the main program directory
 - Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
-- If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly.
+- If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
+- If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
 - Adjust your configuration and settings in `config.ini` to your liking
 - Run with: `python main.py`
 
@@ -42,6 +44,7 @@ matplotlib>=3.8.2
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.48 - Openrouteservice API implementation
 - v0.47 - more token counting & polling logic fixes
 - v0.46.2 - fixes to token count & polling logic
 - v0.46 - rewrote the polling logic on daily token count resets
