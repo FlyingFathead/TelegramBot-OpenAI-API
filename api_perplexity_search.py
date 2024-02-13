@@ -177,7 +177,6 @@ async def translate_response(bot, user_message, perplexity_response):
 
 
 
-
 # alternatives
 
 """ # translate perplexity replies // no language detection

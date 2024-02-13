@@ -16,6 +16,7 @@ import utils
 from telegram import Update
 from telegram.ext import CallbackContext
 from telegram.constants import ParseMode
+from telegram import constants
 
 # tg-bot specific stuff
 from modules import markdown_to_html
@@ -149,6 +150,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
         # Log the incoming user message
         bot.log_message('User', update.message.from_user.id, update.message.text)
+
+        # Show typing animation
+        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
         for attempt in range(bot.max_retries):
             try:
@@ -297,6 +301,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             if perplexity_response:  # Ensure there's a response
                                 # Assuming perplexity_response is the raw string response
                                 bot_reply_content = perplexity_response.strip()
+
+                                await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
                                 # Translate or process the response as necessary
                                 bot_reply_formatted = await translate_response(bot, user_message, bot_reply_content)
