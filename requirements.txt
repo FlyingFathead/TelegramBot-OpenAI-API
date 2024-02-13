@@ -1,5 +1,7 @@
 configparser>=6.0.0
 httpx>=0.25.2
+langdetect>=1.0.9
+matplotlib>=3.8.2
 openai>=1.6.1
 pydub>=0.25.1
 python-telegram-bot>=20.7
@@ -7,4 +9,3 @@ transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
 timezonefinder>=6.4.0
-matplotlib>=3.8.2

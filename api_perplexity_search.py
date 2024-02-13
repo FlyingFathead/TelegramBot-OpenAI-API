@@ -4,6 +4,7 @@ import openai
 import httpx
 import logging
 import os
+from langdetect import detect
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -108,21 +109,33 @@ async def query_perplexity(question: str):
             logging.error(f"Perplexity API Error: {response.text}")
             return None
 
-# translate perplexity replies
-async def translate_response(bot, user_request, perplexity_response):
+async def translate_response(bot, user_message, perplexity_response):
     # Log the Perplexity API response before translation
     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
+
+    # Detect the language of the user's question
+    try:
+        user_lang = detect(user_message)
+        logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
+    except Exception as e:
+        logging.error(f"Error detecting user language: {e}")
+        return perplexity_response  # Return original response if language detection fails
+
+    # Check if the detected language is English, skip translation if it is
+    if user_lang == 'en':
+        logging.info("User's question is in English, skipping translation.")
+        return perplexity_response
 
     # System message to guide the model for translating
     system_message = {
         "role": "system",
-        "content": "Translate the following response to whatever query language the original user question was. Example: if user asked their question in Finnish, translate the provided reply text to Finnish)."
+        "content": "Translate the provided assistant response to the language that the user's question was in, otherwise pass it as-is. Example: if user asked their question in Finnish, translate the provided reply text to Finnish, otherwise pass it back to the user as it is."
     }
 
     # Prepare the chat history with only the Perplexity's response as the assistant's message to be translated
     chat_history = [
         system_message,
-        {"role": "user", "content": user_request},
+        {"role": "user", "content": user_message},
         {"role": "assistant", "content": perplexity_response}
     ]
 
@@ -157,3 +170,60 @@ async def translate_response(bot, user_request, perplexity_response):
     else:
         logging.error(f"Error in translating response: {response.text}")
         return f"Failed to translate, API returned status code {response.status_code}: {response.text}"
+
+
+
+
+
+
+# alternatives
+
+""" # translate perplexity replies // no language detection
+async def translate_response(bot, user_message, perplexity_response):
+    # Log the Perplexity API response before translation
+    logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
+
+    # System message to guide the model for translating
+    system_message = {
+        "role": "system",
+        "content": "Translate the provided assistant response to the language that the user's question was in, otherwise pass it as-is. Example: if user asked their question in Finnish, translate the provided reply text to Finnish, otherwise pass it back to the user as it is."
+    }
+
+    # Prepare the chat history with only the Perplexity's response as the assistant's message to be translated
+    chat_history = [
+        system_message,
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": perplexity_response}
+    ]
+
+    # Prepare the payload for the OpenAI API
+    payload = {
+        "model": bot.model,  # Specify the OpenAI model you're using for translating
+        "messages": chat_history,
+        "temperature": 0.5  # Adjust based on your preference for randomness in translation
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {bot.openai_api_key}"  # Use the correct API key variable
+    }
+
+    # Make the API request to OpenAI
+    async with httpx.AsyncClient() as client:
+        response = await client.post("https://api.openai.com/v1/chat/completions",
+                                     json=payload,
+                                     headers=headers)
+
+    # Process the response
+    if response.status_code == 200:
+        try:
+            response_json = response.json()
+            translated_reply = response_json['choices'][0]['message']['content'].strip()
+            logging.info(f"Translated response: {translated_reply}")
+            return translated_reply
+        except Exception as e:
+            logging.error(f"Error processing translation response: {e}")
+            return f"Translation failed due to an error: {e}"  
+    else:
+        logging.error(f"Error in translating response: {response.text}")
+        return f"Failed to translate, API returned status code {response.status_code}: {response.text}" """

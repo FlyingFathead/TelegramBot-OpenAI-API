@@ -299,7 +299,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 bot_reply_content = perplexity_response.strip()
 
                                 # Translate or process the response as necessary
-                                bot_reply_formatted = await translate_response(bot, question, bot_reply_content)
+                                bot_reply_formatted = await translate_response(bot, user_message, bot_reply_content)
 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 

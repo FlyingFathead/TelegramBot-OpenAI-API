@@ -16,6 +16,8 @@
 ```
 configparser>=6.0.0
 httpx>=0.25.2
+langdetect>=1.0.9
+matplotlib>=3.8.2
 openai>=1.6.1
 pydub>=0.25.1
 python-telegram-bot>=20.7
@@ -23,7 +25,6 @@ transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
 timezonefinder>=6.4.0
-matplotlib>=3.8.2
 ```
 - (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
 
@@ -47,6 +48,7 @@ matplotlib>=3.8.2
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.50.1 - `langdetect` on auto-assessing translation requirements
 - v0.50 - Custom function call: Perplexity API fact-checking
 - v0.49.1 - Modularity adjustments
 - v0.48 - Openrouteservice API implementation
