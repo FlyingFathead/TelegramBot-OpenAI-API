@@ -25,6 +25,7 @@ from custom_functions import custom_functions, observe_chat
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
+from api_perplexity_search import query_perplexity, translate_response
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
@@ -278,6 +279,55 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         logging.info("Reply sent to user.")
                         
                         return  # Exit the loop after handling the custom function
+       
+                    # Handling the Perplexity API call with automatic translation
+                    elif function_name == 'query_perplexity':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        question = arguments.get('question', '')
+
+                        if question:
+                            logging.info(f"Querying Perplexity with question: {question}")
+
+                            # Make the asynchronous API call to query Perplexity
+                            perplexity_response = await query_perplexity(question)
+
+                            # Log the raw Perplexity API response for debugging
+                            logging.info(f"Raw Perplexity API Response: {perplexity_response}")
+
+                            if perplexity_response:  # Ensure there's a response
+                                # Assuming perplexity_response is the raw string response
+                                bot_reply_content = perplexity_response.strip()
+
+                                # Translate or process the response as necessary
+                                bot_reply_formatted = await translate_response(bot, question, bot_reply_content)
+
+                                if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
+                                    await context.bot.send_message(
+                                        chat_id=update.effective_chat.id,
+                                        text=bot_reply_formatted,
+                                        parse_mode=ParseMode.HTML
+                                    )
+                                else:
+                                    # Log the error and maybe send a different message or handle the error differently
+                                    logging.error("Error processing or translating the Perplexity response.")
+                                    await context.bot.send_message(
+                                        chat_id=update.effective_chat.id,
+                                        text="Sorry, I couldn't fetch an answer for that. Please try again later."
+                                    )
+                            else:
+                                logging.error("No valid response from Perplexity.")
+                                await context.bot.send_message(
+                                    chat_id=update.effective_chat.id,
+                                    text="Sorry, I couldn't fetch an answer for that. Please try again later."
+                                )
+                        else:
+                            logging.warning("No question was provided for the Perplexity query.")
+                            await context.bot.send_message(
+                                chat_id=update.effective_chat.id,
+                                text="I need a question to ask. Please try again with a question."
+                            )
+                        
+                        return
 
                 # Extract the response and send it back to the user
                 bot_reply = response_json['choices'][0]['message']['content'].strip()

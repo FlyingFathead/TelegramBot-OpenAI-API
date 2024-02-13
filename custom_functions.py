@@ -69,6 +69,21 @@ custom_functions.append({
     }
 )
 
+# Update the custom_functions list with the new Perplexity API function
+custom_functions.append({
+    'name': 'query_perplexity',
+    'description': '[Use for dynamic inquiries or fact-checking. ALWAYS FACT CHECK AND USE THIS WHENEVER UNSURE, i.e. if user asks for something factual or current!] This queries the Perplexity.ai API using the pplx-70b-online model to answer and fact-check up-to-date information. Always form your question in English and as if you were the user! Pass the question directly as if you were asking a person, do not refer to Perplexity.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'question': {
+                'type': 'string',
+                'description': 'The question or statement to fact-check or inquire about, do not refer to perplexity, ask the question directly, IN ENGLISH. ALWAYS ASK IN ENGLISH.'
+            }
+        }
+    }
+})
+
 # get map image from maptiler (for maptiler's paid plan only)
 """
 custom_functions.append({

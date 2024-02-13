@@ -7,6 +7,8 @@
   - (with weather forecasts around the world in all OpenAI API supported languages)
 - **Supports navigation instructions via Openrouteservice API**  
 - Daily token usage tracking & rate limiting for API usage / cost management
+- **Supports Perplexity API models in conjunction with OpenAI models**
+  - Very useful for i.e. fact-checking latest data to supplement OpenAI's cutoff dates
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -37,6 +39,7 @@ matplotlib>=3.8.2
 - Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
 - If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
 - If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
+- If you wish to use Perplexity API's supplementary fact-checking with their online models, register at [Perplexity.ai](https://perplexity.ai), buy some API credits and set your Perplexity API key to environment variable: `PERPLEXITY_API_KEY`
 - Adjust your configuration and settings in `config.ini` to your liking
 - Run with: `python main.py`
 
@@ -44,6 +47,7 @@ matplotlib>=3.8.2
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.50 - Custom function call: Perplexity API fact-checking
 - v0.49.1 - Modularity adjustments
 - v0.48 - Openrouteservice API implementation
 - v0.47 - more token counting & polling logic fixes

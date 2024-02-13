@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.48.1"
+version_number = "0.50"
 
 # experimental modules
 import requests
@@ -68,7 +68,8 @@ class TelegramBot:
         # Attempt to get bot & API tokens
         try:
             self.telegram_bot_token = get_bot_token()
-            openai.api_key = get_api_key()
+            self.openai_api_key = get_api_key()  # Store the API key as an attribute
+            openai.api_key = self.openai_api_key
         except FileNotFoundError as e:
             self.logger.error(f"Required configuration not found: {e}")
             sys.exit(1)
