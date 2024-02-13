@@ -72,7 +72,7 @@ custom_functions.append({
 # Update the custom_functions list with the new Perplexity API function
 custom_functions.append({
     'name': 'query_perplexity',
-    'description': '[Use for dynamic inquiries or fact-checking. ALWAYS FACT CHECK AND USE THIS WHENEVER UNSURE, i.e. if user asks for something factual or current!] This queries the Perplexity.ai API using the pplx-70b-online model to answer and fact-check up-to-date information. Always form your question in English and as if you were the user! Pass the question directly as if you were asking a person, do not refer to Perplexity.',
+    'description': '[Use for dynamic inquiries, current real-time events and/or fact-checking. ALWAYS USE TO FACT CHECK WHENEVER UNSURE, i.e. if user asks for something factual or current!] This queries the Perplexity.ai API using the pplx-70b-online model to answer and fact-check up-to-date information. Always form your question in English and as if you were the user! Pass the question directly as if you were asking a person. Use for checking real-time data.',
     'parameters': {
         'type': 'object',
         'properties': {
