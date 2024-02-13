@@ -1,9 +1,11 @@
 # api_perplexity_search.py
 
+import re
 import openai
 import httpx
 import logging
 import os
+
 from langdetect import detect
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
@@ -113,9 +115,12 @@ async def translate_response(bot, user_message, perplexity_response):
     # Log the Perplexity API response before translation
     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
 
+    # Preprocess the user_message to remove known metadata patterns
+    cleaned_message = re.sub(r"\[Whisper STT transcribed message from the user\]|\[end\]", "", user_message).strip()
+
     # Detect the language of the user's question
     try:
-        user_lang = detect(user_message)
+        user_lang = detect(cleaned_message)
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
@@ -126,6 +131,7 @@ async def translate_response(bot, user_message, perplexity_response):
         logging.info("User's question is in English, skipping translation.")
         return perplexity_response
     else:
+        # await context.bot.send_message(chat_id=update.effective_chat.id, text="<i>Translating, please wait...</i>", parse_mode=telegram.ParseMode.HTML)
         logging.info(f"User's question is in {user_lang}, proceeding with translation.")
     
     # System message to guide the model for translating
