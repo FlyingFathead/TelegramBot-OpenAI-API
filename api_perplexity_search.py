@@ -116,7 +116,7 @@ async def translate_response(bot, user_request, perplexity_response):
     # System message to guide the model for translating
     system_message = {
         "role": "system",
-        "content": "Translate the following response to whatever query language the original user question was (i.e. if user asked in Finnish, translate to Finnish)."
+        "content": "Translate the following response to whatever query language the original user question was. Example: if user asked their question in Finnish, translate the provided reply text to Finnish)."
     }
 
     # Prepare the chat history with only the Perplexity's response as the assistant's message to be translated
