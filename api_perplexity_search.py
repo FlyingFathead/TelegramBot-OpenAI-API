@@ -125,18 +125,20 @@ async def translate_response(bot, user_message, perplexity_response):
     if user_lang == 'en':
         logging.info("User's question is in English, skipping translation.")
         return perplexity_response
-
+    else:
+        logging.info(f"User's question is in {user_lang}, proceeding with translation.")
+    
     # System message to guide the model for translating
     system_message = {
         "role": "system",
-        "content": "Translate the provided assistant response to the language that the user's question was in, otherwise pass it as-is. Example: if user asked their question in Finnish, translate the provided reply text to Finnish, otherwise pass it back to the user as it is."
+        "content": f"Translate the message to: {user_lang}."
     }
-
+    
     # Prepare the chat history with only the Perplexity's response as the assistant's message to be translated
     chat_history = [
         system_message,
-        {"role": "user", "content": user_message},
-        {"role": "assistant", "content": perplexity_response}
+        # {"role": "user", "content": user_message},
+        {"role": "user", "content": perplexity_response}
     ]
 
     # Prepare the payload for the OpenAI API
