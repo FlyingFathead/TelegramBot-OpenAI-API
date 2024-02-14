@@ -84,7 +84,31 @@ custom_functions.append({
     }
 })
 
-# get map image from maptiler (for maptiler's paid plan only)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Below are API function call features that can be enabled if and when needed.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#
+# > convert timezone according to coordinates
+#
+""" custom_functions.append({
+    'name': 'get_local_time',
+    'description': 'Fetches the current local time for a specified city or location.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'location_name': {
+                'type': 'string',
+                'description': 'Name of the location to fetch the local time for.'
+            }
+        },
+        'required': ['location_name']
+    }
+}) """
+
+#
+# > get map image from maptiler (for maptiler's paid plan only)
+#
 """
 custom_functions.append({
     'name': 'get_map',
@@ -130,9 +154,8 @@ custom_functions.append({
 }) """
 
 #
-# > others
+# > others; for reference
 #
-
 """ # location info
 custom_functions.append({
     'name': 'get_location_info_from_coordinates',
@@ -179,7 +202,10 @@ custom_functions.append({
     }
 }) """
 
-# here's a template on what other stuff you might want to add to your bot
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Below's a template on what other stuff you might want to add to your bot
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 unused_functions_template = [
     {
         'name': 'observe_chat',

@@ -340,6 +340,34 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         
                         return
 
+                    #
+                    # > currently unused function calls
+                    #
+
+                    """ elif function_name == 'get_local_time':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        location_name = arguments.get('location_name', '')
+
+                        logging.info(f"Fetching local time for location: {location_name}")
+
+                        # Assuming you have implemented this function to fetch the time
+                        local_time = await get_local_time_for_location(location_name)
+
+                        if local_time:
+                            logging.info(f"Local time for {location_name}: {local_time}")
+                        else:
+                            logging.error(f"Failed to fetch local time for {location_name}.")
+
+                        action_note = f"[Fetched and sent the local time for: {location_name} is {local_time}]"
+
+                        # Append the note and local time to the chat history
+                        chat_history.append({"role": "assistant", "content": action_note})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Send the local time as a reply
+                        await context.bot.send_message(chat_id=chat_id, text=local_time, parse_mode=ParseMode.HTML)
+                        # return  # Exit the loop after handling the custom function """
+
                 # Extract the response and send it back to the user
                 bot_reply = response_json['choices'][0]['message']['content'].strip()
 
