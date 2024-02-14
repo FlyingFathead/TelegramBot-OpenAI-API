@@ -8,7 +8,7 @@ import httpx  # For making requests to a geocoding API
 
 def get_coordinates_for_location(location_name: str) -> tuple:
 
-    # etches the latitude and longitude for a given location name.
+    # Fetches the latitude and longitude for a given location name.
     # This function uses a geocoding API to convert location names to coordinates.
     # Replace 'Your_API_Key_Here' with your actual API key for the geocoding service.
 
