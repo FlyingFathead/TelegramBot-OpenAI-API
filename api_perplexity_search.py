@@ -5,8 +5,17 @@ import openai
 import httpx
 import logging
 import os
+import httpx
+import asyncio
 
 from langdetect import detect
+
+# ~~~~~~~~~
+# variables
+# ~~~~~~~~~
+
+# Global variable for chunk size
+CHUNK_SIZE = 500  # Set this value as needed
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -111,6 +120,7 @@ async def query_perplexity(question: str):
             logging.error(f"Perplexity API Error: {response.text}")
             return None
 
+# translate response; in one go
 async def translate_response(bot, user_message, perplexity_response):
     # Log the Perplexity API response before translation
     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
@@ -179,12 +189,97 @@ async def translate_response(bot, user_message, perplexity_response):
         logging.error(f"Error in translating response: {response.text}")
         return f"Failed to translate, API returned status code {response.status_code}: {response.text}"
 
+# translate in chunks
+async def translate_response_chunked(bot, user_message, perplexity_response):
+    logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
 
+    # Clean the user_message as before
+    cleaned_message = re.sub(r"\[Whisper STT transcribed message from the user\]|\[end\]", "", user_message).strip()
 
+    try:
+        user_lang = detect(cleaned_message)
+        logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
+    except Exception as e:
+        logging.error(f"Error detecting user language: {e}")
+        return perplexity_response
 
+    # Skip translation if the language is English
+    if user_lang == 'en':
+        logging.info("User's question is in English, skipping translation.")
+        return perplexity_response
 
+    # Use smart_chunk to split the response text
+    chunks = smart_chunk(perplexity_response)
+
+    translated_chunks = []
+
+    for chunk in chunks:
+        logging.info(f"Translating chunk: {chunk}")
+        # Prepare the payload for each chunk
+        payload = {
+            "model": bot.model,
+            "messages": [
+                {"role": "system", "content": f"Translate the message to: {user_lang}."},
+                {"role": "user", "content": chunk}
+            ],
+            "temperature": 0.5  # Keep as per your requirement
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {bot.openai_api_key}"
+        }
+
+        # Translate each chunk
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+
+        if response.status_code == 200:
+            try:
+                response_json = response.json()
+                translated_chunk = response_json['choices'][0]['message']['content'].strip()
+                translated_chunks.append(translated_chunk)
+            except Exception as e:
+                logging.error(f"Error processing translation response for a chunk: {e}")
+                # Handle partial translation or decide to abort/return error based on your preference
+        else:
+            logging.error(f"Error in translating chunk: {response.text}")
+            # Handle error, e.g., by breaking the loop or accumulating errors
+
+    # Combine translated chunks
+    translated_response = " ".join(translated_chunks)
+    return translated_response
+
+# Adjusted smart_chunk method to use the global CHUNK_SIZE
+def smart_chunk(text):
+    global CHUNK_SIZE
+    chunks = []
+    start_index = 0
+
+    while start_index < len(text):
+        # Check if remaining text is shorter than CHUNK_SIZE
+        if len(text) - start_index <= CHUNK_SIZE:
+            chunks.append(text[start_index:].strip())
+            break
+        else:
+            # Find the nearest newline within CHUNK_SIZE
+            split_pos = text.rfind('\n', start_index, start_index + CHUNK_SIZE)
+            if split_pos == -1 or split_pos < start_index:
+                # If no newline is found, fallback to space or period, then to CHUNK_SIZE
+                split_pos = max(
+                    text.rfind('. ', start_index, start_index + CHUNK_SIZE),
+                    text.rfind(' ', start_index, start_index + CHUNK_SIZE),
+                    start_index + CHUNK_SIZE - 1
+                )
+
+            chunks.append(text[start_index:split_pos + 1].strip())
+            start_index = split_pos + 1
+
+    return chunks
+
+# ~~~~~~~~~~~~
 # alternatives
-
+# ~~~~~~~~~~~~
 """ # translate perplexity replies // no language detection
 async def translate_response(bot, user_message, perplexity_response):
     # Log the Perplexity API response before translation

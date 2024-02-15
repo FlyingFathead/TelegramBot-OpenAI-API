@@ -26,7 +26,7 @@ from custom_functions import custom_functions, observe_chat
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
-from api_perplexity_search import query_perplexity, translate_response
+from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
@@ -305,7 +305,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
                                 # Translate or process the response as necessary
-                                bot_reply_formatted = await translate_response(bot, user_message, bot_reply_content)
+                                bot_reply_formatted = await translate_response_chunked(bot, user_message, bot_reply_content)
 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 
