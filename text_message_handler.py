@@ -305,7 +305,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
                                 # Translate or process the response as necessary
-                                bot_reply_formatted = await translate_response_chunked(bot, user_message, bot_reply_content)
+                                bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 

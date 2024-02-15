@@ -9,6 +9,7 @@ import httpx
 import asyncio
 
 from langdetect import detect
+from telegram import constants
 
 # ~~~~~~~~~
 # variables
@@ -190,7 +191,7 @@ async def translate_response(bot, user_message, perplexity_response):
         return f"Failed to translate, API returned status code {response.status_code}: {response.text}"
 
 # translate in chunks
-async def translate_response_chunked(bot, user_message, perplexity_response):
+async def translate_response_chunked(bot, user_message, perplexity_response, context, update):
     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
 
     # Clean the user_message as before
@@ -208,6 +209,9 @@ async def translate_response_chunked(bot, user_message, perplexity_response):
         logging.info("User's question is in English, skipping translation.")
         return perplexity_response
 
+    # Show typing animation at the start
+    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+
     # Use smart_chunk to split the response text
     chunks = smart_chunk(perplexity_response)
 
@@ -216,6 +220,10 @@ async def translate_response_chunked(bot, user_message, perplexity_response):
     for chunk in chunks:
         logging.info(f"Translating chunk: {chunk}")
         # Prepare the payload for each chunk
+
+        # Show typing animation at the start
+        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+
         payload = {
             "model": bot.model,
             "messages": [
