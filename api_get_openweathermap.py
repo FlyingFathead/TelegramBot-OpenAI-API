@@ -23,48 +23,45 @@ from timezonefinder import TimezoneFinder
 import pytz
 
 # async def get_weather(city_name, forecast_type='current', exclude='', units='metric', lang='fi'):
-async def get_weather(city_name, forecast_type='current', exclude='current,minutely,hourly,alerts', units='metric', lang='fi'):
+# Correct structure for get_weather function
+async def get_weather(city_name, forecast_type='current', country=None, exclude='', units='metric', lang='fi'):
     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
     if not api_key:
-        logging.info("[WARNING] OpenWeatherMap API key not set. You need to set the 'OPENWEATHERMAP_API_KEY' environment variable to use OpenWeatherMap API functionalities!")
+        logging.error("[WARNING] OpenWeatherMap API key not set. You need to set the 'OPENWEATHERMAP_API_KEY' environment variable to use OpenWeatherMap API functionalities!")
         return "OpenWeatherMap API key not set."
 
-    logging.info(f"Fetching weather data for city: {city_name}, forecast type: {forecast_type}")
+    logging.info(f"Fetching weather data for city: {city_name}, forecast type: {forecast_type}, Country: {country}")
 
-    # Check if city_name is a placeholder or empty
     if not city_name or city_name.lower() in ["defaultcity", ""]:
         return "Please ask the user to provide a valid city name."    
 
     base_url = 'http://api.openweathermap.org/data/2.5/'
 
-    lat, lon = None, None
-    if forecast_type != 'current':
-        lat, lon = await get_coordinates(city_name)
-        if lat is None or lon is None:
-            logging.info("Failed to retrieve coordinates.")            
-            return "Sori, en voinut hakea koordinaatteja."
+    # Attempt to retrieve coordinates for all forecast types, except when direct city name usage is necessary
+    if forecast_type in ['current', '3hour']:
 
-    if forecast_type == 'current':
-        # Retrieve coordinates for the current weather as well
-        lat, lon = await get_coordinates(city_name)
-        if lat is None or lon is None:
-            logging.info("Failed to retrieve coordinates.")            
-            return "Sori, en voinut hakea koordinaatteja."
-                
-        # Now use these coordinates to get the weather data
-        url = f"{base_url}weather?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
+        lat, lon, country = await get_coordinates(city_name, country=country)
+        if lat is None or lon is None or country is None:
+            logging.info("Failed to retrieve coordinates or country.")
+            return "Unable to retrieve coordinates or country for the specified location. Ask the user for clarification."
 
-    elif forecast_type == '3hour':
-        # Use the 'forecast' endpoint for 3-hour forecast data
-        url = f"{base_url}forecast?q={city_name}&appid={api_key}&units={units}&lang={lang}"
+        if forecast_type == 'current':
+            url = f"{base_url}weather?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
+        elif forecast_type == '3hour':
+            # Modify to use coordinates for 3-hour forecast if supported by your API plan
+            # Note: OpenWeatherMap does not directly support '3hour' with these parameters; this is for illustration.
+            # You might need to use the '/forecast' endpoint with city and country for a 3-hour forecast.
+            url = f"{base_url}forecast?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
+    else:
+        # For other types of forecasts or when coordinates are not required or available
+        query = f"{city_name},{country}" if country else city_name
+        url = f"{base_url}forecast?q={query}&appid={api_key}&units={units}&lang={lang}"
 
     # paid subscription forecast types
     # elif forecast_type == 'hourly':
         # url = f"{base_url}onecall?lat={lat}&lon={lon}&exclude=current,minutely,daily&appid={api_key}&units={units}&lang={lang}"
     # elif forecast_type == 'daily':
         # url = f"{base_url}onecall?lat={lat}&lon={lon}&exclude=current,minutely,hourly&appid={api_key}&units={units}&lang={lang}"
-    else:
-        return "Hmm. Vääränlainen sääennusteen tyyppi."
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
@@ -88,6 +85,8 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     wind_speed = data['wind']['speed']
                     wind_direction = data['wind']['deg']
                     visibility = data.get('visibility', 'N/A')
+                    wind_direction_deg = data['wind']['deg']
+                    wind_direction_cardinal = degrees_to_cardinal(wind_direction_deg)
                     snow_1h = data.get('snow', {}).get('1h', 'N/A')
 
                     # Obtain the timezone of the location
@@ -119,18 +118,27 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
                     temp_min_fahrenheit = (temp_min * 9/5) + 32
                     temp_max_fahrenheit = (temp_max * 9/5) + 32
 
+                    # Extract the country code from the API response
+                    country_code = data['sys']['country']  # This extracts 'CA' for Canada
+
+                    # Directly use `country_code` for the `country_info` variable
+                    country_info = f"Country: {country_code}"
+
+                    coordinates_info = f"Latitude: {lat}, Longitude: {lon}"
+
                     detailed_weather_info = (
                         f"Sää paikassa {city_name}: {data['weather'][0]['description']}, "
                         f"Lämpötila: {data['main']['temp']}°C / {temp_fahrenheit:.1f}°F (Tuntuu kuin: {data['main']['feels_like']}°C / {feels_like_fahrenheit:.1f}°F), "
                         f"Minimi: {data['main']['temp_min']}°C / {temp_min_fahrenheit:.1f}°F, Maksimi: {data['main']['temp_max']}°C / {temp_max_fahrenheit:.1f}°F,"
                         f"Ilmanpaine: {data['main']['pressure']} hPa, Ilmankosteus: {data['main']['humidity']}%, "
-                        f"Tuulen nopeus: {data['wind']['speed']} m/s, Tuulen suunta: {data['wind']['deg']} astetta, "
+                        f"Tuulen nopeus: {data['wind']['speed']} m/s, Tuulen suunta: {data['wind']['deg']} astetta ({wind_direction_cardinal})"
                         f"Tuulenpuuskat: {data['wind'].get('gust', 'N/A')} m/s, "
                         f"Näkyvyys: {data.get('visibility', 'N/A')} metriä, "
                         f"Lumisade (viimeisen 1h aikana): {data.get('snow', {}).get('1h', 'N/A')} mm, "
                         f"Pilvisyys: {data['clouds']['all']}%, "
                         f"Auringonnousu (UTC): {sunrise_time_utc_str} (paikallinen aika): {sunrise_time_local_str}, "
                         f"Auringonlasku (UTC): {sunset_time_utc_str} (paikallinen aika): {sunset_time_local_str}"
+                        f"Koordinaatit: {coordinates_info} ({country_info})"
                     )
                     logging.info(f"Formatted weather data being sent to the model: {detailed_weather_info}")
                     return detailed_weather_info
@@ -231,16 +239,23 @@ async def get_weather(city_name, forecast_type='current', exclude='current,minut
             return "Sori, juuri nyt ei onnistunut säätietojen haku OpenWeatherMapin kautta!"
 
 # get coordinates
-async def get_coordinates(city_name):
-    logging.info(f"Fetching coordinates for city: {city_name}")    
+async def get_coordinates(city_name, country=None):
+    # Initialize lat, lon, and country with None to ensure they are defined
+    lat = lon = None
+    resolved_country = None  # This will hold the country information extracted from the response
+
+    logging.info(f"Coordinates for {city_name}, {country}: Latitude: {lat}, Longitude: {lon}")
     # Retrieve MapTiler API key from environment variables
     api_key = os.getenv('MAPTILER_API_KEY')
     if not api_key:
         logging.info("[WARNING] MapTiler API key not set. You need to set the 'MAPTILER_API_KEY' environment variable in order to be able to use coordinate lookups, i.e. for weather data!")        
-        return None, None
+        return None, None, None
 
-    # Construct the API request URL
-    geocode_url = f"https://api.maptiler.com/geocoding/{city_name}.json?key={api_key}"
+    # Construct the API request URL with potential country parameter
+    query = f"{city_name}"
+    if country:
+        query += f", {country}"  # Append country to the query if specified
+    geocode_url = f"https://api.maptiler.com/geocoding/{query}.json?key={api_key}"
     logging.info(f"Making API request to URL: {geocode_url}")    
 
     async with httpx.AsyncClient() as client:
@@ -250,21 +265,27 @@ async def get_coordinates(city_name):
         if response.status_code == 200:
             data = response.json()
             logging.info(f"Response data: {data}")            
-            # Extract latitude and longitude from the response
-            lat = data['features'][0]['geometry']['coordinates'][1]
-            lon = data['features'][0]['geometry']['coordinates'][0]
-            logging.info(f"Coordinates for {city_name}: Latitude: {lat}, Longitude: {lon}")            
-            return lat, lon
+            # Attempt to extract latitude and longitude from the response
+            if data['features']:
+                feature = data['features'][0]
+                lat = feature['geometry']['coordinates'][1]
+                lon = feature['geometry']['coordinates'][0]
+                resolved_country = feature['properties'].get('country', 'Country not available')
+                logging.info(f"Coordinates for {city_name}, {resolved_country}: Latitude: {lat}, Longitude: {lon}")
+                return lat, lon, resolved_country
+            else:
+                logging.error("No features found in the geocoding response.")
+                return None, None, None
         else:
-            logging.info(f"Failed to fetch coordinates: {response.text}")            
-            return None, None
+            logging.error(f"Failed to fetch coordinates: {response.text}")            
+            return None, None, None
 
 # Format the weather information and translate it if necessary.        
 async def format_and_translate_weather(bot, user_request, weather_info):
     # System message to instruct the model
     format_translate_system_message = {
         "role": "system",
-        "content": "Translate if needed (depending on user's language) and format the data into a digestable Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's original language!"
+        "content": "Translate if needed (depending on user's language) and format the data into a digestable Telegram message with emoji symbols and html parsemode tags. Use i.e. <b>type</b> etc. Respond in user's original language, DO NOT OMIT DETAILS! INCLUDE THE COUNTRY INFO IF AVAILABLE."
     }
 
     # Prepare chat history with the user's request, system message, and weather info
@@ -334,3 +355,15 @@ async def get_location_info_from_coordinates(latitude, longitude):
             logging.info(f"Failed to fetch location information: {response.text}")            
             return "Failed to fetch location information."
     
+# Format and return detailed weather information along with location data
+def format_weather_response(city_name, country, weather_info):
+    # Example of how you might construct the message with location and weather data
+    location_info = f"[{city_name}, {country}]\n\n"
+    return f"{location_info} {weather_info}"
+
+# wind direction from degrees to cardinal
+def degrees_to_cardinal(d):
+    dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    ix = int((d + 11.25)/22.5 - 0.02)  # Subtract a small epsilon to correct edge case at North (360 degrees)
+    return dirs[ix % 16]
+

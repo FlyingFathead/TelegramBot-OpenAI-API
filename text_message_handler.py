@@ -24,7 +24,7 @@ from modules import markdown_to_html
 # the tg-bot's API function calls
 from custom_functions import custom_functions, observe_chat
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
-from api_get_openweathermap import get_weather, format_and_translate_weather
+from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
 
@@ -196,7 +196,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         city_name = arguments.get('city_name', 'DefaultCity')
                         forecast_type = arguments.get('forecast_type', 'current')
-                        weather_info = await get_weather(city_name, forecast_type)
+                        country = arguments.get('country', None)  # Fetch the country parameter, defaulting to None if not provided
+
+                        # Now pass the country parameter to your get_weather function
+                        weather_info = await get_weather(city_name, forecast_type, country=country)  # Assuming get_weather is updated to accept country
 
                         # Send the weather information as a reply
                         # await context.bot.send_message(chat_id=chat_id, text=weather_info)
@@ -212,7 +215,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
 
                         # Send the formatted weather information as a reply
-                        # await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info)
                         await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info, parse_mode=ParseMode.HTML)
                         return  # Exit the loop after handling the custom function
 

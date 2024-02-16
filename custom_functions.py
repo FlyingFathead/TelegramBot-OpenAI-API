@@ -22,13 +22,17 @@ async def observe_chat():
 custom_functions = [
     {
         'name': 'get_weather',
-        'description': '[Use only if weather is asked for a certain location!] Fetches weather data from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. fetch ONLY if user asks.',
+        'description': '[Use only if weather is asked for a certain location!] Fetches weather data from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. Fetch ONLY if user asks.',
         'parameters': {
             'type': 'object',
             'properties': {
                 'city_name': {
                     'type': 'string',
                     'description': 'Name of the city to fetch the weather for'
+                },
+                'country': {  # Add a country parameter
+                    'type': 'string',
+                    'description': 'Country of the city to help refine the search, TWO LETTERS, MUST BE INCLUDED.'
                 },
                 'forecast_type': {
                     'type': 'string',
@@ -38,7 +42,8 @@ custom_functions = [
                     'type': 'string',
                     'description': 'Language for weather descriptions (e.g., en, fi)'
                 }
-            }
+            },
+            'required': ['city_name']  # You can make 'country' optional or required based on your preference
         }
     }
     # ... other functions ...
