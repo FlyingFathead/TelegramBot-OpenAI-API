@@ -124,7 +124,7 @@ async def get_weather(city_name, forecast_type='current', country=None, exclude=
                     # Directly use `country_code` for the `country_info` variable
                     country_info = f"Country: {country_code}"
 
-                    coordinates_info = f"Latitude: {lat}, Longitude: {lon}"
+                    coordinates_info = f"lat: {lat}, lon: {lon}"
 
                     detailed_weather_info = (
                         f"Sää paikassa {city_name}: {data['weather'][0]['description']}, "
@@ -138,7 +138,7 @@ async def get_weather(city_name, forecast_type='current', country=None, exclude=
                         f"Pilvisyys: {data['clouds']['all']}%, "
                         f"Auringonnousu (UTC): {sunrise_time_utc_str} (paikallinen aika): {sunrise_time_local_str}, "
                         f"Auringonlasku (UTC): {sunset_time_utc_str} (paikallinen aika): {sunset_time_local_str}"
-                        f"Koordinaatit: {coordinates_info} ({country_info})"
+                        f"Koordinaatit: {coordinates_info} (Maa: {country_info})"
                     )
                     logging.info(f"Formatted weather data being sent to the model: {detailed_weather_info}")
                     return detailed_weather_info
@@ -282,6 +282,7 @@ async def get_coordinates(city_name, country=None):
 
 # Format the weather information and translate it if necessary.        
 async def format_and_translate_weather(bot, user_request, weather_info):
+    
     # System message to instruct the model
     format_translate_system_message = {
         "role": "system",
