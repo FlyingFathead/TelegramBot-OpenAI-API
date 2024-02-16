@@ -86,7 +86,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # get date & time for timestamps
         now_utc = datetime.datetime.utcnow()
         current_time = now_utc
-        utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+        # utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+        
+        # display abbreviated weekday
+        utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S %a UTC")
+
         day_of_week = now_utc.strftime("%A")
         user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
 
