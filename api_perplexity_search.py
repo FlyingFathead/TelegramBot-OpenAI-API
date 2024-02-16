@@ -1,4 +1,7 @@
 # api_perplexity_search.py
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# https://github.com/FlyingFathead/TelegramBot-OpenAI-API/
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import re
 import openai
@@ -85,7 +88,10 @@ async def query_pplx_70b_online(prompt):
         return None
 
 # queries perplexity
-async def query_perplexity(question: str):
+async def query_perplexity(bot, chat_id, question: str):
+    # Trigger typing animation
+    await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
+
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
@@ -96,7 +102,7 @@ async def query_perplexity(question: str):
         "model": "pplx-7b-online",
         "stream": False,
         "max_tokens": 1024,
-        "temperature": 0.0,  # Adjust as needed
+        "temperature": 0.0,
         "messages": [
             {"role": "system", "content": "Be precise in your responses."},
             {"role": "user", "content": question}
@@ -108,9 +114,8 @@ async def query_perplexity(question: str):
         logging.info(f"Response type: {type(response.json())}, Content: {response.text}")
 
         if response.status_code == 200:
-            response_data = response.json()  # Ensure we're parsing the JSON response
+            response_data = response.json()
 
-            # Properly extract the message content using .get()
             if 'choices' in response_data and len(response_data['choices']) > 0:
                 bot_reply_content = response_data['choices'][0].get('message', {}).get('content', "")
                 return bot_reply_content.strip() if bot_reply_content else "Sorry, I couldn't fetch an answer for that. Please try again later."
@@ -305,6 +310,19 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
         start_index = split_pos + 1  # Move past the last split position
 
     return chunks
+
+# markdown to html // in case replies from Perplexity need to be parsed.
+def markdown_to_html(md_text):
+    # Convert bold from **text** to <b>text</b>
+    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', md_text)
+    
+    # Convert italic from *text* or _text_ to <i>text</i>
+    html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
+    
+    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
+    html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
+    
+    return html_text
 
 # ~~~~~~~~~~~~
 # alternatives

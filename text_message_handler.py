@@ -293,7 +293,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             logging.info(f"Querying Perplexity with question: {question}")
 
                             # Make the asynchronous API call to query Perplexity
-                            perplexity_response = await query_perplexity(question)
+                            perplexity_response = await query_perplexity(context.bot, chat_id, user_message)
 
                             # Log the raw Perplexity API response for debugging
                             logging.info(f"Raw Perplexity API Response: {perplexity_response}")
@@ -437,3 +437,17 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         import traceback
         traceback.print_exc()
         await update.message.reply_text("An unexpected error occurred. Please try again.")
+
+#
+# > other
+#
+
+# typing message animation as an async module, if needed for longer wait times
+async def send_typing_animation(bot, chat_id, duration=30):
+    """Send typing action every few seconds."""
+    end_time = asyncio.get_running_loop().time() + duration
+    while True:
+        await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
+        await asyncio.sleep(5)  # Send typing action every 5 seconds
+        if asyncio.get_running_loop().time() >= end_time:
+            break
