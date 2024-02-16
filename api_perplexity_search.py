@@ -16,7 +16,7 @@ from telegram import constants
 # ~~~~~~~~~
 
 # Global variable for chunk size
-CHUNK_SIZE = 500  # Set this value as needed
+CHUNK_SIZE = 800  # Set this value as needed
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -259,29 +259,49 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     return translated_response
 
 # Adjusted smart_chunk method to use the global CHUNK_SIZE
-def smart_chunk(text):
-    global CHUNK_SIZE
+def smart_chunk(text, chunk_size=CHUNK_SIZE):
+    """
+    Splits the text into chunks, trying to break at the end of sentences within CHUNK_SIZE.
+    Fallbacks to newline, then space if no suitable period is found.
+
+    Args:
+    - text (str): The text to be chunked.
+    - chunk_size (int): Maximum size of each chunk.
+
+    Returns:
+    - List[str]: List of text chunks.
+    """
     chunks = []
     start_index = 0
 
     while start_index < len(text):
-        # Check if remaining text is shorter than CHUNK_SIZE
-        if len(text) - start_index <= CHUNK_SIZE:
-            chunks.append(text[start_index:].strip())
-            break
-        else:
-            # Find the nearest newline within CHUNK_SIZE
-            split_pos = text.rfind('\n', start_index, start_index + CHUNK_SIZE)
-            if split_pos == -1 or split_pos < start_index:
-                # If no newline is found, fallback to space or period, then to CHUNK_SIZE
-                split_pos = max(
-                    text.rfind('. ', start_index, start_index + CHUNK_SIZE),
-                    text.rfind(' ', start_index, start_index + CHUNK_SIZE),
-                    start_index + CHUNK_SIZE - 1
-                )
+        end_index = start_index + chunk_size
+        # Ensure we do not exceed the text length
+        if end_index > len(text):
+            end_index = len(text)
 
-            chunks.append(text[start_index:split_pos + 1].strip())
-            start_index = split_pos + 1
+        # Try to find a period to end the sentence within the chunk
+        split_pos = text.rfind('.', start_index, end_index)
+
+        if split_pos == -1:
+            # If no period is found, fallback to newline
+            split_pos = text.rfind('\n', start_index, end_index)
+            if split_pos == -1:
+                # If no newline is found, fallback to space
+                split_pos = text.rfind(' ', start_index, end_index)
+                if split_pos == -1 or split_pos == start_index:
+                    # If no space is found or it's the start (single word longer than CHUNK_SIZE), use the chunk_size
+                    split_pos = end_index - 1
+
+        # Add the chunk to the list, including the character at split_pos if it's a period
+        chunks.append(text[start_index:split_pos + 1].strip())
+
+        # Update start_index to go past the last chunk
+        start_index = split_pos + 1
+
+        # If we're at the end of the text, break the loop
+        if start_index >= len(text):
+            break
 
     return chunks
 
