@@ -262,6 +262,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
     """
     Splits the text into chunks, trying to break at the end of sentences within CHUNK_SIZE.
+    When splitting on a newline, ensures the newline character is preserved at the end of the chunk.
     Fallbacks to newline, then space if no suitable period is found.
 
     Args:
@@ -276,32 +277,32 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
 
     while start_index < len(text):
         end_index = start_index + chunk_size
-        # Ensure we do not exceed the text length
         if end_index > len(text):
             end_index = len(text)
 
+        # Initialize split_pos to force chunk split at the end if no suitable character is found
+        split_pos = end_index - 1
+
         # Try to find a period to end the sentence within the chunk
-        split_pos = text.rfind('.', start_index, end_index)
+        period_pos = text.rfind('.', start_index, end_index)
+        newline_pos = text.rfind('\n', start_index, end_index)
+        space_pos = text.rfind(' ', start_index, end_index)
 
-        if split_pos == -1:
-            # If no period is found, fallback to newline
-            split_pos = text.rfind('\n', start_index, end_index)
-            if split_pos == -1:
-                # If no newline is found, fallback to space
-                split_pos = text.rfind(' ', start_index, end_index)
-                if split_pos == -1 or split_pos == start_index:
-                    # If no space is found or it's the start (single word longer than CHUNK_SIZE), use the chunk_size
-                    split_pos = end_index - 1
+        if period_pos != -1:
+            split_pos = period_pos
+        elif newline_pos != -1:
+            split_pos = newline_pos
+        elif space_pos != -1 and space_pos != start_index:
+            split_pos = space_pos
 
-        # Add the chunk to the list, including the character at split_pos if it's a period
-        chunks.append(text[start_index:split_pos + 1].strip())
+        # If a newline is used to split the chunk, preserve the newline character in the chunk
+        if split_pos == newline_pos:
+            chunk = text[start_index:split_pos + 1]  # Include the newline character
+        else:
+            chunk = text[start_index:split_pos + 1].strip()  # Trim whitespace for non-newline splits
 
-        # Update start_index to go past the last chunk
-        start_index = split_pos + 1
-
-        # If we're at the end of the text, break the loop
-        if start_index >= len(text):
-            break
+        chunks.append(chunk)
+        start_index = split_pos + 1  # Move past the last split position
 
     return chunks
 
