@@ -307,7 +307,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             logging.info(f"Querying Perplexity with question: {question}")
 
                             # Make the asynchronous API call to query Perplexity
-                            perplexity_response = await query_perplexity(context.bot, chat_id, user_message)
+                            perplexity_response = await query_perplexity(context.bot, chat_id, question)
 
                             # Log the raw Perplexity API response for debugging
                             logging.info(f"Raw Perplexity API Response: {perplexity_response}")
@@ -330,7 +330,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                     await context.bot.send_message(
                                         chat_id=update.effective_chat.id,
                                         text=bot_reply_formatted,
-                                        parse_mode=ParseMode.HTML
+                                        # parse_mode=ParseMode.HTML
+                                        parse_mode=ParseMode.MARKDOWN
                                     )
                                 else:
                                     # Log the error and maybe send a different message or handle the error differently
@@ -425,7 +426,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     await asyncio.sleep(bot.retry_delay) # Wait before retrying
                 else:
                     bot.logger.error("Max retries reached. Giving up.")
-                    await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting. Please try again later.")
+                    await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting at the moment. Please try again later.")
                     break
 
             except httpx.TimeoutException as e:

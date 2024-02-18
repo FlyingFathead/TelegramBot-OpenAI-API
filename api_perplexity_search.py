@@ -99,12 +99,13 @@ async def query_perplexity(bot, chat_id, question: str):
         "Accept": "application/json",
     }
     data = {
+        # i.e. `7b-online` or `70b-online``
         "model": "pplx-7b-online",
         "stream": False,
         "max_tokens": 1024,
         "temperature": 0.0,
         "messages": [
-            {"role": "system", "content": "Be precise in your responses."},
+            {"role": "system", "content": "Be precise in your responses. Answer in English. Use online sources as much as possible."},
             {"role": "user", "content": question}
         ]
     }
