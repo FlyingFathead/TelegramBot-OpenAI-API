@@ -323,8 +323,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 
-                                    # Append the bot's reply to the chat history before sending it
-                                    chat_history.append({"role": "assistant", "content": f"[Translated Perplexity Reply] {bot_reply_formatted}"})
+                                    # Append the bot's reply to the chat history before sending it 
+                                    chat_history.append({"role": "assistant", "content": f"[Fethched data from perplexity.ai API]"})
+                                    chat_history.append({"role": "assistant", "content": bot_reply_formatted})
                                     context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
 
                                     await context.bot.send_message(
