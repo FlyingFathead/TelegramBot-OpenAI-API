@@ -17,6 +17,7 @@ from telegram import Update
 from telegram.ext import CallbackContext
 from telegram.constants import ParseMode
 from telegram import constants
+from telegram.constants import ChatAction
 
 # tg-bot specific stuff
 from modules import markdown_to_html
@@ -55,6 +56,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         chat_id = update.message.chat_id
         user_token_count = bot.count_tokens(user_message)
 
+        # Create an Event to control the typing animation
+        stop_typing_event = asyncio.Event()
+
+        # Start the typing animation in a background task
+        # typing_task = asyncio.create_task(send_typing_animation(bot, chat_id, stop_typing_event))
+        typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
+
         # Debug print to check types
         bot.logger.info(f"[Token counting/debug] user_token_count type: {type(user_token_count)}, value: {user_token_count}")
         bot.logger.info(f"[Token counting/debug] bot.total_token_usage type: {type(bot.total_token_usage)}, value: {bot.total_token_usage}")
@@ -88,7 +96,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         current_time = now_utc
         # utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         
-        # display abbreviated weekday
+        # display abbreviated 
         utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S %a UTC")
 
         day_of_week = now_utc.strftime("%A")
@@ -429,6 +437,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
                 return
 
+            finally:
+                # Stop the typing animation once processing is done
+                stop_typing_event.set()
+                await typing_task  # Optionally wait for the typing task to complete
+
         # Trim chat history if it exceeds a specified length or token limit
         bot.trim_chat_history(chat_history, bot.max_tokens)
 
@@ -448,12 +461,19 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 # > other
 #
 
-# typing message animation as an async module, if needed for longer wait times
-async def send_typing_animation(bot, chat_id, duration=30):
-    """Send typing action every few seconds."""
+async def send_typing_animation(bot, chat_id, stop_event: asyncio.Event):
+    """Send typing action until stop_event is set."""
+    while not stop_event.is_set():
+        await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+        await asyncio.sleep(5)  # Telegram's typing status lasts for a few seconds, so we repeat.
+
+# (old version) /// typing message animation as an async module, if needed for longer wait times
+""" async def send_typing_animation(bot, chat_id, duration=30):
+    # Send typing action every few seconds.
     end_time = asyncio.get_running_loop().time() + duration
     while True:
         await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
         await asyncio.sleep(5)  # Send typing action every 5 seconds
         if asyncio.get_running_loop().time() >= end_time:
             break
+ """

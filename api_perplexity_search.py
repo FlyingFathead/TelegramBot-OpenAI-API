@@ -90,7 +90,7 @@ async def query_pplx_70b_online(prompt):
 # queries perplexity
 async def query_perplexity(bot, chat_id, question: str):
     # Trigger typing animation
-    await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
+    # await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
 
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
@@ -215,7 +215,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         return perplexity_response
 
     # Show typing animation at the start
-    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+    # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
     # Use smart_chunk to split the response text
     chunks = smart_chunk(perplexity_response)
@@ -227,7 +227,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         # Prepare the payload for each chunk
 
         # Show typing animation at the start
-        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+        # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
         payload = {
             "model": bot.model,
