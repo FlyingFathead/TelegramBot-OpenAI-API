@@ -324,7 +324,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 
                                     # Append the bot's reply to the chat history before sending it 
-                                    chat_history.append({"role": "assistant", "content": f"[Fethched data from perplexity.ai API]"})
+                                    # chat_history.append({"role": "assistant", "content": f"[Fetched data from perplexity.ai API]"})
                                     chat_history.append({"role": "assistant", "content": bot_reply_formatted})
                                     context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
 
@@ -420,6 +420,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     parse_mode=ParseMode.HTML
                 )
 
+                stop_typing_event.set()
+
                 break  # Break the loop if successful
 
             except httpx.ReadTimeout:
@@ -428,21 +430,25 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 else:
                     bot.logger.error("Max retries reached. Giving up.")
                     await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting at the moment. Please try again later.")
+                    stop_typing_event.set()                    
                     break
 
             except httpx.TimeoutException as e:
                 bot.logger.error(f"HTTP request timed out: {e}")
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, the request timed out. Please try again later.")
-                # Handle timeout-specific cleanup or logic here
+                stop_typing_event.set()
+                # Handle timeout-specific cleanup or logic here                
             except Exception as e:
                 bot.logger.error(f"Error during message processing: {e}")
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+                stop_typing_event.set()
                 return
 
             finally:
                 # Stop the typing animation once processing is done
-                stop_typing_event.set()
-                await typing_task  # Optionally wait for the typing task to complete
+                if not stop_typing_event.is_set():
+                    stop_typing_event.set()
+                await typing_task  
 
         # Trim chat history if it exceeds a specified length or token limit
         bot.trim_chat_history(chat_history, bot.max_tokens)

@@ -19,7 +19,7 @@ from telegram import constants
 # ~~~~~~~~~
 
 # Global variable for chunk size
-CHUNK_SIZE = 800  # Set this value as needed
+CHUNK_SIZE = 500  # Set this value as needed
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -261,15 +261,35 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
             # Handle error, e.g., by breaking the loop or accumulating errors
 
     # Combine translated chunks
-    translated_response = " ".join(translated_chunks)
+    # translated_response = " ".join(translated_chunks)
+            
+    # Initialize an empty string to hold the final translated response
+    translated_response = ""
+
+    # Define a regex pattern to match numbered list items
+    numbered_list_pattern = re.compile(r'^\d+\.')
+
+    # Loop through the translated chunks
+    for i, chunk in enumerate(translated_chunks):
+        # For the first chunk, simply add it to the response
+        if i == 0:
+            translated_response += chunk
+        else:
+            # If the chunk starts with a dash or matches the numbered list pattern, prepend it with a newline
+            if chunk.startswith("-") or numbered_list_pattern.match(chunk):
+                translated_response += "\n" + chunk
+            # Otherwise, join it with a space
+            else:
+                translated_response += " " + chunk
+
+    logging.info(f"Translated response: {translated_response}")            
     return translated_response
 
 # Adjusted smart_chunk method to use the global CHUNK_SIZE
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
     """
-    Splits the text into chunks, trying to break at the end of sentences within CHUNK_SIZE.
-    When splitting on a newline, ensures the newline character is preserved at the end of the chunk.
-    Fallbacks to newline, then space if no suitable period is found.
+    Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
+    with special consideration for list items starting with "-" and numbered list items.
 
     Args:
     - text (str): The text to be chunked.
@@ -281,34 +301,31 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
     chunks = []
     start_index = 0
 
+    # Pattern to identify numbered list items and bullet points
+    list_item_pattern = re.compile(r'^(\d+\.\s+|\-\s+)', re.MULTILINE)
+
     while start_index < len(text):
-        end_index = start_index + chunk_size
-        if end_index > len(text):
-            end_index = len(text)
+        # Determine the tentative end index of the next chunk
+        end_index = min(start_index + chunk_size, len(text))
 
-        # Initialize split_pos to force chunk split at the end if no suitable character is found
-        split_pos = end_index - 1
+        # Search for the last occurrence of a list item or newline within the chunk
+        matches = list(list_item_pattern.finditer(text, start_index, end_index))
+        last_match = matches[-1] if matches else None
 
-        # Try to find a period to end the sentence within the chunk
-        period_pos = text.rfind('.', start_index, end_index)
-        newline_pos = text.rfind('\n', start_index, end_index)
-        space_pos = text.rfind(' ', start_index, end_index)
-
-        if period_pos != -1:
-            split_pos = period_pos
-        elif newline_pos != -1:
-            split_pos = newline_pos
-        elif space_pos != -1 and space_pos != start_index:
-            split_pos = space_pos
-
-        # If a newline is used to split the chunk, preserve the newline character in the chunk
-        if split_pos == newline_pos:
-            chunk = text[start_index:split_pos + 1]  # Include the newline character
+        # Choose the best place to split the chunk
+        if last_match and last_match.start() > start_index:
+            # Split just before the last list item found, if any
+            split_pos = last_match.start()
         else:
-            chunk = text[start_index:split_pos + 1].strip()  # Trim whitespace for non-newline splits
+            # If no list item is found, or it's at the start, try to split at the end of the chunk
+            split_pos = end_index
 
+        # Extract the chunk
+        chunk = text[start_index:split_pos].rstrip()
+
+        # Append the chunk and update the start_index for the next chunk
         chunks.append(chunk)
-        start_index = split_pos + 1  # Move past the last split position
+        start_index = split_pos
 
     return chunks
 
