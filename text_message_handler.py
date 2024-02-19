@@ -163,8 +163,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # Log the incoming user message
         bot.log_message('User', update.message.from_user.id, update.message.text)
 
-        # Show typing animation
-        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+        # (old) // Show typing animation
+        # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
         for attempt in range(bot.max_retries):
             try:
@@ -316,7 +316,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 # Assuming perplexity_response is the raw string response
                                 bot_reply_content = perplexity_response.strip()
 
-                                await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+                                # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
                                 # Translate or process the response as necessary
                                 bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
@@ -426,7 +426,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
             except httpx.ReadTimeout:
                 if attempt < bot.max_retries - 1: # If not the last attempt
-                    await asyncio.sleep(bot.retry_delay) # Wait before retrying
+
+                    # Reset the stop_typing_event and restart typing animation if necessary
+                    stop_typing_event.clear()  # This line is conceptual; actual implementation may vary based on your asyncio event handling
+                    typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
+                    await asyncio.sleep(bot.retry_delay)  # Wait before retrying                    
+
                 else:
                     bot.logger.error("Max retries reached. Giving up.")
                     await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting at the moment. Please try again later.")
@@ -485,3 +490,4 @@ async def send_typing_animation(bot, chat_id, stop_event: asyncio.Event):
         if asyncio.get_running_loop().time() >= end_time:
             break
  """
+
