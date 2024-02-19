@@ -183,20 +183,20 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # (old) // Show typing animation
         # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
-        # Inside handle_message, before calling the OpenAI API
+        # Elasticsearch RAG
         es_context = await search_es_for_context(user_message)
 
-        # Inside handle_message, before calling the OpenAI API
+        # Elasticsearch RAG
         if ELASTICSEARCH_ENABLED:
             logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
             es_context = await search_es_for_context(user_message)
-            if es_context:
-                # If Elasticsearch returned a relevant Q&A pair, prepend it to the chat history
+            if es_context and es_context.strip():
+                # If Elasticsearch returned a non-empty Q&A pair, prepend it to the chat history
                 logger.info(f"Elasticsearch found additional context: {es_context}")
-                chat_history_with_es_context = [{"role": "system", "content": es_context}] + chat_history_with_system_message
+                chat_history_with_es_context = [{"role": "system", "content": "Elasticsearch RAG data: " + es_context}] + chat_history_with_system_message
             else:
-                logger.info("No relevant context found via Elasticsearch. Proceeding.")
-                # If no relevant context was found, or Elasticsearch is disabled, proceed without modification
+                logger.info("No relevant or non-empty context found via Elasticsearch. Proceeding.")
+                # If no relevant or non-empty context was found, or Elasticsearch is disabled, proceed without modification
                 chat_history_with_es_context = chat_history_with_system_message
         else:
             chat_history_with_es_context = chat_history_with_system_message

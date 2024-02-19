@@ -3,6 +3,8 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+relevance_threshold = 5.0
+
 from elasticsearch import Elasticsearch, ElasticsearchWarning
 import warnings
 import logging
@@ -26,6 +28,7 @@ async def search_es_for_context(search_terms):
             "multi_match": {
                 "query": search_terms,
                 "fields": ["question^2", "answer"],  # Boosting questions for relevance
+                "type": "best_fields"  # Can also experiment with other types like "most_fields" or "cross_fields"
             }
         },
         "_source": ["question", "answer"],
@@ -34,10 +37,32 @@ async def search_es_for_context(search_terms):
     response = es.search(index=index, body=query)
     if response['hits']['hits']:
         hit = response['hits']['hits'][0]
+        score = hit['_score']  # Extract the score of the hit
+        
+        # Log every score for monitoring and tuning purposes
+        # logging.info(f"Search term: '{search_terms}' | Score: {score} | Threshold: {relevance_threshold}")
+
+        # Check if the score exceeds the relevance threshold
+        if score > relevance_threshold:
+            question = hit["_source"]["question"]
+            answer = hit["_source"]["answer"]
+            # Format for model context
+            context_entry = f"{answer}"
+            logging.info(f"Result above relevance threshold: {relevance_threshold}. Included in context: {context_entry}")
+            return context_entry
+        else:
+            logging.info(f"Result below relevance threshold (score: {score}, threshold: {relevance_threshold}).")
+            return None
+    else:
+        return None
+
+    """ response = es.search(index=index, body=query)
+    if response['hits']['hits']:
+        hit = response['hits']['hits'][0]
         question = hit["_source"]["question"]
         answer = hit["_source"]["answer"]
         # Format for model context
         context_entry = f"Q: {question}\nA: {answer}"
         return context_entry
     else:
-        return None
+        return None """
