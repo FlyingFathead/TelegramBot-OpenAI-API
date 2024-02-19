@@ -9,6 +9,9 @@
 - Daily token usage tracking & rate limiting for API usage / cost management
 - **Supports Perplexity API models in conjunction with OpenAI models**
   - Very useful for i.e. fact-checking latest data to supplement OpenAI's cutoff dates
+- **Supports Elasticsearch for RAG**  
+  - Increase the knowledge rate with your own documents
+  - Quickly generate additional knowledge with the built-in Q&A pair creator
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -48,6 +51,7 @@ timezonefinder>=6.4.0
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.56 - **Added Elasticsearch support for RAG** - use the `ElasticsearchEnabled` flag in new `config.ini` (set to `True` or `False` to enable or disable)
 - v0.55.4 - API call tracking, extra wait times if needed for external API calls
 - v0.55.3 - reply activity, better chunking logic
 - v0.55 - better reply animation handling

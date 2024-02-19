@@ -2,6 +2,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import configparser
 import os
 import sys
 import httpx
@@ -29,11 +30,25 @@ from api_get_openweathermap import get_weather, format_and_translate_weather, fo
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
 
+# RAG via elasticsearch
+from elasticsearch_handler import search_es_for_context
+
+# Load the configuration file
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+# Access the Elasticsearch enabled flag
+elasticsearch_enabled = config.getboolean('Elasticsearch', 'ElasticsearchEnabled', fallback=False)
+ELASTICSEARCH_ENABLED = elasticsearch_enabled
+
 # Add extra wait time if we're in the middle of i.e. a translation process
-extra_wait_time = 15  # Additional seconds to wait when in translation mode
+extra_wait_time = 20  # Additional seconds to wait when in translation mode
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
+
+    # Extract chat_id as soon as possible from the update object
+    chat_id = update.effective_chat.id
 
     # send a "holiday message" if the bot is on a break
     if bot.is_bot_disabled:
@@ -44,7 +59,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
     if bot.check_global_rate_limit():
         await context.bot.send_message(chat_id=update.message.chat_id, text="The bot is currently busy. Please try again in a minute.")
         return
-    
+
+    # Create an Event to control the typing animation
+    stop_typing_event = asyncio.Event()
+
+    # Start the typing animation in a background task
+    typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
+
     # process a text message
     try:
 
@@ -58,13 +79,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         
         chat_id = update.message.chat_id
         user_token_count = bot.count_tokens(user_message)
-
-        # Create an Event to control the typing animation
-        stop_typing_event = asyncio.Event()
-
-        # Start the typing animation in a background task
-        # typing_task = asyncio.create_task(send_typing_animation(bot, chat_id, stop_typing_event))
-        typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
 
         # Debug print to check types
         bot.logger.info(f"[Token counting/debug] user_token_count type: {type(user_token_count)}, value: {user_token_count}")
@@ -169,13 +183,32 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # (old) // Show typing animation
         # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
+        # Inside handle_message, before calling the OpenAI API
+        es_context = await search_es_for_context(user_message)
+
+        # Inside handle_message, before calling the OpenAI API
+        if ELASTICSEARCH_ENABLED:
+            logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
+            es_context = await search_es_for_context(user_message)
+            if es_context:
+                # If Elasticsearch returned a relevant Q&A pair, prepend it to the chat history
+                logger.info(f"Elasticsearch found additional context: {es_context}")
+                chat_history_with_es_context = [{"role": "system", "content": es_context}] + chat_history_with_system_message
+            else:
+                logger.info("No relevant context found via Elasticsearch. Proceeding.")
+                # If no relevant context was found, or Elasticsearch is disabled, proceed without modification
+                chat_history_with_es_context = chat_history_with_system_message
+        else:
+            chat_history_with_es_context = chat_history_with_system_message
+
         for attempt in range(bot.max_retries):
             try:
                 # Prepare the payload for the API request
                 payload = {
                     "model": bot.model,
                     #"messages": context.chat_data['chat_history'],
-                    "messages": chat_history_with_system_message,  # Updated to include system message                
+                    # "messages": chat_history_with_system_message,  # Updated to include system message
+                    "messages": chat_history_with_es_context,
                     "temperature": bot.temperature,  # Use the TEMPERATURE variable loaded from config.ini
                     "functions": custom_functions,
                     "function_call": 'auto'  # Allows the model to dynamically choose the function                        
