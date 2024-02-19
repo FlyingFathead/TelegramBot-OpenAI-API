@@ -29,6 +29,9 @@ from api_get_openweathermap import get_weather, format_and_translate_weather, fo
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
 
+# Add extra wait time if we're in the middle of i.e. a translation process
+extra_wait_time = 15  # Additional seconds to wait when in translation mode
+
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
 
@@ -318,8 +321,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                                 # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
+                                # Flag for translation in progress
+                                context.user_data['active_translation'] = True
+
                                 # Translate or process the response as necessary
                                 bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
+
+                                # After translation or processing is completed, clear the active translation flag
+                                context.user_data.pop('active_translation', None)                                
 
                                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
 
@@ -353,7 +362,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 chat_id=update.effective_chat.id,
                                 text="I need a question to ask. Please try again with a question."
                             )
-                        
+
                         return
 
                     #
@@ -421,21 +430,26 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 )
 
                 stop_typing_event.set()
+                context.user_data.pop('active_translation', None)
 
                 break  # Break the loop if successful
 
             except httpx.ReadTimeout:
-                if attempt < bot.max_retries - 1: # If not the last attempt
+                # If a read timeout occurs, check if in translation mode and adjust the retry delay
+                if 'active_translation' in context.user_data and context.user_data['active_translation']:
+                    logger.info(f"Added extra timeout time: {extra_wait_time} seconds")
+                    adjusted_retry_delay = bot.retry_delay + extra_wait_time
+                else:
+                    adjusted_retry_delay = bot.retry_delay
 
-                    # Reset the stop_typing_event and restart typing animation if necessary
-                    stop_typing_event.clear()  # This line is conceptual; actual implementation may vary based on your asyncio event handling
+                if attempt < bot.max_retries - 1:  # If not the last attempt
+                    stop_typing_event.clear()  # Clear the typing event
                     typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
-                    await asyncio.sleep(bot.retry_delay)  # Wait before retrying                    
-
+                    await asyncio.sleep(adjusted_retry_delay)  # Use the adjusted delay
                 else:
                     bot.logger.error("Max retries reached. Giving up.")
                     await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting at the moment. Please try again later.")
-                    stop_typing_event.set()                    
+                    stop_typing_event.set()
                     break
 
             except httpx.TimeoutException as e:
@@ -450,6 +464,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 return
 
             finally:
+                # Ensure the flag is always cleared after the operation
+                context.user_data.pop('active_translation', None)
+
                 # Stop the typing animation once processing is done
                 if not stop_typing_event.is_set():
                     stop_typing_event.set()
