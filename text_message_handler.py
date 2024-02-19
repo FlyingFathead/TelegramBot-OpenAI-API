@@ -492,7 +492,17 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # Handle timeout-specific cleanup or logic here                
             except Exception as e:
                 bot.logger.error(f"Error during message processing: {e}")
-                await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+                # Check if the exception is related to parsing entities
+                if "Can't parse entities" in str(e):
+                    bot.logger.info("Detected an issue with parsing entities. Clearing chat history to prevent loops.")
+                    # Clear chat history to prevent a loop
+                    context.chat_data['chat_history'] = []
+                    # Optionally, you could also send a message to the user to inform them of the issue and the reset
+                    await context.bot.send_message(chat_id=chat_id, text="I've encountered an issue and have reset our conversation to prevent errors. Please try your request again.")
+                else:
+                    # Handle other exceptions normally
+                    await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+
                 stop_typing_event.set()
                 return
 
