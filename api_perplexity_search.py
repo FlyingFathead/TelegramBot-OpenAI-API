@@ -297,22 +297,51 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
+# smart chunking (v1.04)
+def smart_chunk(text, chunk_size=CHUNK_SIZE):
+    chunks = []
+    start_index = 0
+    text_length = len(text)
+
+    # Regular expressions to identify list items
+    list_item_pattern = re.compile(r'^[\-\*] |\d+\. ')
+
+    while start_index < text_length:
+        end_index = start_index + chunk_size if start_index + chunk_size < text_length else text_length
+        chunk = text[start_index:end_index]
+
+        # Check if the chunk ends in the middle of a list item or paragraph
+        if end_index != text_length:
+            next_newline = text.find('\n', end_index)
+            next_list_item = list_item_pattern.search(text, end_index)
+            
+            # Extend chunk to the end of the paragraph or list item if necessary
+            if next_newline != -1 and (not next_list_item or next_newline < next_list_item.start()):
+                end_index = next_newline + 1
+            elif next_list_item:
+                end_index = next_list_item.start()
+
+        # Append the processed chunk and update start_index
+        chunks.append(text[start_index:end_index].strip())
+        start_index = end_index
+
+    return chunks
+
 # smart chunking (v1.03)
-def smart_chunk(text, chunk_size=CHUNK_SIZE, buffer_zone=50):
-    """
-    Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
-    with special consideration for list items starting with "-" and numbered list items.
-    If no logical split point is found within the chunk, it tries to split at the nearest space
-    within a buffer zone before the end of the chunk.
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE, buffer_zone=50):    
+    # Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
+    # with special consideration for list items starting with "-" and numbered list items.
+    # If no logical split point is found within the chunk, it tries to split at the nearest space
+    # within a buffer zone before the end of the chunk.
 
-    Args:
-    - text (str): The text to be chunked.
-    - chunk_size (int): Maximum size of each chunk.
-    - buffer_zone (int): The range within the end of the chunk to look for a space as a split point.
+    # Args:
+    # - text (str): The text to be chunked.
+    # - chunk_size (int): Maximum size of each chunk.
+    # - buffer_zone (int): The range within the end of the chunk to look for a space as a split point.
 
-    Returns:
-    - List[str]: List of text chunks.
-    """
+    # Returns:
+    # - List[str]: List of text chunks.
+
     chunks = []
     start_index = 0
 
@@ -349,7 +378,7 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE, buffer_zone=50):
         chunks.append(chunk)
         start_index = split_pos
 
-    return chunks
+    return chunks """
 
 # smart chunking (v1.02)
 """ def smart_chunk(text, chunk_size=CHUNK_SIZE):
