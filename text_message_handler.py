@@ -63,14 +63,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         await context.bot.send_message(chat_id=update.message.chat_id, text="The bot is currently busy. Please try again in a minute.")
         return
 
-    # Create an Event to control the typing animation
-    stop_typing_event = asyncio.Event()
-
-    # Start the typing animation in a background task
-    typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
-
     # process a text message
     try:
+
+        # Create an Event to control the typing animation
+        stop_typing_event = asyncio.Event()
+
+        # Start the typing animation in a background task
+        typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
 
         # Check if there is a transcribed text available
         if 'transcribed_text' in context.user_data:

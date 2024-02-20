@@ -217,7 +217,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         return perplexity_response
 
     # Show typing animation at the start
-    # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
     # Use smart_chunk to split the response text
     chunks = smart_chunk(perplexity_response)
@@ -229,7 +229,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         # Prepare the payload for each chunk
 
         # Show typing animation at the start
-        # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
         payload = {
             "model": bot.model,
@@ -297,17 +297,18 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
-# smart chunking (v1.01)
-def smart_chunk(text, chunk_size=CHUNK_SIZE):
+# smart chunking (v1.03)
+def smart_chunk(text, chunk_size=CHUNK_SIZE, buffer_zone=50):
     """
     Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
     with special consideration for list items starting with "-" and numbered list items.
-    If no logical split point is found within the chunk, it attempts to split on a newline
-    or, failing that, an empty space.
+    If no logical split point is found within the chunk, it tries to split at the nearest space
+    within a buffer zone before the end of the chunk.
 
     Args:
     - text (str): The text to be chunked.
     - chunk_size (int): Maximum size of each chunk.
+    - buffer_zone (int): The range within the end of the chunk to look for a space as a split point.
 
     Returns:
     - List[str]: List of text chunks.
@@ -330,15 +331,15 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
             # Split just before the last list item found, if any
             split_pos = last_match.start()
         else:
-            # Try to find a newline or space as a secondary split point
-            newline_pos = text.rfind('\n', start_index, end_index)
-            space_pos = text.rfind(' ', start_index, end_index)
+            # Attempt to find the nearest space within the buffer zone before the end of the chunk
+            buffer_start = max(start_index, end_index - buffer_zone)
+            space_pos = text.rfind(' ', buffer_start, end_index)
             
-            # Choose the furthest position among newline and space, if any
-            if newline_pos != -1 or space_pos != -1:
-                split_pos = max(newline_pos, space_pos) + 1  # Include the character in the chunk
+            if space_pos != -1:
+                # If a space is found, use it as the split point
+                split_pos = space_pos + 1
             else:
-                # If no newline or space is found, split at the end of the chunk
+                # If no space is found within the buffer zone, split at the end of the chunk
                 split_pos = end_index
 
         # Extract the chunk
@@ -349,6 +350,56 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
         start_index = split_pos
 
     return chunks
+
+# smart chunking (v1.02)
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE):
+    
+    # Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
+    # while preserving the original text structure, including paragraph breaks indicated by double newlines.
+    # This function aims to maintain the integrity of paragraph formatting by recognizing and preserving double newline characters.
+
+    # Args:
+    # - text (str): The text to be chunked.
+    # - chunk_size (int): Desired maximum size of each chunk.
+
+    # Returns:
+    # - List[str]: List of text chunks, with original paragraph formatting preserved.
+
+    chunks = []
+    start_index = 0
+
+    while start_index < len(text):
+        # Determine the tentative end index of the next chunk
+        end_index = min(start_index + chunk_size, len(text))
+
+        # First, try to respect the paragraph breaks by looking for double newlines
+        double_newline_pos = text.rfind('\n\n', start_index, end_index)
+
+        if double_newline_pos != -1 and double_newline_pos + 2 != end_index:
+            # If a double newline is found, and it's not right at the end of the chunk,
+            # split there to keep paragraphs intact
+            split_pos = double_newline_pos + 2  # Include the double newlines in the chunk
+        elif end_index < len(text):
+            # If we're not at the end of the text, look for the nearest single newline or space
+            # to avoid splitting words or sentences
+            single_newline_pos = text.rfind('\n', start_index, end_index)
+            space_pos = text.rfind(' ', start_index, end_index)
+            split_pos = max(single_newline_pos, space_pos) + 1
+        else:
+            # If at the end of the text, or no suitable break point is found, use the current end_index
+            split_pos = end_index
+
+        # Ensure the split position does not exceed the text length
+        split_pos = min(split_pos, len(text))
+
+        # Extract the chunk
+        chunk = text[start_index:split_pos]
+
+        # Append the chunk and update the start index for the next chunk
+        chunks.append(chunk)
+        start_index = split_pos
+
+    return chunks """
 
 # v1.0 (old)
 # Adjusted smart_chunk method to use the global CHUNK_SIZE
