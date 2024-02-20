@@ -19,7 +19,8 @@ from telegram import constants
 # ~~~~~~~~~
 
 # Global variable for chunk size
-CHUNK_SIZE = 500  # Set this value as needed
+# Set this value as needed
+CHUNK_SIZE = 500
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -288,15 +289,21 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     logging.info(f"Translated response: {translated_response}")            
     return translated_response
 
+# ~~~~~~
+# others 
+# ~~~~~~
+
 # safe strip
 def safe_strip(value):
     return value.strip() if value else value
 
-# Adjusted smart_chunk method to use the global CHUNK_SIZE
+# smart chunking (v1.01)
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
     """
     Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
     with special consideration for list items starting with "-" and numbered list items.
+    If no logical split point is found within the chunk, it attempts to split on a newline
+    or, failing that, an empty space.
 
     Args:
     - text (str): The text to be chunked.
@@ -305,6 +312,58 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
     Returns:
     - List[str]: List of text chunks.
     """
+    chunks = []
+    start_index = 0
+
+    # Pattern to identify numbered list items and bullet points
+    list_item_pattern = re.compile(r'^(\d+\.\s+|\-\s+)', re.MULTILINE)
+
+    while start_index < len(text):
+        # Determine the tentative end index of the next chunk
+        end_index = min(start_index + chunk_size, len(text))
+
+        # Search for the last occurrence of a list item or newline within the chunk
+        matches = list(list_item_pattern.finditer(text, start_index, end_index))
+        last_match = matches[-1] if matches else None
+
+        if last_match and last_match.start() > start_index:
+            # Split just before the last list item found, if any
+            split_pos = last_match.start()
+        else:
+            # Try to find a newline or space as a secondary split point
+            newline_pos = text.rfind('\n', start_index, end_index)
+            space_pos = text.rfind(' ', start_index, end_index)
+            
+            # Choose the furthest position among newline and space, if any
+            if newline_pos != -1 or space_pos != -1:
+                split_pos = max(newline_pos, space_pos) + 1  # Include the character in the chunk
+            else:
+                # If no newline or space is found, split at the end of the chunk
+                split_pos = end_index
+
+        # Extract the chunk
+        chunk = text[start_index:split_pos].rstrip()
+
+        # Append the chunk and update the start_index for the next chunk
+        chunks.append(chunk)
+        start_index = split_pos
+
+    return chunks
+
+# v1.0 (old)
+# Adjusted smart_chunk method to use the global CHUNK_SIZE
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE):
+
+    # Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
+    # with special consideration for list items starting with "-" and numbered list items.
+
+    # Args:
+    # - text (str): The text to be chunked.
+    # - chunk_size (int): Maximum size of each chunk.
+
+    # Returns:
+    # - List[str]: List of text chunks.
+
     chunks = []
     start_index = 0
 
@@ -334,7 +393,7 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
         chunks.append(chunk)
         start_index = split_pos
 
-    return chunks
+    return chunks """
 
 # markdown to html // in case replies from Perplexity need to be parsed.
 def markdown_to_html(md_text):
