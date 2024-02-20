@@ -532,13 +532,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             text="I'm having trouble processing your request right now due to connectivity issues. Please try again later.",
                             parse_mode=ParseMode.HTML
                         )
-                        stop_typing_event.set()
                         break  # Ensure no further retries.
 
             except httpx.TimeoutException as e:
                 bot.logger.error(f"HTTP request timed out: {e}")
                 await context.bot.send_message(chat_id=chat_id, text="Sorry, the request timed out. Please try again later.")
-                stop_typing_event.set()
                 # Handle timeout-specific cleanup or logic here                
             except Exception as e:
                 bot.logger.error(f"Error during message processing: {e}")
@@ -560,7 +558,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     # Do not break; allow the system to attempt to generate a response
                     await generate_response_based_on_updated_context(bot, context, chat_id)                    
 
-                stop_typing_event.set()
                 return
 
             finally:

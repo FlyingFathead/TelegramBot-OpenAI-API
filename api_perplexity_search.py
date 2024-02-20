@@ -260,6 +260,9 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
             logging.error(f"Error in translating chunk: {response.text}")
             # Handle error, e.g., by breaking the loop or accumulating errors
 
+    # Wait for 1 second before processing the next chunk
+    await asyncio.sleep(1)
+
     # Combine translated chunks
     # translated_response = " ".join(translated_chunks)
             
