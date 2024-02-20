@@ -42,13 +42,16 @@ elasticsearch_enabled = config.getboolean('Elasticsearch', 'ElasticsearchEnabled
 ELASTICSEARCH_ENABLED = elasticsearch_enabled
 
 # Add extra wait time if we're in the middle of i.e. a translation process
-extra_wait_time = 20  # Additional seconds to wait when in translation mode
+extra_wait_time = 30  # Additional seconds to wait when in translation mode
 
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
 
     # Extract chat_id as soon as possible from the update object
     chat_id = update.effective_chat.id
+
+    # Initialize a flag to indicate whether a response has been sent
+    response_sent = False
 
     # send a "holiday message" if the bot is on a break
     if bot.is_bot_disabled:
@@ -348,12 +351,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             # Log the raw Perplexity API response for debugging
                             logging.info(f"Raw Perplexity API Response: {perplexity_response}")
 
-                            if perplexity_response:  # Ensure there's a response
-                                # Assuming perplexity_response is the raw string response
-                                bot_reply_content = perplexity_response.strip()
-
-                                # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
-
+                            if perplexity_response is not None:  # Ensure there's a response
                                 # Flag for translation in progress
                                 context.user_data['active_translation'] = True
 
@@ -376,27 +374,50 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                         # parse_mode=ParseMode.HTML
                                         parse_mode=ParseMode.MARKDOWN
                                     )
+
+                                    response_sent = True  # Indicate that a response has been sent
+                                    break  # Exit the loop since response has been handled
+
                                 else:
                                     # Log the error and maybe send a different message or handle the error differently
                                     logging.error("Error processing or translating the Perplexity response.")
-                                    await context.bot.send_message(
+                                    
+                                    # Append a system message noting the fallback due to processing error
+                                    chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
+                        
+                                    # "ungraceful exit"
+                                    """ await context.bot.send_message(
                                         chat_id=update.effective_chat.id,
                                         text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                                    )
+                                    ) """
                             else:
-                                logging.error("No valid response from Perplexity.")
-                                await context.bot.send_message(
+                                logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
+
+                                # Append a system message noting the fallback due to invalid response
+                                chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
+
+                                # "ungraceful exit"
+                                """ await context.bot.send_message(
                                     chat_id=update.effective_chat.id,
                                     text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                                )
+                                ) """
+
                         else:
                             logging.warning("No question was provided for the Perplexity query.")
-                            await context.bot.send_message(
+                            """ await context.bot.send_message(
                                 chat_id=update.effective_chat.id,
                                 text="I need a question to ask. Please try again with a question."
-                            )
+                            ) """
 
-                        return
+                            chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
+                            
+                        # Update the chat history in context with the new system message
+                        context.chat_data['chat_history'] = chat_history
+
+                        # originally we just hit a return value                            
+                        # return
+
+## ~~~~~~~~~~~~~~ others ~~~~~~~~~~~~~~~
 
                     #
                     # > currently unused function calls
@@ -427,7 +448,20 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # return  # Exit the loop after handling the custom function """
 
                 # Extract the response and send it back to the user
-                bot_reply = response_json['choices'][0]['message']['content'].strip()
+                # bot_reply = response_json['choices'][0]['message']['content'].strip()
+
+                # Safely get the content or default to an empty string if not found
+                bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+
+                # Only call strip if bot_reply_content is not None
+
+                bot_reply = ""  # Default value if no content is found or an empty response is received
+
+                if bot_reply_content:
+                    bot_reply = bot_reply_content.strip()
+                    # Proceed with using bot_reply for further logic
+                else:
+                    logging.warn("No response added.")
 
                 # Count tokens in the bot's response
                 bot_token_count = bot.count_tokens(bot_reply)
@@ -468,22 +502,38 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 break  # Break the loop if successful
 
             except httpx.ReadTimeout:
-                # If a read timeout occurs, check if in translation mode and adjust the retry delay
+                # Check if we're currently waiting on a translation to complete.
                 if 'active_translation' in context.user_data and context.user_data['active_translation']:
-                    logger.info(f"Added extra timeout time: {extra_wait_time} seconds")
-                    adjusted_retry_delay = bot.retry_delay + extra_wait_time
+                    logger.info("Handling timeout during active translation.")
+                    if attempt < bot.max_retries - 1:
+                        adjusted_retry_delay = bot.retry_delay + extra_wait_time
+                        logger.info(f"Translation in progress, extending retry delay to {adjusted_retry_delay} seconds. Retrying {attempt + 1} of {bot.max_retries}.")
+                        await asyncio.sleep(adjusted_retry_delay)
+                    else:
+                        logger.error("Max retries reached with active translation. Notifying user of the issue.")
+                        # Instead of calling a separate function, directly manage the fallback response here.
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text="I'm currently experiencing difficulties due to extended processing times. Let's try something else or you can try your request again later.",
+                            parse_mode=ParseMode.HTML
+                        )
+                        stop_typing_event.set()
+                        break  # Important to prevent further retries.
                 else:
-                    adjusted_retry_delay = bot.retry_delay
-
-                if attempt < bot.max_retries - 1:  # If not the last attempt
-                    stop_typing_event.clear()  # Clear the typing event
-                    typing_task = asyncio.create_task(send_typing_animation(context.bot, chat_id, stop_typing_event))
-                    await asyncio.sleep(adjusted_retry_delay)  # Use the adjusted delay
-                else:
-                    bot.logger.error("Max retries reached. Giving up.")
-                    await context.bot.send_message(chat_id=chat_id, text="Sorry, I'm having trouble connecting at the moment. Please try again later.")
-                    stop_typing_event.set()
-                    break
+                    # Handle non-translation related timeouts.
+                    if attempt < bot.max_retries - 1:
+                        logger.info(f"Read timeout, retrying in {bot.retry_delay} seconds... (Attempt {attempt + 1} of {bot.max_retries})")
+                        await asyncio.sleep(bot.retry_delay)
+                    else:
+                        logger.error("Max retries reached. Unable to proceed.")
+                        # Directly manage the fallback response here as well.
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text="I'm having trouble processing your request right now due to connectivity issues. Please try again later.",
+                            parse_mode=ParseMode.HTML
+                        )
+                        stop_typing_event.set()
+                        break  # Ensure no further retries.
 
             except httpx.TimeoutException as e:
                 bot.logger.error(f"HTTP request timed out: {e}")
@@ -501,7 +551,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     await context.bot.send_message(chat_id=chat_id, text="I've encountered an issue and have reset our conversation to prevent errors. Please try your request again.")
                 else:
                     # Handle other exceptions normally
-                    await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+                    # await context.bot.send_message(chat_id=chat_id, text="Sorry, there was an error processing your message.")
+                    chat_history.append({
+                        "role": "system", 
+                        "content": "API request threw an error, if everything seems okay, don't worry."
+                    })
+                    context.chat_data['chat_history'] = chat_history
+                    # Do not break; allow the system to attempt to generate a response
+                    await generate_response_based_on_updated_context(bot, context, chat_id)                    
 
                 stop_typing_event.set()
                 return
@@ -524,11 +581,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # await bot.process_text_message(update, context)
 
     except Exception as e:
-        bot.logger.error("Unhandled exception:", exc_info=e)
-        print(f"Unhandled exception: {e}")
-        import traceback
-        traceback.print_exc()
-        await update.message.reply_text("An unexpected error occurred. Please try again.")
+        # Before handling exceptions, check if a response has already been sent
+        if not response_sent:
+            bot.logger.error("Unhandled exception:", exc_info=e)
+            print(f"Unhandled exception: {e}")
+            import traceback
+            traceback.print_exc()
+            await update.message.reply_text("An unexpected error occurred. Please try again.")
+            response_sent = True  # Mark response as sent to prevent further attempts
 
 #
 # > other
@@ -539,6 +599,61 @@ async def send_typing_animation(bot, chat_id, stop_event: asyncio.Event):
     while not stop_event.is_set():
         await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
         await asyncio.sleep(5)  # Telegram's typing status lasts for a few seconds, so we repeat.
+
+async def generate_response_based_on_updated_context(bot, context, chat_id):
+    # logger.info("Using the `generate_response_based_on_updated_content` function")
+    # This function is designed to generate a response leveraging the updated chat history,
+    # which includes system messages about the encountered issues, ensuring continuity in user interaction,
+    # even when previous attempts to generate responses have faced issues such as connectivity problems or API timeouts.
+
+    try:
+        # Use the 'chat_history_with_es_context' or any other relevant updated context
+        # that has been prepared earlier in the code flow.
+        updated_context = context.chat_data['chat_history']
+
+        # Prepare the API request payload with the updated context.
+        payload = {
+            "model": bot.model,  # Model configured for the bot
+            "messages": updated_context,  # Updated chat history including system messages
+            "temperature": bot.temperature,  # Configured response creativity
+            "max_tokens": 1024,  # Adjust based on desired response length
+            # Additional parameters like 'top_p', 'frequency_penalty', etc., can be included based on requirements.
+        }
+
+        # Headers for the API request, including the authorization token.
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {bot.openai_api_key}"  # Use the bot's stored OpenAI API key
+        }
+
+        # Make the asynchronous API call to generate the response based on the updated context.
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers
+            )
+
+        response_data = response.json()
+
+        # Extract the generated response from the response data.
+        generated_response = response_data.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
+
+        # Send the generated response back to the user.
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=generated_response,
+            parse_mode=ParseMode.HTML  # Or adjust the parse mode based on the formatting of the response
+        )
+
+    except Exception as e:
+        # Log the error and provide a fallback message to maintain engagement with the user.
+        logging.error(f"Failed to generate a response due to: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="I encountered an issue but I'm still here. How can I assist you further?",
+            parse_mode=ParseMode.HTML  # Adjust as necessary
+        )
 
 # (old version) /// typing message animation as an async module, if needed for longer wait times
 """ async def send_typing_animation(bot, chat_id, duration=30):

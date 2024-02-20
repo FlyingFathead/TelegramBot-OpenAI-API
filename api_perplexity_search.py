@@ -117,8 +117,8 @@ async def query_perplexity(bot, chat_id, question: str):
         if response.status_code == 200:
             response_data = response.json()
 
-            if 'choices' in response_data and len(response_data['choices']) > 0:
-                bot_reply_content = response_data['choices'][0].get('message', {}).get('content', "")
+            if 'choices' in response_data and len(response_data['choices']) > 0 and 'message' in response_data['choices'][0] and 'content' in response_data['choices'][0]['message']:
+                bot_reply_content = response_data['choices'][0]['message']['content']
                 return bot_reply_content.strip() if bot_reply_content else "Sorry, I couldn't fetch an answer for that. Please try again later."
             else:
                 logging.error("Perplexity API returned an unexpected structure.")
@@ -284,6 +284,10 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 
     logging.info(f"Translated response: {translated_response}")            
     return translated_response
+
+# safe strip
+def safe_strip(value):
+    return value.strip() if value else value
 
 # Adjusted smart_chunk method to use the global CHUNK_SIZE
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
