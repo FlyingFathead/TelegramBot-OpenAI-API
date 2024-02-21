@@ -662,4 +662,3 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
         if asyncio.get_running_loop().time() >= end_time:
             break
  """
-

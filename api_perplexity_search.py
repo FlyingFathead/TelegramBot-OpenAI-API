@@ -20,7 +20,7 @@ from telegram import constants
 
 # Global variable for chunk size
 # Set this value as needed
-CHUNK_SIZE = 500
+CHUNK_SIZE = 300
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
