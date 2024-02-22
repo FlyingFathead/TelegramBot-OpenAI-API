@@ -560,15 +560,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                 return
 
-            finally:
-                # Ensure the flag is always cleared after the operation
-                context.user_data.pop('active_translation', None)
-
-                # Stop the typing animation once processing is done
-                if not stop_typing_event.is_set():
-                    stop_typing_event.set()
-                await typing_task  
-
         # Trim chat history if it exceeds a specified length or token limit
         bot.trim_chat_history(chat_history, bot.max_tokens)
 
@@ -586,6 +577,15 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
             traceback.print_exc()
             await update.message.reply_text("An unexpected error occurred. Please try again.")
             response_sent = True  # Mark response as sent to prevent further attempts
+
+    finally:
+        # Ensure the flag is always cleared after the operation
+        context.user_data.pop('active_translation', None)
+
+        # Stop the typing animation once processing is done
+        if not stop_typing_event.is_set():
+            stop_typing_event.set()
+        await typing_task
 
 #
 # > other
