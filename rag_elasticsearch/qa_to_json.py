@@ -1,8 +1,10 @@
 # qa_to_json.py
+# a part of the `elasticsearch_db` toolkit
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import os
 import json
 import sys
 from elasticsearch import Elasticsearch
@@ -39,37 +41,76 @@ def parse_qa_text(file_path):
             qa_pairs.append(current_pair)
     return qa_pairs
 
-def add_to_index(es, index, qa_pairs):
+def add_to_index(es, index, qa_pairs, backup_file):
     for pair in qa_pairs:
         es.index(index=index, body=pair)
+    backup_to_json(backup_file, qa_pairs)  # Call backup function after adding to Elasticsearch
 
-def interactive_mode(es, index):
-    qa_pairs = []
+def interactive_mode(es, index, backup_file):
     while True:
-        question = input("Enter your question (or type 'exit' to finish): ")
-        if question == 'exit':
+        mode = input("Choose mode - [s]ingle question, [m]ulti-question, [b]atch input (or type 'exit' to finish): ")
+        if mode.lower() == 'exit':
             break
+
+        questions = []
+        if mode.lower() == 's':
+            question = input("Enter your question: ")
+            if question.strip():  # Ensure the question is not empty or whitespace
+                questions.append(question)
+        elif mode.lower() == 'm' or mode.lower() == 'b':
+            prompt_text = "Enter your questions, one per line. When finished, press Enter on an empty line:" if mode.lower() == 'b' else "Enter your question (or type 'done' to finish questions): "
+            print(prompt_text) if mode.lower() == 'b' else None
+            while True:
+                question = input() if mode.lower() == 'b' else input("Enter your question (or type 'done' to finish questions): ")
+                if question == "" and mode.lower() == 'b':  # End input for batch mode on empty line
+                    break
+                if question.lower() == 'done' and mode.lower() == 'm':  # End input for multi-question mode on 'done'
+                    break
+                if question.strip():  # Ignore empty or whitespace-only lines
+                    questions.append(question.strip())
+
+        if not questions:
+            print("No questions entered. Skipping to next entry.")
+            continue
+
         answer = input("Enter the answer: ")
         references = input("Enter any references (optional): ")
-        print("\nQ&A pair generated:")
-        print("<" + "-"*72 + ">")
-        print("Q:", question)
-        print("A:", answer)
-        if references:
-            print("Ref:", references)
-        print("<" + "-"*72 + ">")
+        qa_pairs = [{'question': q, 'answer': answer, 'references': references} for q in questions]
+
+        for pair in qa_pairs:
+            print("\nQ&A pair generated:")
+            print("<" + "-"*72 + ">")
+            print("Q:", pair["question"])
+            print("A:", pair["answer"])
+            if references:
+                print("Ref:", references)
+            print("<" + "-"*72 + ">")
 
         confirm = input("Add to index (y/n)? ")
         if confirm.lower() == 'y':
-            qa_pairs.append({'question': question, 'answer': answer, 'references': references})
-    
-    if qa_pairs:
-        add_to_index(es, index, qa_pairs)
-        print(f"Added {len(qa_pairs)} Q&A pairs to Elasticsearch index '{index}'.")
-    else:
-        print("No Q&A pairs were added.")
+            add_to_index(es, index, qa_pairs, backup_file)
+            print(f"Added {len(qa_pairs)} Q&A pairs to Elasticsearch index '{index}' and backed up to JSON file.")
+        else:
+            print("No Q&A pairs were added.")
+            
+# backup generated Q&A pairs to a JSON file
+def backup_to_json(file_path, qa_pairs):
+    try:
+        data = []
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+        data.extend(qa_pairs)
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(data, file, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Failed to backup Q&A pairs to JSON: {e}")
 
 def main():
+
+    # define the backup file for q&a's created
+    backup_file = "./backup_file.json"
+
     parser = ArgumentParser(description="Parse Q&A text and optionally add to Elasticsearch index.")
     parser.add_argument("file_path", nargs='?', help="Path to the Q&A text file.", default=None)
     parser.add_argument("--addtoindex", action="store_true", help="If set, add parsed Q&A pairs to Elasticsearch index.")
@@ -82,7 +123,7 @@ def main():
         if not es.ping():
             print("Could not connect to Elasticsearch.")
             sys.exit(1)
-        interactive_mode(es, args.index)
+        interactive_mode(es, args.index, backup_file)
     elif args.file_path:
         parsed_data = parse_qa_text(args.file_path)
         if args.addtoindex:
@@ -114,3 +155,30 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# old code for reference =>
+""" def interactive_mode(es, index):
+    qa_pairs = []
+    while True:
+        question = input("Enter your question (or type 'exit' to finish): ")
+        if question == 'exit':
+            break
+        answer = input("Enter the answer: ")
+        references = input("Enter any references (optional): ")
+        print("\nQ&A pair generated:")
+        print("<" + "-"*72 + ">")
+        print("Q:", question)
+        print("A:", answer)
+        if references:
+            print("Ref:", references)
+        print("<" + "-"*72 + ">")
+
+        confirm = input("Add to index (y/n)? ")
+        if confirm.lower() == 'y':
+            qa_pairs.append({'question': question, 'answer': answer, 'references': references})
+    
+    if qa_pairs:
+        add_to_index(es, index, qa_pairs)
+        print(f"Added {len(qa_pairs)} Q&A pairs to Elasticsearch index '{index}'.")
+    else:
+        print("No Q&A pairs were added.") """    
