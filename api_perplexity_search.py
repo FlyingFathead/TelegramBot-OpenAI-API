@@ -34,15 +34,15 @@ async def fact_check_with_perplexity(question: str):
         "Accept": "application/json",
     }
     data = {
-        "model": "pplx-7b-online",  # Specifying the pplx-70b-online model
+        "model": "sonar-small-online",  # Specifying the pplx-70b-online model
         "stream": False,
         "max_tokens": 1024,
         "temperature": 0.0,  # Adjust based on how deterministic you want the responses to be
         "messages": [
-            {
-                "role": "system",
-                "content": "Be precise and concise in your responses."
-            },
+            #{
+            #    "role": "system",
+            #    "content": "Be precise and concise in your responses."
+            #},
             {
                 "role": "user",
                 "content": question
@@ -59,35 +59,6 @@ async def fact_check_with_perplexity(question: str):
         logging.error(f"Perplexity API Error: {response.text}")
         return None
 
-# perplexity 70b query
-async def query_pplx_70b_online(prompt):
-    PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")  # Ensure this is securely set
-    url = "https://api.perplexity.ai/chat/completions"
-    
-    headers = {
-        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-    data = {
-        "model": "pplx-70b-online",  # Specifying the pplx-70b-online model
-        "messages": [
-            {"role": "system", "content": "You are a Discord helper bot. Answer accordingly."},
-            {"role": "user", "content": prompt},
-        ],
-        # Include other parameters as necessary
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=data)
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error: {response.text}")
-        return None
-
 # queries perplexity
 async def query_perplexity(bot, chat_id, question: str):
     # Trigger typing animation
@@ -100,13 +71,15 @@ async def query_perplexity(bot, chat_id, question: str):
         "Accept": "application/json",
     }
     data = {
-        # i.e. `7b-online` or `70b-online``
-        "model": "pplx-7b-online",
+        # i.e. `7b-online` or `70b-online`
+        # note: models such as "pplx-70b-online" are deprecated and will be out in march 2024
+        # use the new sonar models instead; see: https://docs.perplexity.ai/docs/model-cards#perplexity-models
+        "model": "sonar-small-online",
         "stream": False,
         "max_tokens": 1024,
         "temperature": 0.0,
         "messages": [
-            {"role": "system", "content": "Be precise in your responses. Answer in English. Use online sources as much as possible."},
+            # {"role": "system", "content": "Be precise in your responses. Answer in English. Use online sources as much as possible."},
             {"role": "user", "content": question}
         ]
     }
@@ -327,6 +300,56 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
 
     return chunks
 
+# ~~~~~~~~~~~~~~~~
+# additional tools
+# ~~~~~~~~~~~~~~~~
+
+# markdown to html // in case replies from Perplexity need to be parsed.
+def markdown_to_html(md_text):
+    # Convert bold from **text** to <b>text</b>
+    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', md_text)
+    
+    # Convert italic from *text* or _text_ to <i>text</i>
+    html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
+    
+    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
+    html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
+    
+    return html_text
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# > archived code below, to be removed ...
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# OLD // deprecated // perplexity 70b query
+""" async def query_pplx_70b_online(prompt):
+    PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")  # Ensure this is securely set
+    url = "https://api.perplexity.ai/chat/completions"
+    
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    data = {
+        "model": "pplx-70b-online",  # Specifying the pplx-70b-online model
+        "messages": [
+            {"role": "system", "content": "You are a Discord helper bot. Answer accordingly."},
+            {"role": "user", "content": prompt},
+        ],
+        # Include other parameters as necessary
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=data)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error: {response.text}")
+        return None """
+
 # smart chunking (v1.03)
 """ def smart_chunk(text, chunk_size=CHUNK_SIZE, buffer_zone=50):    
     # Splits the text into chunks, trying to break at logical points within CHUNK_SIZE,
@@ -474,19 +497,6 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
         start_index = split_pos
 
     return chunks """
-
-# markdown to html // in case replies from Perplexity need to be parsed.
-def markdown_to_html(md_text):
-    # Convert bold from **text** to <b>text</b>
-    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', md_text)
-    
-    # Convert italic from *text* or _text_ to <i>text</i>
-    html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
-    
-    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
-    html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
-    
-    return html_text
 
 # ~~~~~~~~~~~~
 # alternatives

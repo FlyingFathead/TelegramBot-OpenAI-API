@@ -32,5 +32,6 @@ def find_empty_questions(index_name):
         print(f"Document ID: {doc['_id']}")
 
 if __name__ == "__main__":
-    index_name = "your_index_name"  # Replace with your actual index name
+    index_name = "tg-bot-rag-index"  # Replace with your index
+    # index_name = "your_index_name"  # Replace with your actual index name
     find_empty_questions(index_name)
