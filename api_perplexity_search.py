@@ -238,39 +238,15 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     # Wait for 1 second before processing the next chunk
     await asyncio.sleep(1)
 
-    # Combine translated chunks
-    # translated_response = " ".join(translated_chunks)
-            
-    # Initialize an empty string to hold the final translated response
-    translated_response = ""
+    # Now, instead of manually concatenating translated chunks, use the rejoin_chunks function
+    rejoined_text = rejoin_chunks(translated_chunks)
 
-    # Define a regex pattern to match numbered list items
-    numbered_list_pattern = re.compile(r'^\d+\.')
+    logging.info(f"Rejoined translated response: {rejoined_text}")
 
-    # Loop through the translated chunks
-    for i, chunk in enumerate(translated_chunks):
-        # For the first chunk, simply add it to the response
-        if i == 0:
-            translated_response += chunk
-        else:
-            # If the chunk starts with a dash or matches the numbered list pattern, prepend it with a newline
-            if chunk.startswith("-") or numbered_list_pattern.match(chunk) or chunk.startswith("###"):
-                translated_response += "\n" + chunk
-            # Otherwise, join it with a space
-            else:
-                translated_response += " " + chunk
-
-    logging.info(f"Translated response: {translated_response}")
-
-    # formatted_text = re.sub(r'### (.*)', r'**\1**', translated_response)
-    # formatted_text = re.sub(r'## (.*)', r'**\1**', formatted_text)  # Apply this on formatted_text, not translated_response
-    # logging.info(f"Parsed translated response: {formatted_text}")
-
-    # After building the full translated_response, apply the paragraph breaks adjustment
-    adjusted_response = add_paragraph_breaks_to_headers(translated_response)
-
+    # Continue with your existing logic to format and return the translated text...
+    
     # Apply the header formatting for Telegram before converting to HTML
-    telegram_formatted_response = format_headers_for_telegram(adjusted_response)
+    telegram_formatted_response = format_headers_for_telegram(rejoined_text)
 
     # Then convert the Telegram-formatted response to HTML
     html_response = markdown_to_html(telegram_formatted_response)
@@ -278,8 +254,6 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     logging.info(f"Parsed translated response: {html_response}")
 
     return html_response
-
-    # return translated_response
 
 # ~~~~~~
 # others 
@@ -352,6 +326,34 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
 
     return chunks
 
+# rejoining chunks
+def rejoin_chunks(chunks):
+    # Initialize an empty string to hold the rejoined text
+    rejoined_text = ""
+    
+    # Iterate over the chunks
+    for i, chunk in enumerate(chunks):
+        # Trim any leading or trailing whitespace from the chunk
+        trimmed_chunk = chunk.strip()
+        
+        # Append the trimmed chunk to the rejoined text
+        if i == 0:
+            # Directly append if it's the first chunk
+            rejoined_text += trimmed_chunk
+        else:
+            # Check if the previous chunk ended with a paragraph break (two newlines)
+            if rejoined_text.endswith('\n\n'):
+                # If so, append the next chunk with a single newline if it does not start with a list marker or header
+                if not trimmed_chunk.startswith('- ') and not trimmed_chunk.startswith('### ') and not trimmed_chunk.startswith('## '):
+                    rejoined_text += '\n' + trimmed_chunk
+                else:
+                    rejoined_text += trimmed_chunk
+            else:
+                # Otherwise, append it with a paragraph break
+                rejoined_text += '\n\n' + trimmed_chunk
+    
+    return rejoined_text
+
 # adding paragraph breaks back to headers
 def add_paragraph_breaks_to_headers(translated_response):
     # Split the translated response into lines
@@ -384,20 +386,25 @@ def format_headers_for_telegram(translated_response):
 
     # Iterate over the lines, adding symbols before headers and ensuring proper line breaks
     for i, line in enumerate(lines):
-        if line.startswith('###'):
-            # Add a newline before the header if it's not the first line and the previous line is not empty
+        if line.startswith('####'):
+            # Add a newline before the sub-sub-header if it's not the first line and the previous line is not empty
             if i > 0 and lines[i - 1].strip() != '':
                 formatted_lines.append('')
-            # Format the header and add a newline after
+            # Format the sub-sub-header and add a newline after
+            formatted_line = '◦ <b>' + line[4:].strip() + '</b>'
+            formatted_lines.append(formatted_line)
+            if i < len(lines) - 1 and lines[i + 1].strip() != '':
+                formatted_lines.append('')
+        elif line.startswith('###'):
+            if i > 0 and lines[i - 1].strip() != '':
+                formatted_lines.append('')
             formatted_line = '• <b>' + line[3:].strip() + '</b>'
             formatted_lines.append(formatted_line)
             if i < len(lines) - 1 and lines[i + 1].strip() != '':
                 formatted_lines.append('')
         elif line.startswith('##'):
-            # Add a newline before the main header if it's not the first line and the previous line is not empty
             if i > 0 and lines[i - 1].strip() != '':
                 formatted_lines.append('')
-            # Format the main header and add a newline after
             formatted_line = '➤ <b>' + line[2:].strip() + '</b>'
             formatted_lines.append(formatted_line)
             if i < len(lines) - 1 and lines[i + 1].strip() != '':
