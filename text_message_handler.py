@@ -32,6 +32,7 @@ from api_perplexity_search import query_perplexity, translate_response, translat
 
 # RAG via elasticsearch
 from elasticsearch_handler import search_es_for_context
+from elasticsearch_functions import action_token_functions
 
 # Load the configuration file
 config = configparser.ConfigParser()
@@ -186,20 +187,41 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # (old) // Show typing animation
         # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
+        # ~~~~~~~~~~~~~~~~~
         # Elasticsearch RAG
-        es_context = await search_es_for_context(user_message)
+        # ~~~~~~~~~~~~~~~~~
+        # es_context = await search_es_for_context(user_message)
 
-        # Elasticsearch RAG
+        # Initialize chat_history_with_es_context to default value
+        chat_history_with_es_context = chat_history_with_system_message
+
+        # Assuming ELASTICSEARCH_ENABLED is true and we have fetched es_context
         if ELASTICSEARCH_ENABLED:
             logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
+
             es_context = await search_es_for_context(user_message)
+            action_triggered = False  # Flag to check if an action was triggered based on tokens
+
             if es_context and es_context.strip():
-                # If Elasticsearch returned a non-empty Q&A pair, prepend it to the chat history
                 logger.info(f"Elasticsearch found additional context: {es_context}")
-                chat_history_with_es_context = [{"role": "system", "content": "Elasticsearch RAG data: " + es_context}] + chat_history_with_system_message
+
+                # Iterate through your action tokens and check if any exist in the es_context
+                for token, function in action_token_functions.items():
+                    if token in es_context:
+                        logger.info(f"Action token found: {token}. Executing corresponding function.")
+                        
+                        # Execute the mapped function
+                        chat_history_with_es_context = await function(context, update, chat_history_with_system_message)
+                        
+                        action_triggered = True
+                        # chat_history_with_es_context = integrate_data_into_context(data, chat_history_with_system_message)
+                        break  # Stop checking after the first match to avoid multiple actions
+
+                # If no action token was found, just add the Elasticsearch context to the chat history
+                if not action_triggered:
+                    chat_history_with_es_context = [{"role": "system", "content": "Elasticsearch RAG data: " + es_context}] + chat_history_with_system_message
             else:
                 logger.info("No relevant or non-empty context found via Elasticsearch. Proceeding.")
-                # If no relevant or non-empty context was found, or Elasticsearch is disabled, proceed without modification
                 chat_history_with_es_context = chat_history_with_system_message
         else:
             chat_history_with_es_context = chat_history_with_system_message
