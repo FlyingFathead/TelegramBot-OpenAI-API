@@ -289,56 +289,68 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
-# smart chunking (v1.10)
+# smart chunking (v1.11)
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
+    # Initialize a list to store the chunks
+    chunks = []
+    
     # Split the text into blocks separated by two newline characters to maintain paragraph breaks.
     blocks = text.split('\n\n')
-    chunks = []
+    
+    # Initialize an empty string to hold the current chunk content
+    current_chunk = ""
 
     for block in blocks:
-        # Further split each block into lines to check for list items or single lines.
-        lines = block.split('\n')
-        current_chunk = []
+        # Check if the current block, when added to the current chunk, exceeds the chunk size
+        if len(current_chunk) + len(block) <= chunk_size:
+            # If not, add the block to the current chunk
+            current_chunk += block + "\n\n"
+        else:
+            # If the block is too large, finalize the current chunk and start a new one
+            if current_chunk:
+                # Remove trailing newlines and add the chunk to the list
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+            
+            # If the block itself exceeds the chunk size, handle it separately
+            if len(block) > chunk_size:
+                # Further split the block into lines
+                lines = block.split('\n')
+                temp_chunk = ""
 
-        for line in lines:
-            # Predict if the current line can be added to the current chunk without exceeding the chunk size.
-            if sum(len(l) + 1 for l in current_chunk) + len(line) <= chunk_size:
-                current_chunk.append(line)
+                for line in lines:
+                    # Check if adding the line exceeds the chunk size
+                    if len(temp_chunk) + len(line) <= chunk_size:
+                        temp_chunk += line + "\n"
+                    else:
+                        # If the line is too long, split it and ensure no mid-sentence cuts
+                        if temp_chunk:
+                            chunks.append(temp_chunk.strip())
+                            temp_chunk = ""
+                        # Split line by sentence boundaries if necessary
+                        sentences = re.split('([.!?] )', line)
+                        sentence_chunk = ""
+                        for sentence in sentences:
+                            if len(sentence_chunk) + len(sentence) <= chunk_size:
+                                sentence_chunk += sentence
+                            else:
+                                # Finalize chunk at sentence boundary
+                                if sentence_chunk:
+                                    chunks.append(sentence_chunk.strip())
+                                    sentence_chunk = ""
+                                # If a single sentence exceeds the chunk size, split it directly
+                                sentence_chunk = sentence
+                        if sentence_chunk:
+                            chunks.append(sentence_chunk.strip())
             else:
-                # If adding the current line would exceed the chunk size, finalize the current chunk.
-                if current_chunk:
-                    chunks.append('\n'.join(current_chunk))
-                    current_chunk = [line]  # Start a new chunk with the current line.
-                else:
-                    # If the current line itself exceeds the chunk size, split the line into smaller parts.
-                    for i in range(0, len(line), chunk_size):
-                        chunks.append(line[i:i+chunk_size])
+                # If the block fits within the limit but couldn't be added to the previous chunk, start a new chunk
+                current_chunk = block + "\n\n"
+    
+    # Add any remaining content in current_chunk to chunks
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
 
-        # Add the last chunk if it contains any lines.
-        if current_chunk:
-            chunks.append('\n'.join(current_chunk))
-
-        # Add a newline between blocks to preserve paragraph breaks unless it's the last block.
-        if block != blocks[-1]:
-            chunks.append('')
-
-    # Combine consecutive chunks to optimize their sizes without exceeding the chunk size limit.
-    optimized_chunks = []
-    current_chunk = []
-
-    for chunk in chunks:
-        if chunk or chunk == '':  # Check for empty strings that represent paragraph breaks.
-            if sum(len(l) + 1 for l in current_chunk) + len(chunk) <= chunk_size:
-                current_chunk.append(chunk)
-            else:
-                optimized_chunks.append('\n\n'.join(filter(None, current_chunk)))  # Join non-empty lines.
-                current_chunk = [chunk]  # Start a new chunk.
-
-    # Add the final chunk if it contains any lines or paragraph breaks.
-    if current_chunk:
-        optimized_chunks.append('\n\n'.join(filter(None, current_chunk)))
-
-    return optimized_chunks
+    return chunks
 
 # adding paragraph breaks back to headers
 def add_paragraph_breaks_to_headers(translated_response):
