@@ -116,12 +116,15 @@ async def translate_response(bot, user_message, perplexity_response):
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
-        return perplexity_response  # Return original response if language detection fails
-
+        # Directly convert and return if language detection fails; assuming English or Markdown needs HTML conversion
+        formatted_response = format_headers_for_telegram(perplexity_response)
+        return markdown_to_html(formatted_response)
+    
     # Check if the detected language is English, skip translation if it is
     if user_lang == 'en':
-        logging.info("User's question is in English, skipping translation.")
-        return perplexity_response
+        logging.info("User's question is in English, converting Markdown to HTML.")
+        formatted_response = format_headers_for_telegram(perplexity_response)
+        return markdown_to_html(formatted_response)
     else:
         # await context.bot.send_message(chat_id=update.effective_chat.id, text="<i>Translating, please wait...</i>", parse_mode=telegram.ParseMode.HTML)
         logging.info(f"User's question is in {user_lang}, proceeding with translation.")
@@ -183,12 +186,14 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
-        return perplexity_response
+        formatted_response = format_headers_for_telegram(perplexity_response)
+        return markdown_to_html(formatted_response)
 
     # Skip translation if the language is English
     if user_lang == 'en':
-        logging.info("User's question is in English, skipping translation.")
-        return perplexity_response
+        logging.info("User's question is in English, skipping translation, converting Markdown to HTML.")
+        formatted_response = format_headers_for_telegram(perplexity_response)
+        return markdown_to_html(formatted_response)
 
     # Show typing animation at the start
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
@@ -196,10 +201,13 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     # Use smart_chunk to split the response text
     chunks = smart_chunk(perplexity_response)
 
+    logging.info(f"Total chunks created: {len(chunks)}")  # Log total number of chunks
     translated_chunks = []
 
-    for chunk in chunks:
-        logging.info(f"Translating chunk: {chunk}")
+    for index, chunk in enumerate(chunks):
+        # logging.info(f"Translating chunk: {chunk}")
+        logging.info(f"Translating chunk {index+1}/{len(chunks)}: {chunk}")
+
         # Prepare the payload for each chunk
 
         # Show typing animation at the start
@@ -222,17 +230,20 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         # Translate each chunk
         async with httpx.AsyncClient() as client:
             response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+            logging.info(f"Translation response for chunk {index + 1}: {response.status_code}")            
 
         if response.status_code == 200:
             try:
                 response_json = response.json()
                 translated_chunk = response_json['choices'][0]['message']['content'].strip()
                 translated_chunks.append(translated_chunk)
+                # Log the translated chunk content for verification
+                logging.info(f"Chunk {index + 1} translated successfully with content: {translated_chunk}")                
             except Exception as e:
                 logging.error(f"Error processing translation response for a chunk: {e}")
                 # Handle partial translation or decide to abort/return error based on your preference
         else:
-            logging.error(f"Error in translating chunk: {response.text}")
+            logging.error(f"Error in translating chunk {index + 1}: {response.text}")
             # Handle error, e.g., by breaking the loop or accumulating errors
 
     # Wait for 1 second before processing the next chunk
@@ -241,6 +252,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     # Now, instead of manually concatenating translated chunks, use the rejoin_chunks function
     rejoined_text = rejoin_chunks(translated_chunks)
 
+    logging.info(f"Final rejoined text length: {len(rejoined_text)}")
     logging.info(f"Rejoined translated response: {rejoined_text}")
 
     # Continue with your existing logic to format and return the translated text...
@@ -263,7 +275,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
-# smart chunking (v1.11)
+# smart chunking with improved end-of-text handling (v1.12)
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
     # Initialize a list to store the chunks
     chunks = []
@@ -275,52 +287,46 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
     current_chunk = ""
 
     for block in blocks:
-        # Check if the current block, when added to the current chunk, exceeds the chunk size
-        if len(current_chunk) + len(block) <= chunk_size:
-            # If not, add the block to the current chunk
+        if len(current_chunk) + len(block) + 2 <= chunk_size:  # +2 for the newline characters
+            # If adding the block doesn't exceed the chunk size, add it to the current chunk
             current_chunk += block + "\n\n"
         else:
-            # If the block is too large, finalize the current chunk and start a new one
+            # If the current chunk is not empty, store it before processing the new block
             if current_chunk:
-                # Remove trailing newlines and add the chunk to the list
                 chunks.append(current_chunk.strip())
                 current_chunk = ""
-            
-            # If the block itself exceeds the chunk size, handle it separately
+
+            # If the block itself is too large, split it further
             if len(block) > chunk_size:
-                # Further split the block into lines
                 lines = block.split('\n')
                 temp_chunk = ""
 
                 for line in lines:
-                    # Check if adding the line exceeds the chunk size
-                    if len(temp_chunk) + len(line) <= chunk_size:
+                    if len(temp_chunk) + len(line) + 1 <= chunk_size:  # +1 for the newline character
                         temp_chunk += line + "\n"
                     else:
-                        # If the line is too long, split it and ensure no mid-sentence cuts
                         if temp_chunk:
                             chunks.append(temp_chunk.strip())
                             temp_chunk = ""
-                        # Split line by sentence boundaries if necessary
+                        # Split the line if it's too long, handling sentence boundaries or splitting directly
                         sentences = re.split('([.!?] )', line)
                         sentence_chunk = ""
                         for sentence in sentences:
-                            if len(sentence_chunk) + len(sentence) <= chunk_size:
-                                sentence_chunk += sentence
-                            else:
-                                # Finalize chunk at sentence boundary
-                                if sentence_chunk:
-                                    chunks.append(sentence_chunk.strip())
-                                    sentence_chunk = ""
-                                # If a single sentence exceeds the chunk size, split it directly
-                                sentence_chunk = sentence
+                            if sentence.strip():  # Avoid adding empty sentences
+                                if len(sentence_chunk) + len(sentence) <= chunk_size:
+                                    sentence_chunk += sentence
+                                else:
+                                    if sentence_chunk:
+                                        chunks.append(sentence_chunk.strip())
+                                        sentence_chunk = ""
+                                    sentence_chunk = sentence
                         if sentence_chunk:
                             chunks.append(sentence_chunk.strip())
             else:
-                # If the block fits within the limit but couldn't be added to the previous chunk, start a new chunk
+                # If the block is not too large but the current chunk is full, start a new chunk
                 current_chunk = block + "\n\n"
     
-    # Add any remaining content in current_chunk to chunks
+    # After processing all blocks, add any remaining content in the current chunk
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
 
@@ -416,6 +422,32 @@ def format_headers_for_telegram(translated_response):
     formatted_response = '\n'.join(formatted_lines)
     return formatted_response
 
+# ~~~~~~~~~~~~~~~~
+# additional tools
+# ~~~~~~~~~~~~~~~~
+
+# markdown to html // in case replies from Perplexity need to be parsed.
+def markdown_to_html(md_text):
+    # First, replace Markdown headers with bold syntax, respecting line beginnings
+    # Convert '### Header' and '## Header' to bold, given Telegram's HTML limitations
+    html_text = re.sub(r'^### (.*)', r'<b>\1</b>', md_text, flags=re.MULTILINE)
+    html_text = re.sub(r'^## (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
+    
+    # Convert bold syntax from **text** to <b>text</b>
+    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', html_text)
+    
+    # Convert italic from *text* or _text_ to <i>\1\2</i>
+    html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
+    
+    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
+    html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
+    
+    return html_text
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# > archived code below, to be removed ...
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # smart chunking (v1.09)
 """ def smart_chunk(text, chunk_size=CHUNK_SIZE):
     chunks = []
@@ -446,31 +478,6 @@ def format_headers_for_telegram(translated_response):
 
     return chunks
  """
-# ~~~~~~~~~~~~~~~~
-# additional tools
-# ~~~~~~~~~~~~~~~~
-
-# markdown to html // in case replies from Perplexity need to be parsed.
-def markdown_to_html(md_text):
-    # First, replace Markdown headers with bold syntax, respecting line beginnings
-    # Convert '### Header' and '## Header' to bold, given Telegram's HTML limitations
-    html_text = re.sub(r'^### (.*)', r'<b>\1</b>', md_text, flags=re.MULTILINE)
-    html_text = re.sub(r'^## (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
-    
-    # Convert bold syntax from **text** to <b>text</b>
-    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', html_text)
-    
-    # Convert italic from *text* or _text_ to <i>\1\2</i>
-    html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
-    
-    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
-    html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
-    
-    return html_text
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# > archived code below, to be removed ...
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # nltk-tryouts // smart chunking (v1.06)
 """ def smart_chunk(text, chunk_size=CHUNK_SIZE):
