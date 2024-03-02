@@ -428,20 +428,30 @@ def format_headers_for_telegram(translated_response):
 
 # markdown to html // in case replies from Perplexity need to be parsed.
 def markdown_to_html(md_text):
-    # First, replace Markdown headers with bold syntax, respecting line beginnings
-    # Convert '### Header' and '## Header' to bold, given Telegram's HTML limitations
-    html_text = re.sub(r'^### (.*)', r'<b>\1</b>', md_text, flags=re.MULTILINE)
+    # Handle LaTeX blocks first, treating them as code blocks
+    html_text = re.sub(r'\$\$(.*?)\$\$', r'<pre>\1</pre>', md_text)
+    html_text = re.sub(r'\\\[(.*?)\\\]', r'<pre>\1</pre>', html_text)
+
+    # Convert Markdown headers to HTML <b> tags
+    html_text = re.sub(r'^#### (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
+    html_text = re.sub(r'^### (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
     html_text = re.sub(r'^## (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
     
-    # Convert bold syntax from **text** to <b>text</b>
+    # Convert bold syntax
     html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', html_text)
     
-    # Convert italic from *text* or _text_ to <i>\1\2</i>
+    # Convert italic syntax
     html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
     
-    # Convert links from [link text](http://url) to <a href="http://url">link text</a>
+    # Convert Markdown links to HTML <a> tags
     html_text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', html_text)
-    
+
+    # Handle inline code with backticks `these`
+    html_text = re.sub(r'`(.*?)`', r'<code>\1</code>', html_text)
+
+    # Convert multiline code blocks with triple backticks
+    html_text = re.sub(r'```(.*?)```', r'<pre>\1</pre>', html_text, flags=re.DOTALL)
+
     return html_text
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
