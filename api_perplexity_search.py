@@ -21,7 +21,7 @@ from telegram import constants
 
 # Global variable for chunk size
 # Set this value as needed
-CHUNK_SIZE = 350
+CHUNK_SIZE = 500
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -269,8 +269,13 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     # After building the full translated_response, apply the paragraph breaks adjustment
     adjusted_response = add_paragraph_breaks_to_headers(translated_response)
 
-    # Then convert the markdown to HTML
-    html_response = markdown_to_html(adjusted_response)
+    # Apply the header formatting for Telegram before converting to HTML
+    telegram_formatted_response = format_headers_for_telegram(adjusted_response)
+
+    # Then convert the Telegram-formatted response to HTML
+    html_response = markdown_to_html(telegram_formatted_response)
+
+    logging.info(f"Parsed translated response: {html_response}")
 
     return html_response
 
@@ -356,6 +361,41 @@ def add_paragraph_breaks_to_headers(translated_response):
     # Join the adjusted lines back into a single string
     adjusted_response = '\n'.join(adjusted_lines)
     return adjusted_response
+
+# formatting headers to look neater for TG and ensure proper breaks
+def format_headers_for_telegram(translated_response):
+    # Split the translated response into lines
+    lines = translated_response.split('\n')
+
+    # Initialize a list to hold the formatted lines
+    formatted_lines = []
+
+    # Iterate over the lines, adding symbols before headers and ensuring proper line breaks
+    for i, line in enumerate(lines):
+        if line.startswith('###'):
+            # Add a newline before the header if it's not the first line and the previous line is not empty
+            if i > 0 and lines[i - 1].strip() != '':
+                formatted_lines.append('')
+            # Format the header and add a newline after
+            formatted_line = '• <b>' + line[3:].strip() + '</b>'
+            formatted_lines.append(formatted_line)
+            if i < len(lines) - 1 and lines[i + 1].strip() != '':
+                formatted_lines.append('')
+        elif line.startswith('##'):
+            # Add a newline before the main header if it's not the first line and the previous line is not empty
+            if i > 0 and lines[i - 1].strip() != '':
+                formatted_lines.append('')
+            # Format the main header and add a newline after
+            formatted_line = '➤ <b>' + line[2:].strip() + '</b>'
+            formatted_lines.append(formatted_line)
+            if i < len(lines) - 1 and lines[i + 1].strip() != '':
+                formatted_lines.append('')
+        else:
+            formatted_lines.append(line)
+
+    # Join the adjusted lines back into a single string
+    formatted_response = '\n'.join(formatted_lines)
+    return formatted_response
 
 # smart chunking (v1.09)
 """ def smart_chunk(text, chunk_size=CHUNK_SIZE):
