@@ -21,6 +21,7 @@ configparser>=6.0.0
 httpx>=0.25.2
 langdetect>=1.0.9
 matplotlib>=3.8.2
+nltk>=3.8.1
 openai>=1.6.1
 pydub>=0.25.1
 python-telegram-bot>=20.7
@@ -51,6 +52,7 @@ timezonefinder>=6.4.0
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.58 - chunking, parsing and other small fixes
 - v0.57.5 - changes made to Perplexity API handling; new sonar-online models
 - v0.57.1 - improved fallbacks on external API calls like Perplexity API
 - v0.57 - improved error catching & failsafe fallbacks

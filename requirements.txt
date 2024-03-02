@@ -2,6 +2,7 @@ configparser>=6.0.0
 httpx>=0.25.2
 langdetect>=1.0.9
 matplotlib>=3.8.2
+nltk>=3.8.1
 openai>=1.6.1
 pydub>=0.25.1
 python-telegram-bot>=20.7

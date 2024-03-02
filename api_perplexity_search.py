@@ -3,6 +3,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import nltk
 import re
 import openai
 import httpx
@@ -20,7 +21,7 @@ from telegram import constants
 
 # Global variable for chunk size
 # Set this value as needed
-CHUNK_SIZE = 300
+CHUNK_SIZE = 350
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
@@ -253,7 +254,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
             translated_response += chunk
         else:
             # If the chunk starts with a dash or matches the numbered list pattern, prepend it with a newline
-            if chunk.startswith("-") or numbered_list_pattern.match(chunk):
+            if chunk.startswith("-") or numbered_list_pattern.match(chunk) or chunk.startswith("###"):
                 translated_response += "\n" + chunk
             # Otherwise, join it with a space
             else:
@@ -270,7 +271,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
-# smart chunking (v1.04)
+# smart chunking (v1.09)
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
     chunks = []
     start_index = 0
@@ -320,6 +321,57 @@ def markdown_to_html(md_text):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # > archived code below, to be removed ...
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# nltk-tryouts // smart chunking (v1.06)
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE):
+  chunks = []
+  sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+
+  # Split the text into sentences
+  sentences = sentence_tokenizer.tokenize(text)
+
+  # Iterate through sentences
+  for sentence in sentences:
+    # Check if sentence length exceeds chunk size
+    if len(sentence) > chunk_size:
+      # Look for the next full stop or list item indicator
+      next_stop = sentence.find(".", 0)
+      next_list_item = sentence.find("-", 0) if "-" in sentence else sentence.find("*", 0)
+
+      # Split only until the next full stop or list item indicator
+      split_point = min(next_stop, next_list_item) if next_stop > -1 or next_list_item > -1 else len(sentence)
+      chunk = sentence[:split_point].strip()
+
+      # If there's remaining text, handle it recursively
+      remaining_text = sentence[split_point:].strip()
+      if remaining_text:
+        chunks.extend(smart_chunk(remaining_text, chunk_size))
+    else:
+      # If sentence length is smaller than chunk size, add it directly
+      chunks.append(sentence.strip())
+
+  return chunks """
+
+# nltk-tryouts // smart chunking (v1.05)
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE):
+  chunks = []
+  sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')  # Replace with your preferred library
+
+  # Split the text into sentences
+  sentences = sentence_tokenizer.tokenize(text)
+
+  # Iterate through sentences
+  for sentence in sentences:
+    # Check if the sentence length exceeds chunk size
+    if len(sentence) > chunk_size:
+      # Split the sentence into smaller chunks
+      for sub_sentence in nltk.sent_tokenize(sentence, language='english'):  # Replace with your preferred library
+        chunks.append(sub_sentence.strip())
+    else:
+      # If sentence length is smaller than chunk size, add it directly
+      chunks.append(sentence.strip())
+
+  return chunks """
 
 # OLD // deprecated // perplexity 70b query
 """ async def query_pplx_70b_online(prompt):
