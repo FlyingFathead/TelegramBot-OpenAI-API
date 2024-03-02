@@ -260,8 +260,21 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
             else:
                 translated_response += " " + chunk
 
-    logging.info(f"Translated response: {translated_response}")            
-    return translated_response
+    logging.info(f"Translated response: {translated_response}")
+
+    # formatted_text = re.sub(r'### (.*)', r'**\1**', translated_response)
+    # formatted_text = re.sub(r'## (.*)', r'**\1**', formatted_text)  # Apply this on formatted_text, not translated_response
+    # logging.info(f"Parsed translated response: {formatted_text}")
+
+    # After building the full translated_response, apply the paragraph breaks adjustment
+    adjusted_response = add_paragraph_breaks_to_headers(translated_response)
+
+    # Then convert the markdown to HTML
+    html_response = markdown_to_html(adjusted_response)
+
+    return html_response
+
+    # return translated_response
 
 # ~~~~~~
 # others 
@@ -271,8 +284,81 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 def safe_strip(value):
     return value.strip() if value else value
 
-# smart chunking (v1.09)
+# smart chunking (v1.10)
 def smart_chunk(text, chunk_size=CHUNK_SIZE):
+    # Split the text into blocks separated by two newline characters to maintain paragraph breaks.
+    blocks = text.split('\n\n')
+    chunks = []
+
+    for block in blocks:
+        # Further split each block into lines to check for list items or single lines.
+        lines = block.split('\n')
+        current_chunk = []
+
+        for line in lines:
+            # Predict if the current line can be added to the current chunk without exceeding the chunk size.
+            if sum(len(l) + 1 for l in current_chunk) + len(line) <= chunk_size:
+                current_chunk.append(line)
+            else:
+                # If adding the current line would exceed the chunk size, finalize the current chunk.
+                if current_chunk:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = [line]  # Start a new chunk with the current line.
+                else:
+                    # If the current line itself exceeds the chunk size, split the line into smaller parts.
+                    for i in range(0, len(line), chunk_size):
+                        chunks.append(line[i:i+chunk_size])
+
+        # Add the last chunk if it contains any lines.
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+
+        # Add a newline between blocks to preserve paragraph breaks unless it's the last block.
+        if block != blocks[-1]:
+            chunks.append('')
+
+    # Combine consecutive chunks to optimize their sizes without exceeding the chunk size limit.
+    optimized_chunks = []
+    current_chunk = []
+
+    for chunk in chunks:
+        if chunk or chunk == '':  # Check for empty strings that represent paragraph breaks.
+            if sum(len(l) + 1 for l in current_chunk) + len(chunk) <= chunk_size:
+                current_chunk.append(chunk)
+            else:
+                optimized_chunks.append('\n\n'.join(filter(None, current_chunk)))  # Join non-empty lines.
+                current_chunk = [chunk]  # Start a new chunk.
+
+    # Add the final chunk if it contains any lines or paragraph breaks.
+    if current_chunk:
+        optimized_chunks.append('\n\n'.join(filter(None, current_chunk)))
+
+    return optimized_chunks
+
+# adding paragraph breaks back to headers
+def add_paragraph_breaks_to_headers(translated_response):
+    # Split the translated response into lines
+    lines = translated_response.split('\n')
+
+    # Initialize a list to hold the adjusted lines
+    adjusted_lines = []
+
+    # Iterate over the lines, adding a newline before headers as necessary
+    for i, line in enumerate(lines):
+        # Check if the line starts with a header marker and is not the first line
+        if (line.startswith('##') or line.startswith('###')) and i > 0:
+            # Ensure there is an empty line before the header
+            if adjusted_lines[-1] != '':
+                adjusted_lines.append('')
+
+        adjusted_lines.append(line)
+
+    # Join the adjusted lines back into a single string
+    adjusted_response = '\n'.join(adjusted_lines)
+    return adjusted_response
+
+# smart chunking (v1.09)
+""" def smart_chunk(text, chunk_size=CHUNK_SIZE):
     chunks = []
     start_index = 0
     text_length = len(text)
@@ -300,17 +386,22 @@ def smart_chunk(text, chunk_size=CHUNK_SIZE):
         start_index = end_index
 
     return chunks
-
+ """
 # ~~~~~~~~~~~~~~~~
 # additional tools
 # ~~~~~~~~~~~~~~~~
 
 # markdown to html // in case replies from Perplexity need to be parsed.
 def markdown_to_html(md_text):
-    # Convert bold from **text** to <b>text</b>
-    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', md_text)
+    # First, replace Markdown headers with bold syntax, respecting line beginnings
+    # Convert '### Header' and '## Header' to bold, given Telegram's HTML limitations
+    html_text = re.sub(r'^### (.*)', r'<b>\1</b>', md_text, flags=re.MULTILINE)
+    html_text = re.sub(r'^## (.*)', r'<b>\1</b>', html_text, flags=re.MULTILINE)
     
-    # Convert italic from *text* or _text_ to <i>text</i>
+    # Convert bold syntax from **text** to <b>text</b>
+    html_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', html_text)
+    
+    # Convert italic from *text* or _text_ to <i>\1\2</i>
     html_text = re.sub(r'\*(.*?)\*|_(.*?)_', r'<i>\1\2</i>', html_text)
     
     # Convert links from [link text](http://url) to <a href="http://url">link text</a>

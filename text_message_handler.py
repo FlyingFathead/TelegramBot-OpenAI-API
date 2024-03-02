@@ -372,7 +372,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                         chat_id=update.effective_chat.id,
                                         text=bot_reply_formatted,
                                         # parse_mode=ParseMode.HTML
-                                        parse_mode=ParseMode.MARKDOWN
+                                        parse_mode=ParseMode.HTML
                                     )
 
                                     response_sent = True  # Indicate that a response has been sent
