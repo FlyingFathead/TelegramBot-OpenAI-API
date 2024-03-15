@@ -192,8 +192,19 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     # Skip translation if the language is English
     if user_lang == 'en':
         logging.info("User's question is in English, skipping translation, converting Markdown to HTML.")
-        formatted_response = format_headers_for_telegram(perplexity_response)
-        return markdown_to_html(formatted_response)
+
+        # Sanitize URLs in the Perplexity response
+        sanitized_response = sanitize_urls(perplexity_response)
+        logging.info(f"Sanitized Perplexity response: {sanitized_response}")
+
+        # Apply Telegram-specific formatting to the sanitized response
+        formatted_response = format_headers_for_telegram(sanitized_response)
+
+        # Convert the Telegram-formatted response to HTML
+        html_response = markdown_to_html(formatted_response)
+        logging.info(f"Parsed translated response: {html_response}")
+
+        return html_response
 
     # Show typing animation at the start
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
@@ -257,8 +268,15 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
 
     # Continue with your existing logic to format and return the translated text...
     
+    # Sanitize URLs in the rejoined text
+    sanitized_text = sanitize_urls(rejoined_text)
+    logging.info(f"Sanitized translated response: {sanitized_text}")
+
     # Apply the header formatting for Telegram before converting to HTML
-    telegram_formatted_response = format_headers_for_telegram(rejoined_text)
+    # telegram_formatted_response = format_headers_for_telegram(rejoined_text)
+    
+    # Apply Telegram-specific formatting
+    telegram_formatted_response = format_headers_for_telegram(sanitized_text)
 
     # Then convert the Telegram-formatted response to HTML
     html_response = markdown_to_html(telegram_formatted_response)
@@ -453,6 +471,18 @@ def markdown_to_html(md_text):
     html_text = re.sub(r'```(.*?)```', r'<pre>\1</pre>', html_text, flags=re.DOTALL)
 
     return html_text
+
+# url sanitizing for any url's that are returned like <https://example.com> ...
+def sanitize_urls(text):
+    # Define a regex pattern to identify URLs wrapped in angle brackets
+    # This pattern aims to match a URL starting with http or https and enclosed in angle brackets
+    url_pattern = re.compile(r'<(http[s]?://[^\s<>]+)>')
+
+    # Replace all occurrences of the pattern in the text
+    # The replacement will keep the URL itself but remove the surrounding angle brackets
+    sanitized_text = re.sub(url_pattern, r'\1', text)
+
+    return sanitized_text
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # > archived code below, to be removed ...

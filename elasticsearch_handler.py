@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-relevance_threshold = 15
+relevance_threshold = 20
 
 from elasticsearch import Elasticsearch, ElasticsearchWarning
 import warnings

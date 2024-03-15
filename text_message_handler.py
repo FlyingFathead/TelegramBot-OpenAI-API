@@ -34,6 +34,9 @@ from api_perplexity_search import query_perplexity, translate_response, translat
 from elasticsearch_handler import search_es_for_context
 from elasticsearch_functions import action_token_functions
 
+# url processing
+from url_handler import process_url_message
+
 # Load the configuration file
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -186,6 +189,16 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
         # (old) // Show typing animation
         # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+
+        # Process any YouTube URLs before the Elasticsearch RAG
+        youtube_context_messages = await process_url_message(user_message)
+
+        # Process YouTube URLs and append data.
+        for youtube_context in youtube_context_messages:
+            chat_history_with_system_message.append({
+                "role": "system", 
+                "content": youtube_context
+            })
 
         # ~~~~~~~~~~~~~~~~~
         # Elasticsearch RAG
