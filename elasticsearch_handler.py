@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-relevance_threshold = 5.0
+relevance_threshold = 15
 
 from elasticsearch import Elasticsearch, ElasticsearchWarning
 import warnings
@@ -22,11 +22,16 @@ async def search_es_for_context(search_terms):
         return None
 
     index = "tg-bot-rag-index"
+
+    # Adjust the search_terms to use only the first line or a set number of characters
+    search_terms_adjusted = search_terms.split('\n', 1)[0][:256]  # Adjust 256 to your needs
+
     query = {
         "size": 1,  # Focus on the top hit
         "query": {
             "multi_match": {
-                "query": search_terms,
+                # "query": search_terms,
+                "query": search_terms_adjusted,
                 "fields": ["question^2", "answer"],  # Boosting questions for relevance
                 "type": "best_fields"  # Can also experiment with other types like "most_fields" or "cross_fields"
             }

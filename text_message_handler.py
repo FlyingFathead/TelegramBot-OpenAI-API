@@ -226,6 +226,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         else:
             chat_history_with_es_context = chat_history_with_system_message
 
+        # ~~~~~~~~~~~
+        # API request
+        # ~~~~~~~~~~~
+
         for attempt in range(bot.max_retries):
             try:
                 # Prepare the payload for the API request
