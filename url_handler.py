@@ -1,4 +1,5 @@
 # url_handler.py
+# v0.60.1
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -9,7 +10,10 @@ import re
 import asyncio
 import json
 
-# Global variable for the maximum number of description lines
+# Toggle this to use the full description or a snippet.
+USE_SNIPPET_FOR_DESCRIPTION = False
+
+# If we're using a snippet of the description, maximum number of lines to include
 DESCRIPTION_MAX_LINES = 30
 
 # Configure logging
@@ -54,6 +58,14 @@ async def fetch_youtube_details(url, max_retries=3, base_delay=5):
             try:
                 video_details = json.loads(stdout.decode())
                 duration_formatted = format_duration(video_details.get('duration'))                
+
+                if USE_SNIPPET_FOR_DESCRIPTION:
+                    # Get the snippet if the flag is set to True.
+                    description_text = get_description_snippet(video_details.get('description', 'No description available'))
+                else:
+                    # Use the full description if the flag is set to False.
+                    description_text = video_details.get('description', 'No description available')
+
                 filtered_details = {
                     'title': video_details.get('title', 'No title available'),
                     # 'duration': video_details.get('duration', 'No duration available'),
@@ -67,7 +79,7 @@ async def fetch_youtube_details(url, max_retries=3, base_delay=5):
                     'channel_id': video_details.get('channel_id', 'No channel ID available'),
                     'video_id': video_details.get('id', 'No video ID available'),
                     'tags': video_details.get('tags', ['No tags available']),
-                    'description': video_details.get('description', 'No description available').split('\n')[0],
+                    'description': description_text,
                 }
 
                 logger.info(f"Fetched YouTube details successfully for URL: {url}")
