@@ -22,22 +22,22 @@ async def observe_chat():
 custom_functions = [
     {
         'name': 'get_weather',
-        'description': '[Use only if weather is asked for a certain location!] Fetches weather data from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. Fetch ONLY if user asks.',
+        'description': '[Use only if weather is asked for a certain location!] Fetches weather data+current time and date from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. Fetch ONLY if user asks.',
         'parameters': {
             'type': 'object',
             'properties': {
                 'city_name': {
                     'type': 'string',
-                    'description': 'Name of the city to fetch the weather for'
+                    'description': 'Name of the city to fetch the weather for. (Data includes sunrise+sunset times, wind speed/direction, air pressure, currentd data + 3-hour forecast.)'
                 },
                 'country': {  # Add a country parameter
                     'type': 'string',
                     'description': 'Country of the city to help refine the search, TWO LETTERS, MUST BE INCLUDED.'
                 },
-                'forecast_type': {
-                    'type': 'string',
-                    'description': 'Type of weather data, "current" for current weather+sunrise sunset data, "3hour" for all upcoming weather/forecast inquiries'
-                },
+                # 'forecast_type': {
+                #     'type': 'string',
+                #     'description': 'Type of weather data, "current" for current weather+sunrise sunset data, "3hour" for all upcoming weather/forecast inquiries'
+                # },
                 'language': {
                     'type': 'string',
                     'description': 'Language for weather descriptions (e.g., en, fi)'
@@ -88,6 +88,24 @@ custom_functions.append({
         }
     }
 })
+
+
+# get date / time
+# custom_functions.append({
+#     'name': 'get_global_time',
+#     'description': '[Use this ALWAYS when the user asks for their current date and time, use UTC if no area specified.] Runs the `date` command in Linux with specified cmdline options.',
+#     'parameters': {
+#         'type': 'object',
+#         'properties': {
+#             'command_options': {
+#                 'type': 'string',
+#                 'description': 'The `date` command line options to fetch the current time (e.g., "+%Y-%m-%d %H:%M:%S %Z", "--utc")'
+#             }
+#         },
+#         'required': ['command_options']
+#     }
+# })
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Below are API function call features that can be enabled if and when needed.

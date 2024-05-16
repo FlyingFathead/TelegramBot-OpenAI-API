@@ -29,6 +29,7 @@ from api_get_openrouteservice import get_route, get_directions_from_addresses, f
 from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
+from api_get_global_time import get_global_time
 
 # RAG via elasticsearch
 from elasticsearch_handler import search_es_for_context
@@ -280,33 +281,144 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     function_call = response_json['choices'][0]['message']['function_call']
                     function_name = function_call['name']
 
+                    # # get the weather via openweathermap api
+                    # if function_name == 'get_weather':
+                    #     # Fetch the weather data
+                    #     arguments = json.loads(function_call.get('arguments', '{}'))
+                    #     city_name = arguments.get('city_name', 'DefaultCity')
+                    #     country = arguments.get('country', None)  # Fetch the country parameter, defaulting to None if not provided
+
+                    #     # Now pass the country parameter to your get_weather function
+                    #     weather_info = await get_weather(city_name, country=country)  # Assuming get_weather is updated to accept country
+
+                    #     # Add the received weather data as a system message
+                    #     if weather_info:
+                    #         system_message = f"[OpenWeatherMap API request returned data]: {weather_info}"
+                    #     else:
+                    #         system_message = "[OpenWeatherMap API request failed to retrieve data]"
+
+                    #     # Append the system message to the chat history
+                    #     chat_history.append({"role": "system", "content": system_message})
+                    #     context.chat_data['chat_history'] = chat_history
+
+                    #     return  # Exit the loop after handling the custom function
+
+
                     # get the weather via openweathermap api
                     if function_name == 'get_weather':
                         # Fetch the weather data
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         city_name = arguments.get('city_name', 'DefaultCity')
-                        forecast_type = arguments.get('forecast_type', 'current')
                         country = arguments.get('country', None)  # Fetch the country parameter, defaulting to None if not provided
 
                         # Now pass the country parameter to your get_weather function
-                        weather_info = await get_weather(city_name, forecast_type, country=country)  # Assuming get_weather is updated to accept country
+                        weather_info = await get_weather(city_name, country=country)  # Assuming get_weather is updated to accept country
 
-                        # Send the weather information as a reply
-                        # await context.bot.send_message(chat_id=chat_id, text=weather_info)
+                        # Add the received weather data as a system message
+                        if weather_info:
+                            system_message = f"[OpenWeatherMap API request returned data, use according to your own discernment as to what include and what format, by default, use emojis (you're in Telegram)]: {weather_info}"
+                        else:
+                            system_message = "[OpenWeatherMap API request failed to retrieve data]"
 
-                        # Format and potentially translate the weather info
-                        formatted_weather_info = await format_and_translate_weather(bot, user_message, weather_info)
-
-                        # Note about the action taken
-                        action_note = f"[Fetched and sent the following OpenWeatherAPI weather data to the user]: {formatted_weather_info}"
-
-                        # Append the note and formatted weather information to the chat history
-                        chat_history.append({"role": "assistant", "content": action_note})
+                        # Append the system message to the chat history
+                        chat_history.append({"role": "system", "content": system_message})
                         context.chat_data['chat_history'] = chat_history
 
-                        # Send the formatted weather information as a reply
-                        await context.bot.send_message(chat_id=chat_id, text=formatted_weather_info, parse_mode=ParseMode.HTML)
+                        # Prepare the payload for the API request with updated chat history
+                        payload = {
+                            "model": bot.model,
+                            "messages": chat_history,
+                            "temperature": bot.temperature,
+                            "functions": custom_functions,
+                            "function_call": 'auto'  # Allows the model to dynamically choose the function
+                        }
+
+                        # Make the API request
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {openai.api_key}"
+                        }
+                        async with httpx.AsyncClient() as client:
+                            response = await client.post("https://api.openai.com/v1/chat/completions",
+                                                        data=json.dumps(payload),
+                                                        headers=headers,
+                                                        timeout=bot.timeout)
+                            response_json = response.json()
+
+                        # Log the API request payload
+                        bot.logger.info(f"API Request Payload: {payload}")
+
+                        # Safely get the content or default to an empty string if not found
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+
+                        # Only call strip if bot_reply_content is not None
+                        bot_reply = ""  # Default value if no content is found or an empty response is received
+                        if bot_reply_content:
+                            bot_reply = bot_reply_content.strip()
+
+                        # Count tokens in the bot's response
+                        bot_token_count = bot.count_tokens(bot_reply)
+
+                        # Add the bot's tokens to the total usage
+                        bot.total_token_usage += bot_token_count
+
+                        # Update the total token usage file
+                        bot.write_total_token_usage(bot.total_token_usage)
+
+                        # Log the bot's response
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
+
+                        # Append the bot's response to the chat history
+                        chat_history.append({"role": "assistant", "content": bot_reply})
+
+                        # Update the chat history in context with the new messages
+                        context.chat_data['chat_history'] = chat_history
+
+                        # View the output (i.e. for markdown etc formatting debugging)
+                        logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
+
+                        escaped_reply = markdown_to_html(bot_reply)
+                        logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
+
+                        # Log the bot's response
+                        bot.log_message('Bot', bot.telegram_bot_token, bot_reply)
+
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=escaped_reply,
+                            parse_mode=ParseMode.HTML
+                        )
+
+                        stop_typing_event.set()
+                        context.user_data.pop('active_translation', None)
+
                         return  # Exit the loop after handling the custom function
+
+                    # ~~~
+                    # get the global tz data
+                    # ~~~
+                    # # get the global time via date command
+                    # elif function_name == 'get_global_time':
+                    #     # Fetch the global time
+                    #     global_time = await get_global_time()
+
+                    #     # Format the global times into a readable string
+                    #     formatted_global_time = "\n".join([f"{tz}: {time}" for tz, time in global_time.items()])
+
+                    #     # Add the received global time as a system message
+                    #     if formatted_global_time:
+                    #         system_message = f"[Global time, give the user the appropriate time and date regarding their time zone, translate to their language if required]:\n{formatted_global_time}"
+                    #     else:
+                    #         system_message = "[Failed to retrieve global time]"
+
+                    #     # Append the system message to the chat history
+                    #     chat_history.append({"role": "system", "content": system_message})
+                    #     logging.info(f"[Ran a request for date and time for all timezones: {system_message}]")
+                    #     context.chat_data['chat_history'] = chat_history
+
+                    #     # Send the global times as a reply
+                    #     # await context.bot.send_message(chat_id=chat_id, text=formatted_global_time, parse_mode=ParseMode.HTML)
+                    #     # return  # Exit the loop after handling the custom function
 
                     # get the map via maptiler
                     elif function_name == 'get_map':
