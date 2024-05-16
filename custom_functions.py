@@ -22,28 +22,20 @@ async def observe_chat():
 custom_functions = [
     {
         'name': 'get_weather',
-        'description': '[Use only if weather is asked for a certain location!] Fetches weather data+current time and date from OpenWeatherMap API for a given city, including current, hourly, and daily forecasts and sunrise/sunset times. Use the 3hour option for upcoming weather. Fetch ONLY if user asks.',
+        'description': '[Use if the user asks for weather, time, date or sunrise/sunset info on a specific location!] Fetches weather data from OpenWeatherMap API for a given city, including current and 3-hour forecasts. Translate if needed. USE THIS TO FETCH LOCAL TIMES AT A LOCATION.',
         'parameters': {
             'type': 'object',
             'properties': {
                 'city_name': {
                     'type': 'string',
-                    'description': 'Name of the city to fetch the weather for. (Data includes sunrise+sunset times, wind speed/direction, air pressure, currentd data + 3-hour forecast.)'
+                    'description': 'Name of the city to fetch the weather for (gets the current weather, 3-hour forecast, local sunrise and sunset info in the same request)'
                 },
-                'country': {  # Add a country parameter
+                'country': {
                     'type': 'string',
-                    'description': 'Country of the city to help refine the search, TWO LETTERS, MUST BE INCLUDED.'
-                },
-                # 'forecast_type': {
-                #     'type': 'string',
-                #     'description': 'Type of weather data, "current" for current weather+sunrise sunset data, "3hour" for all upcoming weather/forecast inquiries'
-                # },
-                'language': {
-                    'type': 'string',
-                    'description': 'Language for weather descriptions (e.g., en, fi)'
+                    'description': 'Name of the country where the city is located, ask the user if unsure'
                 }
             },
-            'required': ['city_name']  # You can make 'country' optional or required based on your preference
+            'required': ['city_name', 'country']  # Specify that both city_name and country are required
         }
     }
     # ... other functions ...

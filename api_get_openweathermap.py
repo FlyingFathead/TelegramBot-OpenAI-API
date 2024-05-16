@@ -24,7 +24,8 @@ import pytz
 
 # get the combined weather
 
-async def get_weather(city_name, country=None, exclude='', units='metric', lang='fi'):
+# get the combined weather
+async def get_weather(city_name, country, exclude='', units='metric', lang='fi'):
     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
     if not api_key:
         logging.error("[WARNING] OpenWeatherMap API key not set. You need to set the 'OPENWEATHERMAP_API_KEY' environment variable to use OpenWeatherMap API functionalities!")
@@ -32,8 +33,8 @@ async def get_weather(city_name, country=None, exclude='', units='metric', lang=
 
     logging.info(f"Fetching weather data for city: {city_name}, Country: {country}")
 
-    if not city_name or city_name.lower() in ["defaultcity", ""]:
-        return "Please ask the user to provide a valid city name."    
+    if not city_name or not country or city_name.lower() in ["defaultcity", ""]:
+        return "Please provide a valid city name and country."
 
     base_url = 'http://api.openweathermap.org/data/2.5/'
 
@@ -60,241 +61,22 @@ async def get_weather(city_name, country=None, exclude='', units='metric', lang=
             logging.error(f"Failed to fetch weather data: {current_weather_response.text} / {forecast_response.text}")
             return "[Inform the user that data fetching from OpenWeatherMap API failed, current information could not be fetched. Reply in the user's language.]"
 
-# # async def get_weather(city_name, forecast_type='current', exclude='', units='metric', lang='fi'):
-# # Correct structure for get_weather function
-# async def get_weather(city_name, forecast_type='current', country=None, exclude='', units='metric', lang='fi'):
-#     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
-#     if not api_key:
-#         logging.error("[WARNING] OpenWeatherMap API key not set. You need to set the 'OPENWEATHERMAP_API_KEY' environment variable to use OpenWeatherMap API functionalities!")
-#         return "OpenWeatherMap API key not set."
-
-#     logging.info(f"Fetching weather data for city: {city_name}, forecast type: {forecast_type}, Country: {country}")
-
-#     if not city_name or city_name.lower() in ["defaultcity", ""]:
-#         return "Please ask the user to provide a valid city name."    
-
-#     base_url = 'http://api.openweathermap.org/data/2.5/'
-
-#     # Attempt to retrieve coordinates for all forecast types, except when direct city name usage is necessary
-#     if forecast_type in ['current', '3hour']:
-
-#         lat, lon, country = await get_coordinates(city_name, country=country)
-#         if lat is None or lon is None or country is None:
-#             logging.info("Failed to retrieve coordinates or country.")
-#             return "Unable to retrieve coordinates or country for the specified location. Ask the user for clarification."
-
-#         if forecast_type == 'current':
-#             url = f"{base_url}weather?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
-#         elif forecast_type == '3hour':
-#             # Modify to use coordinates for 3-hour forecast if supported by your API plan
-#             # Note: OpenWeatherMap does not directly support '3hour' with these parameters; this is for illustration.
-#             # You might need to use the '/forecast' endpoint with city and country for a 3-hour forecast.
-#             url = f"{base_url}forecast?lat={lat}&lon={lon}&appid={api_key}&units={units}&lang={lang}"
-#     else:
-#         # For other types of forecasts or when coordinates are not required or available
-#         query = f"{city_name},{country}" if country else city_name
-#         url = f"{base_url}forecast?q={query}&appid={api_key}&units={units}&lang={lang}"
-
-#     # paid subscription forecast types
-#     # elif forecast_type == 'hourly':
-#         # url = f"{base_url}onecall?lat={lat}&lon={lon}&exclude=current,minutely,daily&appid={api_key}&units={units}&lang={lang}"
-#     # elif forecast_type == 'daily':
-#         # url = f"{base_url}onecall?lat={lat}&lon={lon}&exclude=current,minutely,hourly&appid={api_key}&units={units}&lang={lang}"
-
-#     async with httpx.AsyncClient() as client:
-#         response = await client.get(url)
-#         logging.info(f"Received response with status code: {response.status_code}")
-
-#         if response.status_code == 200:
-#             data = response.json()
-#             logging.info(f"OpenWeatherMap API response data: {data}")
-
-#             if forecast_type == 'current':
-                
-#                 # Include additional details from the response
-#                 if 'weather' in data and 'main' in data:
-#                     weather_description = data['weather'][0]['description']
-#                     temperature = data['main']['temp']
-#                     feels_like = data['main']['feels_like']
-#                     temp_min = data['main']['temp_min']
-#                     temp_max = data['main']['temp_max']
-#                     pressure = data['main']['pressure']
-#                     humidity = data['main']['humidity']
-#                     wind_speed = data['wind']['speed']
-#                     wind_direction = data['wind']['deg']
-#                     visibility = data.get('visibility', 'N/A')
-#                     wind_direction_deg = data['wind']['deg']
-#                     wind_direction_cardinal = degrees_to_cardinal(wind_direction_deg)
-#                     snow_1h = data.get('snow', {}).get('1h', 'N/A')
-
-#                     # Obtain the timezone of the location
-#                     tf = TimezoneFinder()
-#                     timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
-#                     local_timezone = pytz.timezone(timezone_str)
-
-#                     # Format sunrise and sunset times
-#                     # sunrise_time = datetime.fromtimestamp(data['sys']['sunrise']).strftime('%H:%M')
-#                     # sunset_time = datetime.fromtimestamp(data['sys']['sunset']).strftime('%H:%M')
-                                                            
-#                     # Convert timestamps to datetime objects
-#                     sunrise_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunrise'])
-#                     sunset_time_utc = datetime.datetime.utcfromtimestamp(data['sys']['sunset'])
-
-#                     # Add tzinfo and convert to local timezone
-#                     sunrise_time_local = sunrise_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
-#                     sunset_time_local = sunset_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
-
-#                     # Format to strings (only time, no date)
-#                     sunrise_time_utc_str = sunrise_time_utc.strftime('%H:%M')
-#                     sunset_time_utc_str = sunset_time_utc.strftime('%H:%M')
-#                     sunrise_time_local_str = sunrise_time_local.strftime('%H:%M')
-#                     sunset_time_local_str = sunset_time_local.strftime('%H:%M')
-
-#                     # Convert temperatures from Celsius to Fahrenheit
-#                     temp_fahrenheit = (temperature * 9/5) + 32
-#                     feels_like_fahrenheit = (feels_like * 9/5) + 32
-#                     temp_min_fahrenheit = (temp_min * 9/5) + 32
-#                     temp_max_fahrenheit = (temp_max * 9/5) + 32
-
-#                     # Extract the country code from the API response
-#                     country_code = data['sys']['country']  # This extracts 'CA' for Canada
-
-#                     # Directly use `country_code` for the `country_info` variable
-#                     country_info = f"Country: {country_code}"
-
-#                     coordinates_info = f"lat: {lat}, lon: {lon}"
-
-#                     detailed_weather_info = (
-#                         f"Sää paikassa {city_name}: {data['weather'][0]['description']}, "
-#                         f"Lämpötila: {data['main']['temp']}°C / {temp_fahrenheit:.1f}°F (Tuntuu kuin: {data['main']['feels_like']}°C / {feels_like_fahrenheit:.1f}°F), "
-#                         f"Minimi: {data['main']['temp_min']}°C / {temp_min_fahrenheit:.1f}°F, Maksimi: {data['main']['temp_max']}°C / {temp_max_fahrenheit:.1f}°F,"
-#                         f"Ilmanpaine: {data['main']['pressure']} hPa, Ilmankosteus: {data['main']['humidity']}%, "
-#                         f"Tuulen nopeus: {data['wind']['speed']} m/s, Tuulen suunta: {data['wind']['deg']} astetta ({wind_direction_cardinal})"
-#                         f"Tuulenpuuskat: {data['wind'].get('gust', 'N/A')} m/s, "
-#                         f"Näkyvyys: {data.get('visibility', 'N/A')} metriä, "
-#                         f"Lumisade (viimeisen 1h aikana): {data.get('snow', {}).get('1h', 'N/A')} mm, "
-#                         f"Pilvisyys: {data['clouds']['all']}%, "
-#                         f"Auringonnousu (UTC): {sunrise_time_utc_str} (paikallinen aika): {sunrise_time_local_str}, "
-#                         f"Auringonlasku (UTC): {sunset_time_utc_str} (paikallinen aika): {sunset_time_local_str}"
-#                         f"Koordinaatit: {coordinates_info} (Maa: {country_info})"
-#                     )
-#                     logging.info(f"Formatted weather data being sent to the model: {detailed_weather_info}")
-#                     return detailed_weather_info
-#                 else:
-#                     logging.error(f"Failed to fetch weather data: {response.text}")
-#                     return "Säädataa ei löytynyt."
-            
-#             # 3-hour forecast data
-#             elif forecast_type == '3hour':
-#                 if 'list' in data:
-#                     forecasts = data['list']
-#                     formatted_forecasts = []
-
-#                     tf = TimezoneFinder()
-#                     # Define local_timezone outside the for loop
-#                     # Ensure that you have valid latitude and longitude values
-#                     lat = data['city']['coord']['lat']
-#                     lon = data['city']['coord']['lon']
-#                     timezone_str = tf.timezone_at(lat=lat, lng=lon)
-#                     local_timezone = pytz.timezone(timezone_str) if timezone_str else pytz.utc
-                    
-#                     for forecast_data in forecasts[:5]:  # Adjust the range as needed
-#                         # different formats;
-#                         # time = datetime.fromtimestamp(forecast_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
-#                         # time = datetime.fromtimestamp(forecast_data['dt']).strftime('%d.%m.%Y klo %H:%M')                                                
-#                         time = datetime.datetime.utcfromtimestamp(forecast_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
-
-#                         # Convert UTC time to local time
-#                         utc_time = datetime.datetime.utcfromtimestamp(forecast_data['dt'])
-#                         local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(local_timezone)
-#                         local_time_str = local_time.strftime('%Y-%m-%d %H:%M:%S')
-#                         utc_time_str = utc_time.strftime('%Y-%m-%d %H:%M:%S')
-
-#                         temp = forecast_data['main']['temp']
-
-#                         # fahrenheit conversion
-#                         temp_celsius = forecast_data['main']['temp']
-#                         temp_fahrenheit = (temp_celsius * 9/5) + 32  # Convert to Fahrenheit                        
-                        
-#                         description = forecast_data['weather'][0]['description']
-#                         wind_speed = forecast_data['wind']['speed']
-#                         humidity = forecast_data['main']['humidity']
-#                         pressure = forecast_data['main']['pressure']
-#                         clouds = forecast_data['clouds']['all']
-#                         rain = forecast_data.get('rain', {}).get('3h', 'N/A')  # '3h' key for 3-hour rain volume
-
-#                         formatted_forecasts.append(
-#                             f"- {local_time_str} (Local time) / {utc_time_str} (UTC): Lämpötila: {temp}°C / {temp_fahrenheit:.1f}°F, {description.capitalize()}, Tuuli: {wind_speed} m/s, "
-#                             f"Ilmanpaine: {pressure} hPa, Ilmankosteus: {humidity}%, Pilvisyys: {clouds}%, "
-#                             f"Sade (viimeisen 3h aikana): {rain} mm"
-#                         )
-
-#                     final_forecast = f"Kolmen tunnin sääennuste, {city_name}:\n" + "\n".join(formatted_forecasts)
-#                     logging.info(f"Formatted 3-hour forecast data being sent: {final_forecast}")
-#                     return final_forecast
-#                 else:
-#                     logging.error(f"Failed to fetch weather data: {response.text}")
-#                     return "En saanut haettua kolmen tunnin sääennustetta."
-
-#             # hourly forecast // not available in free plan
-#             elif forecast_type == 'hourly':
-#                 # Process hourly forecast data
-#                 if 'hourly' in data:
-#                     hourly_forecasts = data['hourly']
-#                     # Format and return the first few hours as an example
-#                     formatted_hourly_forecasts = []
-#                     for hour_data in hourly_forecasts[:5]:  # Example: Get first 5 hours data
-#                         # time = datetime.fromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S') # system time conversion
-#                         time = datetime.datetime.utcfromtimestamp(hour_data['dt']).strftime('%Y-%m-%d %H:%M:%S')
-#                         temp = hour_data['temp']
-#                         description = hour_data['weather'][0]['description']
-#                         formatted_hourly_forecasts.append(f"{time} (UTC): {temp}°C, {description}")
-#                     return "Lähituntien sääennuste:\n" + "\n".join(formatted_hourly_forecasts)
-#                 else:
-#                     logging.error(f"Failed to fetch weather data: {response.text}")
-#                     return "Lähituntien sääennustetta ei saatavilla."
-
-#             # daily forecast // not available in OpenWeatherMapAPI's free plan
-#             elif forecast_type == 'daily':
-#                 # Process daily forecast data
-#                 if 'daily' in data:
-#                     daily_forecasts = data['daily']
-#                     # Format and return the first few days as an example
-#                     formatted_daily_forecasts = []
-#                     for day_data in daily_forecasts[:3]:  # Example: Get first 3 days data
-#                         date = datetime.datetime.fromtimestamp(day_data['dt']).strftime('%Y-%m-%d')
-#                         min_temp = day_data['temp']['min']
-#                         max_temp = day_data['temp']['max']
-#                         description = day_data['weather'][0]['description']
-#                         formatted_daily_forecasts.append(f"{date}: Min {min_temp}°C, Max {max_temp}°C, {description}")
-#                     return "Lähipäivien sääennuste:\n" + "\n".join(formatted_daily_forecasts)
-#                 else:
-#                     logging.error(f"Failed to fetch weather data: {response.text}")
-#                     return "Lähipäivien sääennustetta ei saatavilla."
-
-#         else:
-#             logging.info(f"Failed to fetch weather data: {response.text}")            
-#             return "Sori, juuri nyt ei onnistunut säätietojen haku OpenWeatherMapin kautta!"
-
 # get coordinates
 async def get_coordinates(city_name, country=None):
-    # Initialize lat, lon, and country with None to ensure they are defined
     lat = lon = None
-    resolved_country = None  # This will hold the country information extracted from the response
+    resolved_country = None
 
     logging.info(f"Coordinates for {city_name}, {country}: Latitude: {lat}, Longitude: {lon}")
-    # Retrieve MapTiler API key from environment variables
     api_key = os.getenv('MAPTILER_API_KEY')
     if not api_key:
-        logging.info("[WARNING] MapTiler API key not set. You need to set the 'MAPTILER_API_KEY' environment variable in order to be able to use coordinate lookups, i.e. for weather data!")        
+        logging.info("[WARNING] MapTiler API key not set. You need to set the 'MAPTILER_API_KEY' environment variable in order to be able to use coordinate lookups, i.e. for weather data!")
         return None, None, None
 
-    # Construct the API request URL with potential country parameter
     query = f"{city_name}"
     if country:
-        query += f", {country}"  # Append country to the query if specified
+        query += f", {country}"
     geocode_url = f"https://api.maptiler.com/geocoding/{query}.json?key={api_key}"
-    logging.info(f"Making API request to URL: {geocode_url}")    
+    logging.info(f"Making API request to URL: {geocode_url}")
 
     async with httpx.AsyncClient() as client:
         response = await client.get(geocode_url)
@@ -302,20 +84,19 @@ async def get_coordinates(city_name, country=None):
 
         if response.status_code == 200:
             data = response.json()
-            logging.info(f"Response data: {data}")            
-            # Attempt to extract latitude and longitude from the response
+            logging.info(f"Response data: {data}")
             if data['features']:
                 feature = data['features'][0]
                 lat = feature['geometry']['coordinates'][1]
                 lon = feature['geometry']['coordinates'][0]
-                resolved_country = feature['properties'].get('country', 'Country not available')
+                resolved_country = feature['properties'].get('country_code', 'Country not available')
                 logging.info(f"Coordinates for {city_name}, {resolved_country}: Latitude: {lat}, Longitude: {lon}")
                 return lat, lon, resolved_country
             else:
                 logging.error("No features found in the geocoding response.")
                 return None, None, None
         else:
-            logging.error(f"Failed to fetch coordinates: {response.text}")            
+            logging.error(f"Failed to fetch coordinates: {response.text}")
             return None, None, None
 
 # Format the weather information and translate it if necessary.        
@@ -442,8 +223,14 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     country_info = f"Country: {country_code}"
     coordinates_info = f"lat: {lat}, lon: {lon}"
 
+    # Get current UTC and local times
+    current_time_utc = datetime.datetime.utcnow()
+    current_time_local = current_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
+    current_time_utc_str = current_time_utc.strftime('%Y-%m-%d %H:%M:%S')
+    current_time_local_str = current_time_local.strftime('%Y-%m-%d %H:%M:%S')
+
     detailed_weather_info = (
-        f"Sää paikassa {city_name}: {weather_description}, "
+        f"Sää paikassa {city_name}, {country_code} (UTC: {current_time_utc_str}, Paikallinen aika: {current_time_local_str}): {weather_description}, "
         f"Lämpötila: {temperature}°C / {temp_fahrenheit:.1f}°F (Tuntuu kuin: {feels_like}°C / {feels_like_fahrenheit:.1f}°F), "
         f"Minimi: {temp_min}°C / {temp_min_fahrenheit:.1f}°F, Maksimi: {temp_max}°C / {temp_max_fahrenheit:.1f}°F, "
         f"Ilmanpaine: {pressure} hPa, Ilmankosteus: {humidity}%, "
@@ -454,7 +241,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Auringonlasku: {sunset_time_local_str}, "
         f"Koordinaatit: {coordinates_info} (Maa: {country_info})"
     )
-
+    
     # 3-hour forecast details
     forecasts = forecast_data['list']
     formatted_forecasts = []
@@ -475,7 +262,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         rain = forecast_data.get('rain', {}).get('3h', 'N/A')
 
         formatted_forecasts.append(
-            f"- Current time in {city_name}: {local_time_str} (Local time, 24hr format) / {utc_time_str} (UTC, 24hr format): Lämpötila: {temp}°C / {temp_fahrenheit:.1f}°F, {description.capitalize()}, Tuuli: {wind_speed} m/s, "
+            f"- {city_name}: {local_time_str} (Local time, 24hr format) / {utc_time_str} (UTC, 24hr format): Lämpötila: {temp}°C / {temp_fahrenheit:.1f}°F, {description.capitalize()}, Tuuli: {wind_speed} m/s, "
             f"Ilmanpaine: {pressure} hPa, Ilmankosteus: {humidity}%, Pilvisyys: {clouds}%, "
             f"Sade (viimeisen 3h aikana): {rain} mm"
         )
