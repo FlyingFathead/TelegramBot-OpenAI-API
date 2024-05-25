@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> this weather fetcher module version: v0.46 (25-May-2024)
+# >>> this weather fetcher module version: v0.705 (25-May-2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
 # You can get both from the corresponding service providers.
