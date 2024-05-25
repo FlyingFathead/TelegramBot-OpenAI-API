@@ -13,7 +13,6 @@
 # export MAPTILER_API_KEY="<your API key>"
 
 # date & time utils
-# import datetime
 import datetime as dt
 from dateutil import parser
 from timezonefinder import TimezoneFinder
