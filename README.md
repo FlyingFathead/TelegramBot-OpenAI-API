@@ -2,7 +2,7 @@
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
 - **Supports transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
-- **Supports real-time weather info, weather alerts, detailed weather data via OpenWeatherMap API and WeatherAPI**
+- **Supports real-time weather info, weather alerts and other detailed weather & geolocation information retrieval via OpenWeatherMap API and WeatherAPI**
 - **Supports geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
 - **Supports navigation instructions via Openrouteservice API**  
@@ -44,6 +44,7 @@ yt-dlp>=2024.3.10
 - Set up your Telegram bot token either as `TELEGRAM_BOT_TOKEN` environment variable or put it into a text file named `bot_token.txt` inside the main program directory
 - Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
 - If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
+- Additional weather info (moon phases, weather warnings etc) are fetched from [WeatherAPI](https://weatherapi.com), set the `WEATHERAPI_KEY` environment variable to use it.
 - If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
 - If you wish to use Perplexity API's supplementary fact-checking with their online models, register at [Perplexity.ai](https://perplexity.ai), buy some API credits and set your Perplexity API key to environment variable: `PERPLEXITY_API_KEY`
 - Adjust your configuration and settings in `config.ini` to your liking
@@ -53,7 +54,8 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
-- v0.7 - WeatherAPI support added, to enable, get an API key from weatherapi.com
+- v0.703 - Language translations and tweaks to WeatherAPI data fetching
+- v0.70 - WeatherAPI support added, to enable, get an API key from weatherapi.com
 - v0.61 - improved handling of weather and time/data data globally
 - v0.60 - url info pre-parsing and additional info fetching for media sources, i.e. with `yt-dlp`
 - v0.59 - custom function calling via Elasticsearch RAG (if enabled)

@@ -22,7 +22,7 @@ async def observe_chat():
 custom_functions = [
     {
         'name': 'get_weather',
-        'description': '[Use if the user asks for weather, time, date or sunrise/sunset info on a specific location!] Fetches weather data from OpenWeatherMap API for a given city, including current and 3-hour forecasts. Translate if needed. USE THIS TO FETCH LOCAL TIMES AT A LOCATION.',
+        'description': '[Use if the user asks for weather, time, date, sunrise/sunset, moon phase, weather alerts, air quality etc info on a specific location!] Fetches weather data from OpenWeatherMap API and WeatherAPI for a given city, including current and 3-hour forecasts. Translate if needed. USE THIS TO FETCH LOCAL TIMES AT A LOCATION.',
         'parameters': {
             'type': 'object',
             'properties': {
