@@ -3,6 +3,9 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
+# >>> weather fetcher module version: v0.706
+# >>> (Updated May 25 2024)
+#
 # This API functionality requires WeatherAPI key.
 # You can get the API key from the corresponding service provider.
 # Once you have the API key, add it to your environment variables:

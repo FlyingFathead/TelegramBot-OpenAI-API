@@ -3,7 +3,8 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> this weather fetcher module version: v0.705 (25-May-2024)
+# >>> weather fetcher module version: v0.706
+# >>> (Updated May 25 2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
 # You can get both from the corresponding service providers.
@@ -25,6 +26,9 @@ import pytz
 # Stuff we want to get via WeatherAPI:
 from api_get_weatherapi import get_moon_phase, get_timezone, get_daily_forecast, get_current_weather_via_weatherapi
 
+# Import the additional data fetching function for Finland
+from api_get_additional_weather_data import get_additional_data_dump
+
 # get the combined weather
 async def get_weather(city_name, country, exclude='', units='metric', lang='fi'):
     api_key = os.getenv('OPENWEATHERMAP_API_KEY')
@@ -39,8 +43,8 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
 
     base_url = 'http://api.openweathermap.org/data/2.5/'
 
-    lat, lon, country = await get_coordinates(city_name, country=country)
-    if lat is None or lon is None or country is None:
+    lat, lon, resolved_country = await get_coordinates(city_name, country=country)
+    if lat is None or lon is None or resolved_country is None:
         logging.info("Failed to retrieve coordinates or country.")
         return "[Unable to retrieve coordinates or country for the specified location. Ask the user for clarification.]"
 
@@ -60,10 +64,19 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
             moon_phase_data = await get_moon_phase(lat, lon)
             daily_forecast_data = await get_daily_forecast(f"{lat},{lon}")
             current_weather_data_from_weatherapi = await get_current_weather_via_weatherapi(f"{lat},{lon}")
-            return await combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi)
+
+            # Fetch additional data for Finland
+            additional_data = ""
+            if resolved_country.lower() == "fi":  # Case-insensitive check
+                logging.info("Fetching additional weather data for Finland.")
+                additional_data = await get_additional_data_dump()
+                logging.info(f"Additional data fetched: {additional_data}")
+
+            combined_data = await combine_weather_data(city_name, resolved_country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, additional_data)
+            return combined_data
         else:
             logging.error(f"Failed to fetch weather data: {current_weather_response.text} / {forecast_response.text}")
-            return "[Inform the user that data fetching from OpenWeatherMap API failed, current information could not be fetched. Reply in the user's language.]"
+            return "[Inform the user that data fetching the weather data failed, current information could not be fetched. Reply in the user's language.]"
 
 # get coordinates
 async def get_coordinates(city_name, country=None):
@@ -144,7 +157,7 @@ def degrees_to_cardinal(d):
     return dirs[ix % 16]
 
 # combined weather data
-async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi):
+async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, additional_data):
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
     local_timezone = pytz.timezone(timezone_str)
@@ -260,8 +273,17 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         "For example, use 🌞 for sunny, 🌧️ for rain, ⛅ for partly cloudy, etc and include a relevant and concise overview of what was asked."
     )
 
-    combined_info = f"{detailed_weather_info}\n\n{final_forecast}\n\n{additional_info_to_add}"
+    combined_info = f"{detailed_weather_info}\n\n{final_forecast}"
+
+    # Append additional data for Finland if available
+    if additional_data:
+        combined_info += f"\n\n[ Lisätiedot Suomeen (lähde: foreca.fi -- MAINITSE LÄHDE) ]\n{additional_data}"
+    
+    # Append the additional info at the end
+    combined_info += f"\n\n{additional_info_to_add}"
+    
     logging.info(f"Formatted combined weather data being sent: {combined_info}")
+    
     return combined_info
 
 # Format the weather information and translate it if necessary.        
