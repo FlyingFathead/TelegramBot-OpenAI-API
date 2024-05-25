@@ -1,8 +1,11 @@
 # api_get_additional_weather_data.py
 
 import logging
-import asyncio
+import sys
+import os
 import re
+import subprocess
+import asyncio
 
 ## NOTE: this is ONLY for example purposes!
 async def get_additional_data_dump():
