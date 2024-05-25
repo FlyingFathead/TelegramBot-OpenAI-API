@@ -281,29 +281,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     function_call = response_json['choices'][0]['message']['function_call']
                     function_name = function_call['name']
 
-                    # # get the weather via openweathermap api
-                    # if function_name == 'get_weather':
-                    #     # Fetch the weather data
-                    #     arguments = json.loads(function_call.get('arguments', '{}'))
-                    #     city_name = arguments.get('city_name', 'DefaultCity')
-                    #     country = arguments.get('country', None)  # Fetch the country parameter, defaulting to None if not provided
-
-                    #     # Now pass the country parameter to your get_weather function
-                    #     weather_info = await get_weather(city_name, country=country)  # Assuming get_weather is updated to accept country
-
-                    #     # Add the received weather data as a system message
-                    #     if weather_info:
-                    #         system_message = f"[OpenWeatherMap API request returned data]: {weather_info}"
-                    #     else:
-                    #         system_message = "[OpenWeatherMap API request failed to retrieve data]"
-
-                    #     # Append the system message to the chat history
-                    #     chat_history.append({"role": "system", "content": system_message})
-                    #     context.chat_data['chat_history'] = chat_history
-
-                    #     return  # Exit the loop after handling the custom function
-
-
                     # get the weather via openweathermap api
                     if function_name == 'get_weather':
                         # Fetch the weather data
@@ -393,32 +370,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.user_data.pop('active_translation', None)
 
                         return  # Exit the loop after handling the custom function
-
-                    # ~~~
-                    # get the global tz data
-                    # ~~~
-                    # # get the global time via date command
-                    # elif function_name == 'get_global_time':
-                    #     # Fetch the global time
-                    #     global_time = await get_global_time()
-
-                    #     # Format the global times into a readable string
-                    #     formatted_global_time = "\n".join([f"{tz}: {time}" for tz, time in global_time.items()])
-
-                    #     # Add the received global time as a system message
-                    #     if formatted_global_time:
-                    #         system_message = f"[Global time, give the user the appropriate time and date regarding their time zone, translate to their language if required]:\n{formatted_global_time}"
-                    #     else:
-                    #         system_message = "[Failed to retrieve global time]"
-
-                    #     # Append the system message to the chat history
-                    #     chat_history.append({"role": "system", "content": system_message})
-                    #     logging.info(f"[Ran a request for date and time for all timezones: {system_message}]")
-                    #     context.chat_data['chat_history'] = chat_history
-
-                    #     # Send the global times as a reply
-                    #     # await context.bot.send_message(chat_id=chat_id, text=formatted_global_time, parse_mode=ParseMode.HTML)
-                    #     # return  # Exit the loop after handling the custom function
 
                     # get the map via maptiler
                     elif function_name == 'get_map':
@@ -567,36 +518,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # originally we just hit a return value                            
                         # return
-
-## ~~~~~~~~~~~~~~ others ~~~~~~~~~~~~~~~
-
-                    #
-                    # > currently unused function calls
-                    #
-
-                    """ elif function_name == 'get_local_time':
-                        arguments = json.loads(function_call.get('arguments', '{}'))
-                        location_name = arguments.get('location_name', '')
-
-                        logging.info(f"Fetching local time for location: {location_name}")
-
-                        # Assuming you have implemented this function to fetch the time
-                        local_time = await get_local_time_for_location(location_name)
-
-                        if local_time:
-                            logging.info(f"Local time for {location_name}: {local_time}")
-                        else:
-                            logging.error(f"Failed to fetch local time for {location_name}.")
-
-                        action_note = f"[Fetched and sent the local time for: {location_name} is {local_time}]"
-
-                        # Append the note and local time to the chat history
-                        chat_history.append({"role": "assistant", "content": action_note})
-                        context.chat_data['chat_history'] = chat_history
-
-                        # Send the local time as a reply
-                        await context.bot.send_message(chat_id=chat_id, text=local_time, parse_mode=ParseMode.HTML)
-                        # return  # Exit the loop after handling the custom function """
 
                 # Extract the response and send it back to the user
                 # bot_reply = response_json['choices'][0]['message']['content'].strip()
@@ -804,12 +725,11 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
         )
 
 # (old version) /// typing message animation as an async module, if needed for longer wait times
-""" async def send_typing_animation(bot, chat_id, duration=30):
-    # Send typing action every few seconds.
-    end_time = asyncio.get_running_loop().time() + duration
-    while True:
-        await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
-        await asyncio.sleep(5)  # Send typing action every 5 seconds
-        if asyncio.get_running_loop().time() >= end_time:
-            break
- """
+# async def send_typing_animation(bot, chat_id, duration=30):
+#     # Send typing action every few seconds.
+#     end_time = asyncio.get_running_loop().time() + duration
+#     while True:
+#         await bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
+#         await asyncio.sleep(5)  # Send typing action every 5 seconds
+#         if asyncio.get_running_loop().time() >= end_time:
+#             break
