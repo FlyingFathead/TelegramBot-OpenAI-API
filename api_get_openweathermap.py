@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> weather fetcher module version: v0.706
+# >>> weather fetcher module version: v0.708
 # >>> (Updated May 25 2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
@@ -12,19 +12,21 @@
 # export OPENWEATHERMAP_API_KEY="<your API key>"
 # export MAPTILER_API_KEY="<your API key>"
 
-import datetime
+# date & time utils
+# import datetime
+import datetime as dt
+from dateutil import parser
+from timezonefinder import TimezoneFinder
+import pytz
+
 import json
 import httpx
 import os
 import logging
 import openai
 
-import datetime
-from timezonefinder import TimezoneFinder
-import pytz
-
 # Stuff we want to get via WeatherAPI:
-from api_get_weatherapi import get_moon_phase, get_timezone, get_daily_forecast, get_current_weather_via_weatherapi
+from api_get_weatherapi import get_moon_phase, get_timezone, get_daily_forecast, get_current_weather_via_weatherapi, get_astronomy_data
 
 # Import the additional data fetching function for Finland
 from api_get_additional_weather_data import get_additional_data_dump
@@ -64,6 +66,7 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
             moon_phase_data = await get_moon_phase(lat, lon)
             daily_forecast_data = await get_daily_forecast(f"{lat},{lon}")
             current_weather_data_from_weatherapi = await get_current_weather_via_weatherapi(f"{lat},{lon}")
+            astronomy_data = await get_astronomy_data(lat, lon)  # Fetch astronomy data
 
             # Fetch additional data for Finland
             additional_data = ""
@@ -72,7 +75,7 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
                 additional_data = await get_additional_data_dump()
                 logging.info(f"Additional data fetched: {additional_data}")
 
-            combined_data = await combine_weather_data(city_name, resolved_country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, additional_data)
+            combined_data = await combine_weather_data(city_name, resolved_country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data)
             return combined_data
         else:
             logging.error(f"Failed to fetch weather data: {current_weather_response.text} / {forecast_response.text}")
@@ -156,8 +159,21 @@ def degrees_to_cardinal(d):
     ix = int((d + 11.25)/22.5 - 0.02)  # Subtract a small epsilon to correct edge case at North (360 degrees)
     return dirs[ix % 16]
 
+# Function to convert 12-hour AM/PM time to 24-hour time
+def convert_to_24_hour(time_str, timezone_str):
+    try:
+        dt_time = dt.datetime.strptime(time_str, '%I:%M %p')
+        local_timezone = pytz.timezone(timezone_str)
+        local_time = local_timezone.localize(dt_time)
+        formatted_time = local_time.strftime('%H:%M')
+        logging.info(f"Converted time {time_str} to {formatted_time} in timezone {timezone_str}")
+        return formatted_time
+    except Exception as e:
+        logging.error(f"Error converting time string {time_str}: {e}")
+        return "Invalid time"
+
 # combined weather data
-async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, additional_data):
+async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data):
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
     local_timezone = pytz.timezone(timezone_str)
@@ -181,8 +197,13 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     visibility_wapi = current_weather_data_from_weatherapi['visibility']
     condition_wapi = current_weather_data_from_weatherapi['condition']
 
-    sunrise_time_utc = datetime.datetime.utcfromtimestamp(current_weather_data['sys']['sunrise'])
-    sunset_time_utc = datetime.datetime.utcfromtimestamp(current_weather_data['sys']['sunset'])
+    # Astronomy data
+    moonrise_time = convert_to_24_hour(astronomy_data['moonrise'], timezone_str)
+    moonset_time = convert_to_24_hour(astronomy_data['moonset'], timezone_str)
+    moon_illumination = astronomy_data['moon_illumination']
+
+    sunrise_time_utc = dt.datetime.utcfromtimestamp(current_weather_data['sys']['sunrise'])
+    sunset_time_utc = dt.datetime.utcfromtimestamp(current_weather_data['sys']['sunset'])
     sunrise_time_local = sunrise_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
     sunset_time_local = sunset_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
     sunrise_time_local_str = sunrise_time_local.strftime('%H:%M')
@@ -198,7 +219,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     coordinates_info = f"lat: {lat}, lon: {lon}"
 
     # Get current UTC and local times
-    current_time_utc = datetime.datetime.utcnow()
+    current_time_utc = dt.datetime.utcnow()
     current_time_local = current_time_utc.replace(tzinfo=pytz.utc).astimezone(local_timezone)
     current_time_utc_str = current_time_utc.strftime('%Y-%m-%d %H:%M:%S')
     current_time_local_str = current_time_local.strftime('%Y-%m-%d %H:%M:%S')
@@ -216,7 +237,10 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Koordinaatit: {coordinates_info} (Maa: {country_info}), "
         f"Kuun vaihe: {moon_phase_data}, "
         f"UV-indeksi [WeatherAPI]: {uv_index}, "  # Include UV index in the detailed weather info
-        f"Sääolosuhteet [WeatherAPI]: {condition_wapi}"  # Include 'condition' from WeatherAPI        
+        f"Sääolosuhteet [WeatherAPI]: {condition_wapi}, "  # Include 'condition' from WeatherAPI        
+        f"Kuu nousee klo (paikallista aikaa): {moonrise_time}, "
+        f"Kuu laskee klo (paikallista aikaa): {moonset_time}, "
+        f"Kuun valaistus: {moon_illumination}%"
     )
 
     # Include additional WeatherAPI data (daily forecast, air quality, and alerts)
@@ -246,7 +270,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     formatted_forecasts = []
     
     for forecast_data in forecasts[:5]:  # Adjust the range as needed
-        utc_time = datetime.datetime.utcfromtimestamp(forecast_data['dt'])
+        utc_time = dt.datetime.utcfromtimestamp(forecast_data['dt'])
         local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(local_timezone)
         local_time_str = local_time.strftime('%Y-%m-%d %H:%M:%S')
         utc_time_str = utc_time.strftime('%Y-%m-%d %H:%M:%S')

@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# >>> weather fetcher module version: v0.706
+# >>> weather fetcher module version: v0.708
 # >>> (Updated May 25 2024)
 #
 # This API functionality requires WeatherAPI key.
@@ -28,14 +28,14 @@ def get_weatherapi_key():
 
 # Dictionary to translate moon phases from English to Finnish
 moon_phase_translation = {
-    "New Moon": "Uusikuu",
-    "Waxing Crescent": "Kasvava sirppi",
-    "First Quarter": "Ensimmäinen neljännes",
-    "Waxing Gibbous": "Kasvava puolikuu",
-    "Full Moon": "Täysikuu",
-    "Waning Gibbous": "Vähenevä puolikuu",
-    "Last Quarter": "Viimeinen neljännes",
-    "Waning Crescent": "Vähenevä sirppi"
+    "New Moon": "uusikuu",
+    "Waxing Crescent": "kasvava sirppi",
+    "First Quarter": "ensimmäinen neljännes",
+    "Waxing Gibbous": "kasvava puolikuu",
+    "Full Moon": "täysikuu",
+    "Waning Gibbous": "vähenevä puolikuu",
+    "Last Quarter": "viimeinen neljännes",
+    "Waning Crescent": "vähenevä sirppi"
 }
 
 # get moon phase data
@@ -151,6 +151,36 @@ async def get_current_weather_via_weatherapi(location):
             }
         else:
             logging.error(f"Failed to fetch current weather data: {response.text}")
+            return None
+
+# get astronomy data including moonrise, moonset, and moon illumination
+async def get_astronomy_data(lat, lon):
+    api_key = get_weatherapi_key()
+    if not api_key:
+        return None
+
+    logging.info(f"Fetching astronomy data for coordinates: Latitude: {lat}, Longitude: {lon}")
+    base_url = 'http://api.weatherapi.com/v1/astronomy.json'
+    url = f"{base_url}?key={api_key}&q={lat},{lon}"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        logging.info(f"Astronomy response status: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            logging.info(f"Astronomy data: {data}")
+            astro = data['astronomy']['astro']
+            moonrise = astro['moonrise']
+            moonset = astro['moonset']
+            moon_illumination = astro['moon_illumination']
+            return {
+                'moonrise': moonrise,
+                'moonset': moonset,
+                'moon_illumination': moon_illumination
+            }
+        else:
+            logging.error(f"Failed to fetch astronomy data: {response.text}")
             return None
 
 # Additional WeatherAPI-related functions can be added here
