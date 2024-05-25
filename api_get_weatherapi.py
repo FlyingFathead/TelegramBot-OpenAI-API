@@ -143,6 +143,7 @@ async def get_current_weather_via_weatherapi(location):
                 'wind': current['wind_kph'],
                 'precipitation': current['precip_mm'],
                 'uv_index': current['uv'],
+                'visibility': current['vis_km'],  # Added visibility data
                 'air_quality': current.get('air_quality', {})
             }
         else:

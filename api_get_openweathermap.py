@@ -163,8 +163,10 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     visibility = current_weather_data.get('visibility', 'N/A')
     snow_1h = current_weather_data.get('snow', {}).get('1h', 'N/A')
 
-    # UV index from WeatherAPI
+    # Data to get from WeatherAPI
     uv_index = current_weather_data_from_weatherapi['uv_index']
+    visibility_wapi = current_weather_data_from_weatherapi['visibility']
+    condition_wapi = current_weather_data_from_weatherapi['condition']
 
     sunrise_time_utc = datetime.datetime.utcfromtimestamp(current_weather_data['sys']['sunrise'])
     sunset_time_utc = datetime.datetime.utcfromtimestamp(current_weather_data['sys']['sunset'])
@@ -194,13 +196,14 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Minimi: {temp_min}°C / {temp_min_fahrenheit:.1f}°F, Maksimi: {temp_max}°C / {temp_max_fahrenheit:.1f}°F, "
         f"Ilmanpaine: {pressure} hPa, Ilmankosteus: {humidity}%, "
         f"Tuulen nopeus: {wind_speed} m/s, Tuulen suunta: {wind_direction} astetta ({wind_direction_cardinal}), "
-        f"Näkyvyys: {visibility} metriä, "
+        f"Näkyvyys: {visibility} metriä [OpenWeatherMap] | {visibility_wapi} km [WeatherAPI], "
         f"Lumisade (viimeisen 1h aikana): {snow_1h} mm, "
         f"Auringonnousu: {sunrise_time_local_str}, "
         f"Auringonlasku: {sunset_time_local_str}, "
         f"Koordinaatit: {coordinates_info} (Maa: {country_info}), "
         f"Kuun vaihe: {moon_phase_data}, "
-        f"UV-indeksi: {uv_index}"  # Include UV index in the detailed weather info
+        f"UV-indeksi [WeatherAPI]: {uv_index}, "  # Include UV index in the detailed weather info
+        f"Sääolosuhteet [WeatherAPI]: {condition_wapi}"  # Include 'condition' from WeatherAPI        
     )
 
     # Include additional WeatherAPI data (daily forecast, air quality, and alerts)
@@ -208,9 +211,13 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         air_quality_data = daily_forecast_data['air_quality']
         alerts = daily_forecast_data['alerts']
 
-        air_quality_info = "\nIlmanlaatu:\n" + "\n".join(
+        air_quality_info = "\n(Ilmanlaatu: " + " / ".join(
             [f"{key}: {value}" for key, value in air_quality_data.items()]
-        )
+        ) + ")"
+
+        # air_quality_info = "\nIlmanlaatu:\n" + "\n".join(
+        #     [f"{key}: {value}" for key, value in air_quality_data.items()]
+        # )
 
         alerts_info = "\nSäävaroitukset:\n" + (
             "\n".join(
@@ -248,7 +255,12 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
 
     final_forecast = f"Kolmen tunnin sääennuste, {city_name}:\n" + "\n".join(formatted_forecasts)
 
-    combined_info = f"{detailed_weather_info}\n\n{final_forecast}"
+    additional_info_to_add = (
+        "NOTE: TRANSLATE AND FORMAT THIS DATA FOR THE USER AS APPROPRIATE. Use emojis where suitable to enhance the readability and engagement of the weather report. "
+        "For example, use 🌞 for sunny, 🌧️ for rain, ⛅ for partly cloudy, etc and include a relevant and concise overview of what was asked."
+    )
+
+    combined_info = f"{detailed_weather_info}\n\n{final_forecast}\n\n{additional_info_to_add}"
     logging.info(f"Formatted combined weather data being sent: {combined_info}")
     return combined_info
 
