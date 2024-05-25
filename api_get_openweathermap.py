@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> this weather fetcher module version: v0.45
+# >>> this weather fetcher module version: v0.46 (25-May-2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
 # You can get both from the corresponding service providers.
@@ -22,7 +22,8 @@ import datetime
 from timezonefinder import TimezoneFinder
 import pytz
 
-# get the combined weather
+# Stuff we want to get via WeatherAPI:
+from api_get_weatherapi import get_moon_phase, get_timezone, get_daily_forecast
 
 # get the combined weather
 async def get_weather(city_name, country, exclude='', units='metric', lang='fi'):
@@ -56,7 +57,9 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
         if current_weather_response.status_code == 200 and forecast_response.status_code == 200:
             current_weather_data = current_weather_response.json()
             forecast_data = forecast_response.json()
-            return await combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data)
+            moon_phase_data = await get_moon_phase(lat, lon)
+            daily_forecast_data = await get_daily_forecast(f"{lat},{lon}")
+            return await combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data)
         else:
             logging.error(f"Failed to fetch weather data: {current_weather_response.text} / {forecast_response.text}")
             return "[Inform the user that data fetching from OpenWeatherMap API failed, current information could not be fetched. Reply in the user's language.]"
@@ -188,7 +191,7 @@ def degrees_to_cardinal(d):
     return dirs[ix % 16]
 
 # combined weather data
-async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data):
+async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data):
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
     local_timezone = pytz.timezone(timezone_str)
@@ -239,9 +242,28 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Lumisade (viimeisen 1h aikana): {snow_1h} mm, "
         f"Auringonnousu: {sunrise_time_local_str}, "
         f"Auringonlasku: {sunset_time_local_str}, "
-        f"Koordinaatit: {coordinates_info} (Maa: {country_info})"
+        f"Koordinaatit: {coordinates_info} (Maa: {country_info}), "
+        f"Kuun vaihe: {moon_phase_data}"
     )
-    
+
+    # Include additional WeatherAPI data (daily forecast, air quality, and alerts)
+    if daily_forecast_data:
+        air_quality_data = daily_forecast_data['air_quality']
+        alerts = daily_forecast_data['alerts']
+
+        air_quality_info = "\nIlmanlaatu:\n" + "\n".join(
+            [f"{key}: {value}" for key, value in air_quality_data.items()]
+        )
+
+        alerts_info = "\nSäävaroitukset:\n" + (
+            "\n".join(
+                [f"Alert: {alert['headline']}\nDescription: {alert['desc']}\nInstructions: {alert['instruction']}\n"
+                 for alert in alerts['alert']]
+            ) if 'alert' in alerts and alerts['alert'] else "No weather alerts."
+        )
+
+        detailed_weather_info += f"{air_quality_info}\n{alerts_info}"
+
     # 3-hour forecast details
     forecasts = forecast_data['list']
     formatted_forecasts = []

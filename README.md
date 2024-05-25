@@ -2,7 +2,7 @@
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
 - **Supports transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
-- **Supports real-time weather info via OpenWeatherMap API**
+- **Supports real-time weather info, weather alerts, detailed weather data via OpenWeatherMap API and WeatherAPI**
 - **Supports geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
 - **Supports navigation instructions via Openrouteservice API**  
@@ -53,6 +53,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.7 - WeatherAPI support added, to enable, get an API key from weatherapi.com
 - v0.61 - improved handling of weather and time/data data globally
 - v0.60 - url info pre-parsing and additional info fetching for media sources, i.e. with `yt-dlp`
 - v0.59 - custom function calling via Elasticsearch RAG (if enabled)
