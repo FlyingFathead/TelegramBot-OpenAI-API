@@ -13,6 +13,9 @@ import asyncio
 import openai
 
 import utils
+from utils import holiday_replacements
+import holidays
+import pytz
 
 from telegram import Update
 from telegram.ext import CallbackContext
@@ -41,6 +44,9 @@ from url_handler import process_url_message
 # Load the configuration file
 config = configparser.ConfigParser()
 config.read('config.ini')
+
+# Read the holiday notification flag
+enable_holiday_notification = config.getboolean('HolidaySettings', 'EnableHolidayNotification', fallback=False)
 
 # Access the Elasticsearch enabled flag
 elasticsearch_enabled = config.getboolean('Elasticsearch', 'ElasticsearchEnabled', fallback=False)
@@ -187,6 +193,32 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
         # Log the incoming user message
         bot.log_message('User', update.message.from_user.id, update.message.text)
+
+
+        # Check if holiday notification is enabled
+        if enable_holiday_notification:
+            # Get the current date and time in Finland's timezone
+            now = datetime.datetime.now(pytz.timezone('Europe/Helsinki'))
+
+            # Create a holidays object for Finland
+            fi_holidays = holidays.Finland()
+
+            # Add non-official but widely celebrated holidays
+            additional_holidays = {
+                datetime.date(now.year, 4, 30): "May Day Eve",
+                datetime.date(now.year, 12, 31): "New Year's Eve"
+            }
+
+            # Update the holidays object with the additional holidays
+            fi_holidays.update(additional_holidays)
+
+            # Check if the current date is a holiday
+            if now.date() in fi_holidays:
+                holiday_name = fi_holidays.get(now.date())
+                finnish_name = holiday_replacements.get(holiday_name, holiday_name)
+                holiday_message = f"HUOMIO: Suomessa on tänään juhlapäivä: {finnish_name}. Muista mainita juhlapyhästä käyttäjälle tervehtiessäsi (käytä suomeksi tervehtiessäsi VAIN suomenkielistä juhlapyhän nimeä) ja kysellessä kuulumisia! (esim. hyvää joulua!, hauskaa vappua!, hyvää juhannusta!, iloista uutta vuotta!, jne. \n(In English: Today is a Finnish holiday: {finnish_name}. Include that in your current understanding and mention it, especially if you're talking about anything current.)"
+                chat_history_with_system_message.insert(1, {"role": "system", "content": holiday_message})
+
 
         # (old) // Show typing animation
         # await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)

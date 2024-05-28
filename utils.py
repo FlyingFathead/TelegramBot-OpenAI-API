@@ -9,6 +9,27 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 
+# juhlapäivien käännösnimet
+holiday_replacements = {
+    "New Year's Day": "uudenvuodenpäivä (New Year's Day)",
+    "Epiphany": "loppiainen (Epiphany)",
+    "Good Friday": "pitkäperjantai (Good Friday)",
+    "Easter Sunday": "pääsiäispäivä (Easter Sunday)",
+    "Easter Monday": "2. pääsiäispäivä (Easter Monday)",
+    "May Day": "vappu (May Day)",
+    "Ascension Day": "helatorstai (Ascension Day)",
+    "Whit Sunday": "helluntaipäivä (Whit Sunday)",
+    "Midsummer Eve": "juhannusaatto (Midsummer Eve)",
+    "Midsummer Day": "juhannuspäivä (Midsummer Day)",
+    "All Saints' Day": "pyhäinpäivä (All Saints' Day)",
+    "Independence Day": "itsenäisyyspäivä (Independence Day)",
+    "Christmas Eve": "jouluaatto (Christmas Eve)",
+    "Christmas Day": "joulupäivä (Christmas Day)",
+    "Second Day of Christmas": "Tapaninpäivä (Second Day of Christmas)",
+    "New Year's Eve": "uudenvuodenaatto (New Year's Eve)",
+    "May Day Eve": "vappuaatto (May Day Eve)"
+}
+
 # set `now`
 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
