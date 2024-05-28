@@ -12,6 +12,8 @@
 - **Supports Elasticsearch for RAG**  
   - Increase the knowledge rate with your own documents
   - Quickly generate additional knowledge with the built-in Q&A pair creator
+- **Supports holiday notifications via Python's `holidays` module**
+  - Can be localized to any supported country, can also add in your own special days as a reminder.
 
 # Prerequisites
 - Tested & working on Python 3.10.12
