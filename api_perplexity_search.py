@@ -11,22 +11,41 @@ import logging
 import os
 import httpx
 import asyncio
+import configparser
 
 from langdetect import detect
 from telegram import constants
 
+# Load the configuration file
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 # ~~~~~~~~~
 # variables
 # ~~~~~~~~~
+# Define fallback default values
+DEFAULT_PERPLEXITY_MODEL = "llama-3-sonar-large-32k-online"
+DEFAULT_PERPLEXITY_MAX_TOKENS = 1024
+DEFAULT_PERPLEXITY_TEMPERATURE = 0.0
+DEFAULT_PERPLEXITY_MAX_RETRIES = 3
+DEFAULT_PERPLEXITY_RETRY_DELAY = 25
+DEFAULT_PERPLEXITY_TIMEOUT = 30
+# chunk sizes are for translations
+DEFAULT_CHUNK_SIZE = 500
 
-# Global variable for chunk size
-# Set this value as needed
-CHUNK_SIZE = 500
+# Perplexity API settings from config with fallback defaults
+PERPLEXITY_MODEL = config.get('Perplexity', 'Model', fallback=DEFAULT_PERPLEXITY_MODEL)
+PERPLEXITY_MAX_TOKENS = config.getint('Perplexity', 'MaxTokens', fallback=DEFAULT_PERPLEXITY_MAX_TOKENS)
+PERPLEXITY_TEMPERATURE = config.getfloat('Perplexity', 'Temperature', fallback=DEFAULT_PERPLEXITY_TEMPERATURE)
+PERPLEXITY_MAX_RETRIES = config.getint('Perplexity', 'MaxRetries', fallback=DEFAULT_PERPLEXITY_MAX_RETRIES)
+PERPLEXITY_RETRY_DELAY = config.getint('Perplexity', 'RetryDelay', fallback=DEFAULT_PERPLEXITY_RETRY_DELAY)
+PERPLEXITY_TIMEOUT = config.getint('Perplexity', 'Timeout', fallback=DEFAULT_PERPLEXITY_TIMEOUT)
+CHUNK_SIZE = config.getint('Perplexity', 'ChunkSize', fallback=DEFAULT_CHUNK_SIZE)
 
 # Assuming you've set PERPLEXITY_API_KEY in your environment variables
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 
-#  main perplexity function
+# Main Perplexity function
 async def fact_check_with_perplexity(question: str):
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
@@ -35,10 +54,10 @@ async def fact_check_with_perplexity(question: str):
         "Accept": "application/json",
     }
     data = {
-        "model": "sonar-small-online",  # Specifying the model
+        "model": PERPLEXITY_MODEL,  # Specifying the model
         "stream": False,
-        "max_tokens": 1024,
-        "temperature": 0.0,  # Adjust based on how deterministic you want the responses to be
+        "max_tokens": PERPLEXITY_MAX_TOKENS,
+        "temperature": PERPLEXITY_TEMPERATURE,  # Adjust based on how deterministic you want the responses to be
         "messages": [
             {
                 "role": "user",
@@ -47,8 +66,8 @@ async def fact_check_with_perplexity(question: str):
         ]
     }
 
-    async with httpx.AsyncClient(timeout=30) as client:  # Increased timeout
-        for attempt in range(3):  # Retry mechanism
+    async with httpx.AsyncClient(timeout=PERPLEXITY_TIMEOUT) as client:  # Increased timeout
+        for attempt in range(PERPLEXITY_MAX_RETRIES):  # Retry mechanism
             try:
                 response = await client.post(url, json=data, headers=headers)
                 if response.status_code == 200:
@@ -69,7 +88,7 @@ async def fact_check_with_perplexity(question: str):
 
     return None
 
-# queries perplexity
+# Queries Perplexity
 async def query_perplexity(bot, chat_id, question: str):
     logging.info(f"Querying Perplexity with question: {question}")
     response_data = await fact_check_with_perplexity(question)
@@ -108,26 +127,24 @@ async def translate_response(bot, user_message, perplexity_response):
         # Directly convert and return if language detection fails; assuming English or Markdown needs HTML conversion
         formatted_response = format_headers_for_telegram(perplexity_response)
         return markdown_to_html(formatted_response)
-    
+
     # Check if the detected language is English, skip translation if it is
     if user_lang == 'en':
         logging.info("User's question is in English, converting Markdown to HTML.")
         formatted_response = format_headers_for_telegram(perplexity_response)
         return markdown_to_html(formatted_response)
     else:
-        # await context.bot.send_message(chat_id=update.effective_chat.id, text="<i>Translating, please wait...</i>", parse_mode=telegram.ParseMode.HTML)
         logging.info(f"User's question is in {user_lang}, proceeding with translation.")
-    
+
     # System message to guide the model for translating
     system_message = {
         "role": "system",
         "content": f"Translate the message to: {user_lang}."
     }
-    
+
     # Prepare the chat history with only the Perplexity's response as the assistant's message to be translated
     chat_history = [
         system_message,
-        # {"role": "user", "content": user_message},
         {"role": "user", "content": perplexity_response}
     ]
 
@@ -158,7 +175,7 @@ async def translate_response(bot, user_message, perplexity_response):
             return translated_reply
         except Exception as e:
             logging.error(f"Error processing translation response: {e}")
-            return f"Translation failed due to an error: {e}"  
+            return f"Translation failed due to an error: {e}"
     else:
         logging.error(f"Error in translating response: {response.text}")
         return f"Failed to translate, API returned status code {response.status_code}: {response.text}"
