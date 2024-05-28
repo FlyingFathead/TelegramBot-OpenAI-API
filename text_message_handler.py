@@ -470,42 +470,37 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         logging.info("Reply sent to user.")
                         
                         return  # Exit the loop after handling the custom function
-       
-                    # Handling the Perplexity API call with automatic translation
+
+                    # ~~~~~~~~~~~~~~
+                    # Perplexity API
+                    # ~~~~~~~~~~~~~~
+
+                    # Handling the Perplexity API call with automatic translation                    
                     elif function_name == 'query_perplexity':
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         question = arguments.get('question', '')
 
                         if question:
-                            logging.info(f"Querying Perplexity with question: {question}")
-
+                            
                             # Make the asynchronous API call to query Perplexity
                             perplexity_response = await query_perplexity(context.bot, chat_id, question)
 
                             # Log the raw Perplexity API response for debugging
                             logging.info(f"Raw Perplexity API Response: {perplexity_response}")
 
-                            if perplexity_response is not None:  # Ensure there's a response
-                                # Flag for translation in progress
-                                context.user_data['active_translation'] = True
-
-                                # Translate or process the response as necessary
-                                bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
-
-                                # After translation or processing is completed, clear the active translation flag
-                                context.user_data.pop('active_translation', None)                                
-
-                                if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
-
-                                    # Append the bot's reply to the chat history before sending it 
-                                    # chat_history.append({"role": "assistant", "content": f"[Fetched data from perplexity.ai API]"})
-                                    chat_history.append({"role": "assistant", "content": bot_reply_formatted})
+                            if perplexity_response == "[System message: Perplexity API is currently unavailable due to server issues. Inform the user about this issue in their language.]":
+                                # Handle the system message for API unavailability
+                                logging.error("Perplexity API is down. Informing the model to notify the user.")
+                                chat_history.append({"role": "system", "content": "Perplexity API is currently unavailable due to server issues. Please inform the user about this issue."})
+                            else:
+                                if perplexity_response is not None:
+                                    # Append the bot's reply to the chat history before sending it
+                                    chat_history.append({"role": "system", "content": f"[Response from Perplexity API, translate to user's language as needed] {perplexity_response}"})
                                     context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
 
                                     await context.bot.send_message(
                                         chat_id=update.effective_chat.id,
-                                        text=bot_reply_formatted,
-                                        # parse_mode=ParseMode.HTML
+                                        text=perplexity_response,
                                         parse_mode=ParseMode.HTML
                                     )
 
@@ -513,40 +508,93 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                     break  # Exit the loop since response has been handled
 
                                 else:
-                                    # Log the error and maybe send a different message or handle the error differently
-                                    logging.error("Error processing or translating the Perplexity response.")
-                                    
-                                    # Append a system message noting the fallback due to processing error
-                                    chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
-                        
-                                    # "ungraceful exit"
-                                    """ await context.bot.send_message(
-                                        chat_id=update.effective_chat.id,
-                                        text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                                    ) """
-                            else:
-                                logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
-
-                                # Append a system message noting the fallback due to invalid response
-                                chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
-
-                                # "ungraceful exit"
-                                """ await context.bot.send_message(
-                                    chat_id=update.effective_chat.id,
-                                    text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                                ) """
+                                    logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
+                                    chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
 
                         else:
                             logging.warning("No question was provided for the Perplexity query.")
-                            """ await context.bot.send_message(
-                                chat_id=update.effective_chat.id,
-                                text="I need a question to ask. Please try again with a question."
-                            ) """
-
                             chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
-                            
-                        # Update the chat history in context with the new system message
+
                         context.chat_data['chat_history'] = chat_history
+
+                    # # Handling the Perplexity API call with automatic translation
+                    # elif function_name == 'query_perplexity':
+                    #     arguments = json.loads(function_call.get('arguments', '{}'))
+                    #     question = arguments.get('question', '')
+
+                    #     if question:
+                    #         logging.info(f"Querying Perplexity with question: {question}")
+
+                    #         # Make the asynchronous API call to query Perplexity
+                    #         perplexity_response = await query_perplexity(context.bot, chat_id, question)
+
+                    #         # Log the raw Perplexity API response for debugging
+                    #         logging.info(f"Raw Perplexity API Response: {perplexity_response}")
+
+                    #         if perplexity_response is not None:  # Ensure there's a response
+                    #             # Flag for translation in progress
+                    #             context.user_data['active_translation'] = True
+
+                    #             # Translate or process the response as necessary
+                    #             bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
+
+                    #             # After translation or processing is completed, clear the active translation flag
+                    #             context.user_data.pop('active_translation', None)                                
+
+                    #             if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
+
+                    #                 # Append the bot's reply to the chat history before sending it 
+                    #                 # chat_history.append({"role": "assistant", "content": f"[Fetched data from perplexity.ai API]"})
+                    #                 chat_history.append({"role": "assistant", "content": bot_reply_formatted})
+                    #                 context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
+
+                    #                 await context.bot.send_message(
+                    #                     chat_id=update.effective_chat.id,
+                    #                     text=bot_reply_formatted,
+                    #                     # parse_mode=ParseMode.HTML
+                    #                     parse_mode=ParseMode.HTML
+                    #                 )
+
+                    #                 response_sent = True  # Indicate that a response has been sent
+                    #                 break  # Exit the loop since response has been handled
+
+                    #             else:
+                    #                 # Log the error and maybe send a different message or handle the error differently
+                    #                 logging.error("Error processing or translating the Perplexity response.")
+                                    
+                    #                 # Append a system message noting the fallback due to processing error
+                    #                 chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
+                        
+                    #                 # "ungraceful exit"
+                    #                 """ await context.bot.send_message(
+                    #                     chat_id=update.effective_chat.id,
+                    #                     text="Sorry, I couldn't fetch an answer for that. Please try again later."
+                    #                 ) """
+                    #         else:
+                    #             logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
+
+                    #             # Append a system message noting the fallback due to invalid response
+                    #             chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
+
+                    #             # "ungraceful exit"
+                    #             """ await context.bot.send_message(
+                    #                 chat_id=update.effective_chat.id,
+                    #                 text="Sorry, I couldn't fetch an answer for that. Please try again later."
+                    #             ) """
+
+                    #     else:
+                    #         logging.warning("No question was provided for the Perplexity query.")
+                    #         """ await context.bot.send_message(
+                    #             chat_id=update.effective_chat.id,
+                    #             text="I need a question to ask. Please try again with a question."
+                    #         ) """
+
+                    #         chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
+
+
+
+                        # Update the chat history in context with the new system message
+                        # context.chat_data['chat_history'] = chat_history
 
                         # originally we just hit a return value                            
                         # return

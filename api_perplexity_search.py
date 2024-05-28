@@ -53,6 +53,9 @@ async def fact_check_with_perplexity(question: str):
                 response = await client.post(url, json=data, headers=headers)
                 if response.status_code == 200:
                     return response.json()
+                elif response.status_code == 500:
+                    logging.error("Perplexity API returned a 500 server error.")
+                    return {"error": "server_error"}
                 else:
                     logging.error(f"Perplexity API Error: {response.text}")
             except httpx.RequestError as e:
@@ -79,6 +82,9 @@ async def query_perplexity(bot, chat_id, question: str):
             else:
                 logging.warning("No content received from Perplexity API.")
                 return "No answer received."
+        elif 'error' in response_data and response_data['error'] == 'server_error':
+            logging.error("Perplexity API server error.")
+            return "[System message: Perplexity API is currently unavailable due to server issues. Inform the user about this issue in their language.]"
         else:
             logging.error("Unexpected response structure from Perplexity API.")
             return "Error interpreting the response."
