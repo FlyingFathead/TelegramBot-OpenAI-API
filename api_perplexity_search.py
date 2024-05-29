@@ -12,6 +12,7 @@ import os
 import httpx
 import asyncio
 import configparser
+import random
 
 from langdetect import detect
 from telegram import constants
@@ -66,7 +67,7 @@ async def fact_check_with_perplexity(question: str):
         ]
     }
 
-    async with httpx.AsyncClient(timeout=PERPLEXITY_TIMEOUT) as client:  # Increased timeout
+    async with httpx.AsyncClient(timeout=PERPLEXITY_TIMEOUT) as client:
         for attempt in range(PERPLEXITY_MAX_RETRIES):  # Retry mechanism
             try:
                 response = await client.post(url, json=data, headers=headers)
@@ -75,8 +76,11 @@ async def fact_check_with_perplexity(question: str):
                 elif response.status_code == 500:
                     logging.error("Perplexity API returned a 500 server error.")
                     return {"error": "server_error"}
+                elif response.status_code in [502, 503, 504]:  # Retry for server-related errors
+                    logging.error(f"Perplexity API Error: {response.text}")
                 else:
                     logging.error(f"Perplexity API Error: {response.text}")
+                    break
             except httpx.RequestError as e:
                 logging.error(f"RequestError while calling Perplexity API: {e}")
             except httpx.HTTPStatusError as e:
@@ -84,7 +88,9 @@ async def fact_check_with_perplexity(question: str):
             except Exception as e:
                 logging.error(f"Unexpected error while calling Perplexity API: {e}")
 
-            await asyncio.sleep(2 ** attempt)  # Exponential backoff
+            # Exponential backoff with jitter
+            backoff_delay = min(PERPLEXITY_RETRY_DELAY, (2 ** attempt) + random.uniform(0, 1))
+            await asyncio.sleep(backoff_delay)
 
     return None
 
@@ -180,9 +186,10 @@ async def translate_response(bot, user_message, perplexity_response):
         logging.error(f"Error in translating response: {response.text}")
         return f"Failed to translate, API returned status code {response.status_code}: {response.text}"
 
-# translate in chunks
-async def translate_response_chunked(bot, user_message, perplexity_response, context, update):
-    logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
+
+# translate in chunks (new method; with jitter to avoid API flood)
+async def translate_response_chunked(bot, user_message, openai_response, context, update):
+    logging.info(f"OpenAI API Response to be translated: {openai_response}")
 
     # Clean the user_message as before
     cleaned_message = re.sub(r"\[Whisper STT transcribed message from the user\]|\[end\]", "", user_message).strip()
@@ -192,16 +199,16 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
-        formatted_response = format_headers_for_telegram(perplexity_response)
+        formatted_response = format_headers_for_telegram(openai_response)
         return markdown_to_html(formatted_response)
 
     # Skip translation if the language is English
     if user_lang == 'en':
         logging.info("User's question is in English, skipping translation, converting Markdown to HTML.")
 
-        # Sanitize URLs in the Perplexity response
-        sanitized_response = sanitize_urls(perplexity_response)
-        logging.info(f"Sanitized Perplexity response: {sanitized_response}")
+        # Sanitize URLs in the OpenAI response
+        sanitized_response = sanitize_urls(openai_response)
+        logging.info(f"Sanitized OpenAI response: {sanitized_response}")
 
         # Apply Telegram-specific formatting to the sanitized response
         formatted_response = format_headers_for_telegram(sanitized_response)
@@ -216,7 +223,7 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
     # Use smart_chunk to split the response text
-    chunks = smart_chunk(perplexity_response)
+    chunks = smart_chunk(openai_response)
 
     logging.info(f"Total chunks created: {len(chunks)}")  # Log total number of chunks
     translated_chunks = []
@@ -244,27 +251,40 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
             "Authorization": f"Bearer {bot.openai_api_key}"
         }
 
-        # Translate each chunk
-        async with httpx.AsyncClient() as client:
-            response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
-            logging.info(f"Translation response for chunk {index + 1}: {response.status_code}")            
-
-        if response.status_code == 200:
+        for attempt in range(PERPLEXITY_MAX_RETRIES):
             try:
-                response_json = response.json()
-                translated_chunk = response_json['choices'][0]['message']['content'].strip()
-                translated_chunks.append(translated_chunk)
-                # Log the translated chunk content for verification
-                logging.info(f"Chunk {index + 1} translated successfully with content: {translated_chunk}")                
-            except Exception as e:
-                logging.error(f"Error processing translation response for a chunk: {e}")
-                # Handle partial translation or decide to abort/return error based on your preference
-        else:
-            logging.error(f"Error in translating chunk {index + 1}: {response.text}")
-            # Handle error, e.g., by breaking the loop or accumulating errors
+                # Translate each chunk
+                async with httpx.AsyncClient() as client:
+                    response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+                    logging.info(f"Translation response for chunk {index + 1}: {response.status_code}")            
 
-    # Wait for 1 second before processing the next chunk
-    await asyncio.sleep(1)
+                if response.status_code == 200:
+                    try:
+                        response_json = response.json()
+                        translated_chunk = response_json['choices'][0]['message']['content'].strip()
+                        translated_chunks.append(translated_chunk)
+                        # Log the translated chunk content for verification
+                        logging.info(f"Chunk {index + 1} translated successfully with content: {translated_chunk}")                
+                        break
+                    except Exception as e:
+                        logging.error(f"Error processing translation response for a chunk: {e}")
+                        # Handle partial translation or decide to abort/return error based on your preference
+                else:
+                    logging.error(f"Error in translating chunk {index + 1}: {response.text}")
+                    # Handle error, e.g., by breaking the loop or accumulating errors
+            except httpx.RequestError as e:
+                logging.error(f"RequestError while calling OpenAI API: {e}")
+            except httpx.HTTPStatusError as e:
+                logging.error(f"HTTPStatusError while calling OpenAI API: {e}")
+            except Exception as e:
+                logging.error(f"Unexpected error while calling OpenAI API: {e}")
+
+            # Exponential backoff with jitter
+            backoff_delay = min(PERPLEXITY_RETRY_DELAY, (2 ** attempt) + random.uniform(0, 1))
+            await asyncio.sleep(backoff_delay)
+
+        # Wait for 1 second before processing the next chunk
+        await asyncio.sleep(1)
 
     # Now, instead of manually concatenating translated chunks, use the rejoin_chunks function
     rejoined_text = rejoin_chunks(translated_chunks)
@@ -290,6 +310,119 @@ async def translate_response_chunked(bot, user_message, perplexity_response, con
     logging.info(f"Parsed translated response: {html_response}")
 
     return html_response
+
+# # (old method; up until 29.may 2024)
+# # translate in chunks
+# async def translate_response_chunked(bot, user_message, perplexity_response, context, update):
+#     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
+
+#     # Clean the user_message as before
+#     cleaned_message = re.sub(r"\[Whisper STT transcribed message from the user\]|\[end\]", "", user_message).strip()
+
+#     try:
+#         user_lang = detect(cleaned_message)
+#         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
+#     except Exception as e:
+#         logging.error(f"Error detecting user language: {e}")
+#         formatted_response = format_headers_for_telegram(perplexity_response)
+#         return markdown_to_html(formatted_response)
+
+#     # Skip translation if the language is English
+#     if user_lang == 'en':
+#         logging.info("User's question is in English, skipping translation, converting Markdown to HTML.")
+
+#         # Sanitize URLs in the Perplexity response
+#         sanitized_response = sanitize_urls(perplexity_response)
+#         logging.info(f"Sanitized Perplexity response: {sanitized_response}")
+
+#         # Apply Telegram-specific formatting to the sanitized response
+#         formatted_response = format_headers_for_telegram(sanitized_response)
+
+#         # Convert the Telegram-formatted response to HTML
+#         html_response = markdown_to_html(formatted_response)
+#         logging.info(f"Parsed translated response: {html_response}")
+
+#         return html_response
+
+#     # Show typing animation at the start
+#     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+
+#     # Use smart_chunk to split the response text
+#     chunks = smart_chunk(perplexity_response)
+
+#     logging.info(f"Total chunks created: {len(chunks)}")  # Log total number of chunks
+#     translated_chunks = []
+
+#     for index, chunk in enumerate(chunks):
+#         # logging.info(f"Translating chunk: {chunk}")
+#         logging.info(f"Translating chunk {index+1}/{len(chunks)}: {chunk}")
+
+#         # Prepare the payload for each chunk
+
+#         # Show typing animation at the start
+#         await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
+
+#         payload = {
+#             "model": bot.model,
+#             "messages": [
+#                 {"role": "system", "content": f"Translate the message to: {user_lang}."},
+#                 {"role": "user", "content": chunk}
+#             ],
+#             "temperature": 0.5  # Keep as per your requirement
+#         }
+
+#         headers = {
+#             "Content-Type": "application/json",
+#             "Authorization": f"Bearer {bot.openai_api_key}"
+#         }
+
+#         # Translate each chunk
+#         async with httpx.AsyncClient() as client:
+#             response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+#             logging.info(f"Translation response for chunk {index + 1}: {response.status_code}")            
+
+#         if response.status_code == 200:
+#             try:
+#                 response_json = response.json()
+#                 translated_chunk = response_json['choices'][0]['message']['content'].strip()
+#                 translated_chunks.append(translated_chunk)
+#                 # Log the translated chunk content for verification
+#                 logging.info(f"Chunk {index + 1} translated successfully with content: {translated_chunk}")                
+#             except Exception as e:
+#                 logging.error(f"Error processing translation response for a chunk: {e}")
+#                 # Handle partial translation or decide to abort/return error based on your preference
+#         else:
+#             logging.error(f"Error in translating chunk {index + 1}: {response.text}")
+#             # Handle error, e.g., by breaking the loop or accumulating errors
+
+#     # Wait for 1 second before processing the next chunk
+#     await asyncio.sleep(1)
+
+#     # Now, instead of manually concatenating translated chunks, use the rejoin_chunks function
+#     rejoined_text = rejoin_chunks(translated_chunks)
+
+#     logging.info(f"Final rejoined text length: {len(rejoined_text)}")
+#     logging.info(f"Rejoined translated response: {rejoined_text}")
+
+#     # Continue with your existing logic to format and return the translated text...
+    
+#     # Sanitize URLs in the rejoined text
+#     sanitized_text = sanitize_urls(rejoined_text)
+#     logging.info(f"Sanitized translated response: {sanitized_text}")
+
+#     # Apply the header formatting for Telegram before converting to HTML
+#     # telegram_formatted_response = format_headers_for_telegram(rejoined_text)
+    
+#     # Apply Telegram-specific formatting
+#     telegram_formatted_response = format_headers_for_telegram(sanitized_text)
+
+#     # Then convert the Telegram-formatted response to HTML
+#     html_response = markdown_to_html(telegram_formatted_response)
+
+#     logging.info(f"Parsed translated response: {html_response}")
+
+#     return html_response
+
 
 # ~~~~~~
 # others 
