@@ -476,6 +476,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     # Perplexity API
                     # ~~~~~~~~~~~~~~
                     # Handling the Perplexity API call with automatic translation
+                    # Handling the Perplexity API call with automatic translation
                     elif function_name == 'query_perplexity':
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         question = arguments.get('question', '')
@@ -507,28 +508,53 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                         chat_history.append({"role": "assistant", "content": bot_reply_formatted})
                                         context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
 
-                                        await context.bot.send_message(
-                                            chat_id=update.effective_chat.id,
-                                            text=bot_reply_formatted,
-                                            parse_mode=ParseMode.HTML
-                                        )
+                                        if len(bot_reply_formatted) > MAX_TELEGRAM_MESSAGE_LENGTH:
+                                            # Split the message into chunks if it exceeds the maximum length
+                                            chunks = split_message(bot_reply_formatted)
 
+                                            for chunk in chunks:
+                                                await context.bot.send_message(
+                                                    chat_id=update.effective_chat.id,
+                                                    text=chunk,
+                                                    parse_mode=ParseMode.HTML
+                                                )
+                                                logging.info(f"Sent chunk with length: {len(chunk)}")
+                                        else:
+                                            await context.bot.send_message(
+                                                chat_id=update.effective_chat.id,
+                                                text=bot_reply_formatted,
+                                                parse_mode=ParseMode.HTML
+                                            )
+                                            logging.info(f"Sent message with length: {len(bot_reply_formatted)}")
+
+                                        logging.info("Response sent successfully, no further actions should be triggered.")
                                         response_sent = True  # Indicate that a response has been sent
-                                        break  # Exit the loop since response has been handled
+                                        return  # Exit the function since response has been handled
+
                                     else:
-                                        # Log the error and maybe send a different message or handle the error differently
-                                        logging.error("Error processing or translating the Perplexity response.")
-                                        chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
+                                        if not response_sent:
+                                            # Log the error and maybe send a different message or handle the error differently
+                                            logging.error("Error processing or translating the Perplexity response.")
+                                            chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
+                                            context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
+                                            return
 
                                 else:
-                                    logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
-                                    chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
+                                    if not response_sent:
+                                        logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
+                                        chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
+                                        context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
+                                        return
 
                         else:
-                            logging.warning("No question was provided for the Perplexity query.")
-                            chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
+                            if not response_sent:
+                                logging.warning("No question was provided for the Perplexity query.")
+                                chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
+                                context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
+                                return
 
                         context.chat_data['chat_history'] = chat_history
+
 
 
                     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
