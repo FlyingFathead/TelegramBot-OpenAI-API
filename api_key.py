@@ -1,5 +1,5 @@
 # api_key.py
-# ~~~ read the OpenAI API key ~~~
+# Read the OPENAI API key with configurable fallback
 
 import os
 import sys
@@ -9,14 +9,21 @@ import logging
 # Set up basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Flag to enable or disable fallback to environment variable if the key is not found in the file
+ENABLE_KEY_READING_FALLBACK = True
+
 def get_api_key():
     config = configparser.ConfigParser()
+    config_path = 'config.ini'
+    api_key = None
+
     try:
-        config.read('config.ini')
+        config.read(config_path)
         prefer_env = config.getboolean('DEFAULT', 'PreferEnvForAPIKey', fallback=True)
     except Exception as e:
         logging.error(f"Failed to read from config file: {e}")
-        sys.exit(1)
+        prefer_env = True  # Defaulting to True if config read fails
+        logging.info("Defaulting to environment variable preference due to config read failure.")
 
     logging.info(f"Preference for environment variables: {'Yes' if prefer_env else 'No'}")
 
@@ -24,24 +31,26 @@ def get_api_key():
         api_key = os.getenv('OPENAI_API_KEY')
         if api_key:
             logging.info("API key loaded from environment variable.")
-            return api_key
+            return api_key.strip()
 
-    try:
-        with open('api_token.txt', 'r') as file:
-            api_key = file.read().strip()
-            logging.info("API key loaded from file.")
-            return api_key
-    except FileNotFoundError:
-        logging.warning("API token file not found.")
+    if not api_key:
+        try:
+            with open('api_token.txt', 'r') as file:
+                api_key = file.read().strip()
+                if api_key:
+                    logging.info("API key loaded from file.")
+                    return api_key
+        except FileNotFoundError:
+            logging.warning("API token file not found.")
+            if not prefer_env and ENABLE_KEY_READING_FALLBACK:
+                api_key = os.getenv('OPENAI_API_KEY')
+                if api_key:
+                    logging.info("API key loaded from environment variable on fallback.")
+                    return api_key.strip()
 
-    if not prefer_env:
-        api_key = os.getenv('OPENAI_API_KEY')
-        if api_key:
-            logging.info("API key loaded from environment variable.")
-            return api_key
-
-    logging.error("The OPENAI_API_KEY environment variable is not set, and `api_token.txt` was not found. Please set either one and adjust `config.ini` if needed for the preferred load order.")
-    sys.exit(1)
+    if not api_key:
+        logging.error("The OPENAI_API_KEY environment variable is not set, and `api_token.txt` was not found. Please set either one and adjust `config.ini` if needed for the preferred load order.")
+        sys.exit(1)
 
 # Example usage
 if __name__ == "__main__":
