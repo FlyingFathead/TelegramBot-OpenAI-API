@@ -12,50 +12,75 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Flag to enable or disable fallback to environment variable if the key is not found in the file
 ENABLE_KEY_READING_FALLBACK = True
 
-def get_api_key():
+def read_env_api_key():
+    """
+    Reads the OpenAI API key from the environment variable.
+
+    Returns:
+        str: The API key if found, else None.
+    """
+    api_key = os.getenv('OPENAI_API_KEY')
+    if api_key:
+        logging.info("OpenAI API key loaded from environment variable.")
+    return api_key
+
+def get_api_key(config_path='config.ini', token_file='api_token.txt'):
+    """
+    Retrieves the OpenAI API key, prioritizing the method as per the config file or defaults.
+
+    Args:
+        config_path (str): Path to the configuration file.
+        token_file (str): Path to the file containing the API key.
+
+    Returns:
+        str: The OpenAI API key.
+
+    Raises:
+        SystemExit: If the API key is not found through any method.
+    """
     config = configparser.ConfigParser()
-    config_path = 'config.ini'
     api_key = None
 
     try:
         config.read(config_path)
-        prefer_env = config.getboolean('DEFAULT', 'PreferEnvForAPIKey', fallback=True)
+        if not config.sections():
+            logging.warning(f"Config file '{config_path}' is missing or empty. OpenAI API key reading falling back to environment variable preference.")
+            prefer_env = True  # Defaulting to True if config read fails
+        else:
+            prefer_env = config.getboolean('DEFAULT', 'PreferEnvForAPIKey', fallback=True)
+            logging.info(f"Preference for environment variables for the OpenAI API key set in config: {'Yes' if prefer_env else 'No'}")
     except Exception as e:
-        logging.error(f"Failed to read from config file: {e}")
+        logging.error(f"Failed to read OpenAI API key from config file: {e}")
         prefer_env = True  # Defaulting to True if config read fails
         logging.info("Defaulting to environment variable preference due to config read failure.")
 
-    logging.info(f"Preference for environment variables: {'Yes' if prefer_env else 'No'}")
-
     if prefer_env:
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = read_env_api_key()
         if api_key:
-            logging.info("API key loaded from environment variable.")
             return api_key.strip()
 
     if not api_key:
         try:
-            with open('api_token.txt', 'r') as file:
+            with open(token_file, 'r') as file:
                 api_key = file.read().strip()
                 if api_key:
-                    logging.info("API key loaded from file.")
+                    logging.info("OpenAI API key loaded from file.")
                     return api_key
         except FileNotFoundError:
-            logging.warning("API token file not found.")
+            logging.warning("OpenAI API token file not found.")
             if not prefer_env and ENABLE_KEY_READING_FALLBACK:
-                api_key = os.getenv('OPENAI_API_KEY')
+                api_key = read_env_api_key()
                 if api_key:
-                    logging.info("API key loaded from environment variable on fallback.")
                     return api_key.strip()
 
     if not api_key:
         logging.error("The OPENAI_API_KEY environment variable is not set, and `api_token.txt` was not found. Please set either one and adjust `config.ini` if needed for the preferred load order.")
         sys.exit(1)
 
-# Example usage
+# Example usage for standalone testing
 if __name__ == "__main__":
     api_key = get_api_key()
-    print("API Key:", api_key)
+    print("OpenAI API Key (for testing & debugging only):", api_key)
 
 # ~~~ old method below ~~~
 # import os
