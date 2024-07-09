@@ -57,6 +57,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.7251 - small robustness improvements & fixes to the `api_key.py` module
 - v0.725 - additional Perplexity API call + translation adjustments
 - v0.724 - splitting logic for lengthier Perplexity API responses
 - v0.723 - added jitter, modified retry logic in Perplexity API+translation requests

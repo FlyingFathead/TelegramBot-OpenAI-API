@@ -32,7 +32,7 @@ from custom_functions import custom_functions, observe_chat
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
-from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk
+from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 from api_get_global_time import get_global_time
 
 # RAG via elasticsearch
@@ -52,6 +52,9 @@ enable_holiday_notification = config.getboolean('HolidaySettings', 'EnableHolida
 # Access the Elasticsearch enabled flag
 elasticsearch_enabled = config.getboolean('Elasticsearch', 'ElasticsearchEnabled', fallback=False)
 ELASTICSEARCH_ENABLED = elasticsearch_enabled
+
+# additional check for message length
+MAX_TELEGRAM_MESSAGE_LENGTH = 4000
 
 # Add extra wait time if we're in the middle of i.e. a translation process
 extra_wait_time = 30  # Additional seconds to wait when in translation mode
