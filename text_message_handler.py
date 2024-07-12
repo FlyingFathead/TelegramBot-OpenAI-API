@@ -23,6 +23,7 @@ from telegram.ext import CallbackContext
 from telegram.constants import ParseMode
 from telegram import constants
 from telegram.constants import ChatAction
+from telegram.error import TimedOut
 
 # tg-bot specific stuff
 from modules import markdown_to_html
@@ -479,7 +480,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     # Perplexity API
                     # ~~~~~~~~~~~~~~
                     # Handling the Perplexity API call with automatic translation
-                    # Handling the Perplexity API call with automatic translation
                     elif function_name == 'query_perplexity':
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         question = arguments.get('question', '')
@@ -793,8 +793,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 async def send_typing_animation(bot, chat_id, stop_event: asyncio.Event):
     """Send typing action until stop_event is set."""
     while not stop_event.is_set():
-        await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-        await asyncio.sleep(5)  # Telegram's typing status lasts for a few seconds, so we repeat.
+        try:
+            await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+            await asyncio.sleep(5)  # Telegram's typing status lasts for a few seconds, so we repeat.
+        except TimedOut:
+            logging.warning(f"Timeout while sending typing action to chat {chat_id}")
+            await asyncio.sleep(5)  # Continue to wait before the next typing action attempt
 
 async def generate_response_based_on_updated_context(bot, context, chat_id):
     # logger.info("Using the `generate_response_based_on_updated_content` function")

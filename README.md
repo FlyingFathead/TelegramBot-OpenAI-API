@@ -57,6 +57,11 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.726 - switched to OpenAI API from `langdetect` when using i.e. Perplexity API for information queries
+  - (`detect_language` function in `api_perplexity_search.py`)
+  - this is for better accuracy in multilingual environments 
+  - => less responses in wrong language when a translation path is needed for the end-user
+  - much more accurate than `langdetect` and can be further leveraged with model selection
 - v0.7251 - small robustness improvements & fixes to the `api_key.py` module
 - v0.725 - additional Perplexity API call + translation adjustments
 - v0.724 - splitting logic for lengthier Perplexity API responses

@@ -108,10 +108,9 @@ async def query_perplexity(bot, chat_id, question: str):
 async def translate_response_chunked(bot, user_message, openai_response, context, update):
     logging.info(f"OpenAI API Response to be translated: {openai_response}")
 
-    cleaned_message = re.sub(r"\[Whisper STT transcribed message from the user\]|\[end\]", "", user_message).strip()
-
     try:
-        user_lang = detect(cleaned_message)
+        # Detect user language using OpenAI's capabilities
+        user_lang = await detect_language(bot, user_message)
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
@@ -132,7 +131,7 @@ async def translate_response_chunked(bot, user_message, openai_response, context
 
         await handle_long_response(context, update.effective_message.chat_id, html_response)
         logging.info("Response sent successfully, no further actions should be triggered.")
-        return  # Ensure no further response attempts
+        return
 
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
@@ -203,8 +202,9 @@ async def translate_response_chunked(bot, user_message, openai_response, context
 
     await handle_long_response(context, update.effective_message.chat_id, html_response)
     logging.info("Response sent successfully, no further actions should be triggered.")
-    return  # Ensure no further response attempts
+    return
 
+# original response translation; used only as a backup
 async def translate_response(bot, user_message, perplexity_response):
     logging.info(f"Perplexity API Response to be translated: {perplexity_response}")
 
@@ -428,6 +428,39 @@ async def handle_long_response(context, chat_id, long_response_text):
     logging.info(f"Handling long response with text length: {len(long_response_text)}")
     await send_split_messages(context, chat_id, long_response_text)
 
+# language detection over OpenAI API
+async def detect_language(bot, text):
+    prompt = f"Detect the language of the following text:\n\n{text}\n\nRespond with only the language code, e.g., 'en' for English, 'fi' for Finnish, 'jp' for Japanese."
+    
+    payload = {
+        "model": bot.model,
+        "messages": [
+            {"role": "system", "content": "You are a language detection assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0,
+        "max_tokens": 10
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {bot.openai_api_key}"
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+            response.raise_for_status()
+            detected_language = response.json()['choices'][0]['message']['content'].strip()
+            logging.info(f"Detected language: {detected_language}")
+            return detected_language
+    except httpx.RequestError as e:
+        logging.error(f"RequestError while calling OpenAI API: {e}")
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTPStatusError while calling OpenAI API: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error while calling OpenAI API: {e}")
+        return 'en'  # Default to English in case of an error
 
 # ~~~~~~~~~~~~~~~~~~~~
 # legacy code below
