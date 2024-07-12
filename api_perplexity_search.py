@@ -430,7 +430,7 @@ async def handle_long_response(context, chat_id, long_response_text):
 
 # language detection over OpenAI API
 async def detect_language(bot, text):
-    prompt = f"Detect the language of the following text:\n\n{text}\n\nRespond with only the language code, e.g., 'en' for English, 'fi' for Finnish, 'jp' for Japanese."
+    prompt = f"Detect the language of the following text:\n\n{text}\n\nRespond with only the language code, e.g., 'en' for English, 'fi' for Finnish, 'jp' for Japanese. HINT: If the query starts off with 'kuka', 'mikä', 'mitä' or 'missä', it's probably in Finnish."
     
     payload = {
         "model": bot.model,
