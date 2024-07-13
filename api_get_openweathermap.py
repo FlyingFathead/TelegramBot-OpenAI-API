@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> weather fetcher module version: v0.727
+# >>> weather fetcher module version: v0.728
 # >>> (Updated July 13 2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
@@ -201,6 +201,26 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         visibility_wapi = 'N/A'
         condition_wapi = 'N/A'
 
+    # Daily forecast data, with default values if not available
+    if daily_forecast_data:
+        air_quality_data = daily_forecast_data['air_quality']
+        alerts = daily_forecast_data['alerts']
+        forecast_date = daily_forecast_data['date']
+        forecast_temperature = daily_forecast_data['temperature']
+        forecast_condition = daily_forecast_data['condition']
+        forecast_wind = daily_forecast_data['wind']
+        forecast_precipitation = daily_forecast_data['precipitation']
+        forecast_uv_index = daily_forecast_data['uv_index']
+    else:
+        air_quality_data = {}
+        alerts = {}
+        forecast_date = 'N/A'
+        forecast_temperature = 'N/A'
+        forecast_condition = 'N/A'
+        forecast_wind = 'N/A'
+        forecast_precipitation = 'N/A'
+        forecast_uv_index = 'N/A'
+
     # Astronomy data
     moonrise_time = convert_to_24_hour(astronomy_data['moonrise'], timezone_str)
     moonset_time = convert_to_24_hour(astronomy_data['moonset'], timezone_str)
@@ -244,7 +264,8 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Sääolosuhteet [WeatherAPI]: {condition_wapi}, "
         f"Kuu nousee klo (paikallista aikaa): {moonrise_time}, "
         f"Kuu laskee klo (paikallista aikaa): {moonset_time}, "
-        f"Kuun valaistus: {moon_illumination}%"
+        f"Kuun valaistus: {moon_illumination}%, "
+        f"Ennuste päivälle {forecast_date}: {forecast_condition}, Lämpötila: {forecast_temperature}°C, Tuuli: {forecast_wind} km/h, Sademäärä: {forecast_precipitation} mm, UV-indeksi: {forecast_uv_index}"
     )
 
     # Include additional WeatherAPI data (daily forecast, air quality, and alerts)

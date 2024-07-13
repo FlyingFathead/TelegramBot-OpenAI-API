@@ -3,7 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# >>> weather fetcher module version: v0.727
+# >>> weather fetcher module version: v0.728
 # >>> (Updated July 13 2024)
 #
 # This API functionality requires WeatherAPI key.
@@ -100,21 +100,35 @@ async def get_daily_forecast(location):
         if response.status_code == 200:
             data = response.json()
             logging.info(f"Daily forecast data: {data}")
-            forecast = data['forecast']['forecastday'][0]
-            current = data['current']
-            alerts = data.get('alerts', {})
-            air_quality = current['air_quality']
-            
-            return {
-                'date': forecast['date'],
-                'temperature': forecast['day']['avgtemp_c'],
-                'condition': forecast['day']['condition']['text'],
-                'wind': forecast['day']['maxwind_kph'],
-                'precipitation': forecast['day']['totalprecip_mm'],
-                'uv_index': forecast['day']['uv'],
-                'air_quality': air_quality,
-                'alerts': alerts
-            }
+
+            if 'forecast' in data and 'forecastday' in data['forecast'] and len(data['forecast']['forecastday']) > 0:
+                forecast = data['forecast']['forecastday'][0]
+                current = data['current']
+                alerts = data.get('alerts', {})
+                air_quality = current['air_quality']
+                
+                return {
+                    'date': forecast['date'],
+                    'temperature': forecast['day']['avgtemp_c'],
+                    'condition': forecast['day']['condition']['text'],
+                    'wind': forecast['day']['maxwind_kph'],
+                    'precipitation': forecast['day']['totalprecip_mm'],
+                    'uv_index': forecast['day']['uv'],
+                    'air_quality': air_quality,
+                    'alerts': alerts
+                }
+            else:
+                logging.error("No forecast data available.")
+                return {
+                    'date': 'N/A',
+                    'temperature': 'N/A',
+                    'condition': 'N/A',
+                    'wind': 'N/A',
+                    'precipitation': 'N/A',
+                    'uv_index': 'N/A',
+                    'air_quality': {},
+                    'alerts': {}
+                }
         else:
             logging.error(f"Failed to fetch daily forecast data: {response.text}")
             return None
