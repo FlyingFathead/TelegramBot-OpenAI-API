@@ -3,8 +3,8 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
-# >>> weather fetcher module version: v0.708
-# >>> (Updated May 25 2024)
+# >>> weather fetcher module version: v0.727
+# >>> (Updated July 13 2024)
 #
 # This API functionality requires both OpenWeatherMap and MapTiler API keys.
 # You can get both from the corresponding service providers.
@@ -174,7 +174,7 @@ def convert_to_24_hour(time_str, timezone_str):
 # combined weather data
 async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data):
     tf = TimezoneFinder()
-    timezone_str = tf.timezone_at(lat=lat, lng=lon)  # get timezone using the coordinates
+    timezone_str = tf.timezone_at(lat=lat, lng=lon)
     local_timezone = pytz.timezone(timezone_str)
 
     # Current weather details from OpenWeatherMap
@@ -191,10 +191,15 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     visibility = current_weather_data.get('visibility', 'N/A')
     snow_1h = current_weather_data.get('snow', {}).get('1h', 'N/A')
 
-    # Data to get from WeatherAPI
-    uv_index = current_weather_data_from_weatherapi['uv_index']
-    visibility_wapi = current_weather_data_from_weatherapi['visibility']
-    condition_wapi = current_weather_data_from_weatherapi['condition']
+    # Data to get from WeatherAPI, with checks for missing data
+    if current_weather_data_from_weatherapi:
+        uv_index = current_weather_data_from_weatherapi.get('uv_index', 'N/A')
+        visibility_wapi = current_weather_data_from_weatherapi.get('visibility', 'N/A')
+        condition_wapi = current_weather_data_from_weatherapi.get('condition', 'N/A')
+    else:
+        uv_index = 'N/A'
+        visibility_wapi = 'N/A'
+        condition_wapi = 'N/A'
 
     # Astronomy data
     moonrise_time = convert_to_24_hour(astronomy_data['moonrise'], timezone_str)
@@ -235,8 +240,8 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         f"Auringonlasku: {sunset_time_local_str}, "
         f"Koordinaatit: {coordinates_info} (Maa: {country_info}), "
         f"Kuun vaihe: {moon_phase_data}, "
-        f"UV-indeksi [WeatherAPI]: {uv_index}, "  # Include UV index in the detailed weather info
-        f"Sääolosuhteet [WeatherAPI]: {condition_wapi}, "  # Include 'condition' from WeatherAPI        
+        f"UV-indeksi [WeatherAPI]: {uv_index}, "
+        f"Sääolosuhteet [WeatherAPI]: {condition_wapi}, "
         f"Kuu nousee klo (paikallista aikaa): {moonrise_time}, "
         f"Kuu laskee klo (paikallista aikaa): {moonset_time}, "
         f"Kuun valaistus: {moon_illumination}%"

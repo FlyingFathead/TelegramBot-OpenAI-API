@@ -3,16 +3,14 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# >>> weather fetcher module version: v0.708
-# >>> (Updated May 25 2024)
+# >>> weather fetcher module version: v0.727
+# >>> (Updated July 13 2024)
 #
 # This API functionality requires WeatherAPI key.
 # You can get the API key from the corresponding service provider.
 # Once you have the API key, add it to your environment variables:
 # export WEATHERAPI_KEY="<your API key>"
 # (or on i.e. Linux, add to your `~/.bashrc`: export WEATHERAPI_KEY="<your API key>" )
-#
-# (Updated May 25, 2024)
 
 import httpx
 import os
@@ -138,17 +136,21 @@ async def get_current_weather_via_weatherapi(location):
         if response.status_code == 200:
             data = response.json()
             logging.info(f"Current weather data: {data}")
-            current = data['current']
-            
-            return {
-                'temperature': current['temp_c'],
-                'condition': current['condition']['text'],
-                'wind': current['wind_kph'],
-                'precipitation': current['precip_mm'],
-                'uv_index': current['uv'],
-                'visibility': current['vis_km'],  # Added visibility data
-                'air_quality': current.get('air_quality', {})
-            }
+
+            if 'current' in data:
+                current = data['current']
+                return {
+                    'temperature': current.get('temp_c', 'N/A'),
+                    'condition': current.get('condition', {}).get('text', 'N/A'),
+                    'wind': current.get('wind_kph', 'N/A'),
+                    'precipitation': current.get('precip_mm', 'N/A'),
+                    'uv_index': current.get('uv', 'N/A'),
+                    'visibility': current.get('vis_km', 'N/A'),  # Added visibility data
+                    'air_quality': current.get('air_quality', {})
+                }
+            else:
+                logging.error(f"'current' field missing in the response data: {data}")
+                return None
         else:
             logging.error(f"Failed to fetch current weather data: {response.text}")
             return None
