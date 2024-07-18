@@ -105,7 +105,7 @@ class TelegramBot:
         config = configparser.ConfigParser()
         config.read('config.ini')
         self.config = config['DEFAULT']
-        self.model = self.config.get('Model', 'gpt-3.5-turbo')
+        self.model = self.config.get('Model', 'gpt-4o-mini')
         self.temperature = self.config.getfloat('Temperature', 0.7)
         self.timeout = self.config.getfloat('Timeout', 30.0)        
         self.max_tokens = self.config.getint('MaxTokens', 4096)
@@ -114,7 +114,7 @@ class TelegramBot:
         default_system_msg = self.config.get('SystemInstructions', 'You are an OpenAI API-based chatbot on Telegram.')
         self.system_instructions = f"[Bot's current model: {self.model}] {default_system_msg}"
 
-        self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-3.5. Start chatting with me!')
+        self.start_command_response = self.config.get('StartCommandResponse', 'Hello! I am a chatbot powered by GPT-4o. Start chatting with me!')
 
         self.bot_owner_id = self.config.get('BotOwnerID', '0')
         self.is_bot_disabled = self.config.getboolean('IsBotDisabled', False)
