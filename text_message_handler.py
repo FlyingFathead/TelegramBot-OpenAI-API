@@ -35,7 +35,7 @@ from api_get_openweathermap import get_weather, format_and_translate_weather, fo
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 from api_get_global_time import get_global_time
-from api_get_stock_prices_alphavantage import get_stock_price, search_stock_symbol
+from api_get_stock_prices_yfinance import get_stock_price, search_stock_symbol
 
 # RAG via elasticsearch
 from elasticsearch_handler import search_es_for_context

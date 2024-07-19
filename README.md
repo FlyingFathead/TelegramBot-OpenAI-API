@@ -14,7 +14,7 @@
   - Quickly generate additional knowledge with the built-in Q&A pair creator
 - **Supports holiday notifications via Python's `holidays` module**
   - Can be localized to any supported country, can also add in your own special days as a reminder.
-- **Supports fetching of stock prices via Alpha Vantage API**
+- **Supports fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -33,6 +33,7 @@ transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
 timezonefinder>=6.4.0
+yfinance>=0.2.41
 yt-dlp>=2024.3.10
 ```
 - (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
@@ -58,6 +59,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.731 - added Yahoo! Finance as an API function call for stock price searches (requires the `yfinance` pip package)
 - v0.730 - added Alpha Vantage API function calling to fetch stock prices in real time (requires Alpha Vantage API key)
 - v0.729 - switched to `gpt-4o-mini` in default configurations instead of `gpt-3.5-turbo` (newer, cheaper, better)
 - v0.728 - more edge case handling when fetching multi-API weather data

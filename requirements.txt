@@ -11,5 +11,7 @@ transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
 timezonefinder>=6.4.0
+yfinance>=0.2.41
 yt-dlp>=2024.3.10
-markdown
+
+# markdown
