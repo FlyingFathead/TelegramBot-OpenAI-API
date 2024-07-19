@@ -35,6 +35,7 @@ from api_get_openweathermap import get_weather, format_and_translate_weather, fo
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 from api_get_global_time import get_global_time
+from api_get_stock_prices_alphavantage import get_stock_price, search_stock_symbol
 
 # RAG via elasticsearch
 from elasticsearch_handler import search_es_for_context
@@ -358,6 +359,85 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                                         headers=headers,
                                                         timeout=bot.timeout)
                             response_json = response.json()
+
+                        # Log the API request payload
+                        bot.logger.info(f"API Request Payload: {payload}")
+
+                        # Safely get the content or default to an empty string if not found
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+
+                        # Only call strip if bot_reply_content is not None
+                        bot_reply = ""  # Default value if no content is found or an empty response is received
+                        if bot_reply_content:
+                            bot_reply = bot_reply_content.strip()
+
+                        # Count tokens in the bot's response
+                        bot_token_count = bot.count_tokens(bot_reply)
+
+                        # Add the bot's tokens to the total usage
+                        bot.total_token_usage += bot_token_count
+
+                        # Update the total token usage file
+                        bot.write_total_token_usage(bot.total_token_usage)
+
+                        # Log the bot's response
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): {bot_reply}")
+
+                        # Append the bot's response to the chat history
+                        chat_history.append({"role": "assistant", "content": bot_reply})
+
+                        # Update the chat history in context with the new messages
+                        context.chat_data['chat_history'] = chat_history
+
+                        # View the output (i.e. for markdown etc formatting debugging)
+                        logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
+
+                        escaped_reply = markdown_to_html(bot_reply)
+                        logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
+
+                        # Log the bot's response
+                        bot.log_message('Bot', bot.telegram_bot_token, bot_reply)
+
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=escaped_reply,
+                            parse_mode=ParseMode.HTML
+                        )
+
+                        stop_typing_event.set()
+                        context.user_data.pop('active_translation', None)
+
+                        return  # Exit the loop after handling the custom function
+
+                    # ~~~~~~~~~~~~~~~~~
+                    # Alpha Vantage API
+                    # ~~~~~~~~~~~~~~~~~
+
+                    # Handling the get_stock_price function call
+                    elif function_name == 'get_stock_price':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        symbol = arguments.get('symbol', '')
+                        search = arguments.get('search', '')
+
+                        if symbol:
+                            stock_data = await get_stock_price(symbol)
+                        elif search:
+                            symbol_info = await search_stock_symbol(search)
+                            if isinstance(symbol_info, dict) and '1. symbol' in symbol_info:
+                                symbol = symbol_info['1. symbol']
+                                stock_data = await get_stock_price(symbol)
+                            else:
+                                stock_data = "Could not find a matching stock symbol."
+                        else:
+                            stock_data = "Please provide either a stock symbol or a search keyword."
+
+                        # Append the stock data as a system message
+                        system_message = f"[Stock Data]: {stock_data}"
+                        chat_history.append({"role": "system", "content": system_message})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Make the API request using the new function
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
 
                         # Log the API request payload
                         bot.logger.info(f"API Request Payload: {payload}")
@@ -854,6 +934,30 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
             text="I encountered an issue but I'm still here. How can I assist you further?",
             parse_mode=ParseMode.HTML  # Adjust as necessary
         )
+
+# API request function module
+async def make_api_request(bot, chat_history, timeout=30):
+    # Prepare the payload for the API request with updated chat history
+    payload = {
+        "model": bot.model,
+        "messages": chat_history,
+        "temperature": bot.temperature,
+        "functions": custom_functions,
+        "function_call": 'auto'  # Allows the model to dynamically choose the function
+    }
+
+    # Make the API request
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai.api_key}"
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post("https://api.openai.com/v1/chat/completions",
+                                    data=json.dumps(payload),
+                                    headers=headers,
+                                    timeout=timeout)
+        response_json = response.json()
+    return response_json
 
 # (old version) /// typing message animation as an async module, if needed for longer wait times
 # async def send_typing_animation(bot, chat_id, duration=30):
