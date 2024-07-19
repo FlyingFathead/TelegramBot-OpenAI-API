@@ -81,6 +81,25 @@ custom_functions.append({
     }
 })
 
+# AlphaVantage stock price check
+custom_functions.append({
+    'name': 'get_stock_price',
+    'description': '[Use if the user asks for stock prices or financial data.] Fetches real-time stock price data from Alpha Vantage API using either a direct stock symbol or a search keyword.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'symbol': {
+                'type': 'string',
+                'description': 'Direct stock symbol to fetch the stock price for.'
+            },
+            'search': {
+                'type': 'string',
+                'description': 'Search keyword to find the stock symbol.'
+            }
+        },
+        'required': ['symbol', 'search']  # Specify that at least one of symbol or search is required
+    }
+})
 
 # get date / time
 # custom_functions.append({
