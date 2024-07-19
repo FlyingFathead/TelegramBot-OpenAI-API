@@ -62,7 +62,7 @@ async def get_stock_price(symbol, original_symbol=None):
         last_refreshed = hist.index[-1]
         last_price = hist['Open'][-1]
         now_utc = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        return f"{symbol} last price: {last_price} USD. Data fetched at: {now_utc} UTC via Yahoo Finance."
+        return f"{symbol} last price: {last_price} USD. Data fetched at: {now_utc} UTC via Yahoo! Finance. [NOTE: Translate to the user if needed and do not omit any data, tell them that it's fetched from Yahoo! Finance]"
     except Exception as e:
         logging.error(f"Failed to fetch stock data: {str(e)}")
         return "Failed to fetch stock data. Please try again later."
