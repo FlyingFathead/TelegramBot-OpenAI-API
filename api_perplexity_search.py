@@ -109,14 +109,13 @@ async def translate_response_chunked(bot, user_message, openai_response, context
     logging.info(f"OpenAI API Response to be translated: {openai_response}")
 
     try:
-        # Detect user language using OpenAI's capabilities
         user_lang = await detect_language(bot, user_message)
         logging.info(f"Detected user language: {user_lang} -- user request: {user_message}")
     except Exception as e:
         logging.error(f"Error detecting user language: {e}")
         formatted_response = format_headers_for_telegram(openai_response)
         await handle_long_response(context, update.effective_message.chat_id, markdown_to_html(formatted_response))
-        return
+        return True
 
     if user_lang == 'en':
         logging.info("User's question is in English, skipping translation, converting Markdown to HTML.")
@@ -127,11 +126,11 @@ async def translate_response_chunked(bot, user_message, openai_response, context
 
         if not html_response.strip():
             logging.warning("Attempted to send an empty response. Skipping.")
-            return
+            return True
 
         await handle_long_response(context, update.effective_message.chat_id, html_response)
         logging.info("Response sent successfully, no further actions should be triggered.")
-        return
+        return True
 
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=constants.ChatAction.TYPING)
 
@@ -198,11 +197,11 @@ async def translate_response_chunked(bot, user_message, openai_response, context
 
     if not html_response.strip():
         logging.warning("Attempted to send an empty response. Skipping.")
-        return
+        return True
 
     await handle_long_response(context, update.effective_message.chat_id, html_response)
     logging.info("Response sent successfully, no further actions should be triggered.")
-    return
+    return True
 
 # original response translation; used only as a backup
 async def translate_response(bot, user_message, perplexity_response):
