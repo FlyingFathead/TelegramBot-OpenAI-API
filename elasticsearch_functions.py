@@ -9,6 +9,7 @@ import asyncio
 import logging
 import feedparser  # Make sure to install feedparser: pip install feedparser
 from rss_parser import get_is_tuoreimmat  # Import the function
+# from bs4 import BeautifulSoup
 
 # here we can run our separate helper functions according to elasticsearch's matches
 
