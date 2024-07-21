@@ -1,4 +1,7 @@
 # elasticsearch_functions.py
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# github.com/FlyingFathead/TelegramBot-OpenAI-API/
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Import necessary libraries
 import re
@@ -8,6 +11,14 @@ import feedparser  # Make sure to install feedparser: pip install feedparser
 from rss_parser import get_is_tuoreimmat  # Import the function
 
 # here we can run our separate helper functions according to elasticsearch's matches
+
+# (step 1):
+# Mapping tokens to functions
+action_token_functions = {
+    "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
+    "<[function_x_token]>": function_x,
+    "<[get_is_tuoreimmat]>": fetch_and_send_is_tuoreimmat,  # New action token for fetching IS tuoreimmat    
+}
 
 # rss feed test
 async def fetch_rss_feed(context, update, feed_url):
@@ -96,14 +107,9 @@ async def fetch_and_send_is_tuoreimmat(context, update, chat_history_with_system
     # Return the updated chat history/context for further use
     return chat_history_with_es_context
 
-# Mapping tokens to functions
-action_token_functions = {
-    "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
-    "<[function_x_token]>": function_x,
-    "<[get_is_tuoreimmat]>": fetch_and_send_is_tuoreimmat,  # New action token for fetching IS tuoreimmat    
-}
-
+#
 # > tools to fix the output
+#
 
 def sanitize_html(content):
     # Use regex to remove unsupported HTML tags
