@@ -65,7 +65,8 @@ yt-dlp>=2024.3.10
 # Changelog
 - v0.732 - added ElasticSearch RAG function calls to RSS feeds 
   - (for i.e. news sources etc, see `rss_parser.py`)
-- v0.73101 - modularized Perplexity API calls further into a separate handler, `perplexity_handler.py`
+- v0.73101 - modularized Perplexity API calls further into a separate handler
+  - (see: `perplexity_handler.py`)
 - v0.731 - added Yahoo! Finance as an API function call for stock price searches (requires the `yfinance` pip package)
 - v0.730 - added Alpha Vantage API function calling to fetch stock prices in real time (requires Alpha Vantage API key)
 - v0.729 - switched to `gpt-4o-mini` in default configurations instead of `gpt-3.5-turbo` (newer, cheaper, better)
