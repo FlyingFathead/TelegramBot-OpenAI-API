@@ -86,6 +86,7 @@ async def fetch_and_send_is_tuoreimmat(context, update, chat_history_with_system
     messages = split_message(execution_message, max_length=4000)
     
     # Send each part of the message
+    # to do -- add a flag here to choose whether to post these to the user or not.
     for part in messages:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=part, parse_mode='HTML')
     
