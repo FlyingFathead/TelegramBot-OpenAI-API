@@ -12,14 +12,6 @@ from rss_parser import get_is_tuoreimmat  # Import the function
 
 # here we can run our separate helper functions according to elasticsearch's matches
 
-# (step 1):
-# Mapping tokens to functions
-action_token_functions = {
-    "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
-    "<[function_x_token]>": function_x,
-    "<[get_is_tuoreimmat]>": fetch_and_send_is_tuoreimmat,  # New action token for fetching IS tuoreimmat    
-}
-
 # rss feed test
 async def fetch_rss_feed(context, update, feed_url):
     # Fetch and parse the RSS feed
@@ -108,6 +100,17 @@ async def fetch_and_send_is_tuoreimmat(context, update, chat_history_with_system
     return chat_history_with_es_context
 
 #
+# > mapping action token to function
+#
+
+# Mapping tokens to functions
+action_token_functions = {
+    "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
+    "<[function_x_token]>": function_x,
+    "<[get_is_tuoreimmat]>": fetch_and_send_is_tuoreimmat,  # New action token for fetching IS tuoreimmat    
+}
+
+#
 # > tools to fix the output
 #
 
@@ -127,7 +130,6 @@ def sanitize_html(content):
     content = re.sub(r'</?([a-zA-Z0-9]+).*?>', remove_unsupported_tags, content)
     
     return content
-
 
 def split_message(message, max_length=4000):
     # Split message into chunks of max_length or less, ending at a sentence boundary or newline
