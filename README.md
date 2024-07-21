@@ -13,14 +13,18 @@
   - Increase the knowledge rate with your own documents
   - Quickly generate additional knowledge with the built-in Q&A pair creator
 - **Supports holiday notifications via Python's `holidays` module**
-  - Can be localized to any supported country, can also add in your own special days as a reminder.
+  - Can be localized to any supported country, can also add in your own special days as a reminder
 - **Supports fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
+  - Can be used to fetch all types of financial & stock market data in real time
+- **Supports RSS feeds from all RSS sources**  
+  - Can be used to fetch RSS feeds, such as all types of news sources etc
 
 # Prerequisites
 - Tested & working on Python 3.10.12
 - Required Python packages (tested & working with these, install with `pip install -r requirements.txt` for potentially newer versions):
 ```
 configparser>=6.0.0
+feedparser>=6.0.11
 httpx>=0.25.2
 langdetect>=1.0.9
 matplotlib>=3.8.2
@@ -59,6 +63,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.732 - added ElasticSearch RAG function calls to RSS feeds (news sources etc)
 - v0.73101 - modularized Perplexity API calls further into a separate handler, `perplexity_handler.py`
 - v0.731 - added Yahoo! Finance as an API function call for stock price searches (requires the `yfinance` pip package)
 - v0.730 - added Alpha Vantage API function calling to fetch stock prices in real time (requires Alpha Vantage API key)
