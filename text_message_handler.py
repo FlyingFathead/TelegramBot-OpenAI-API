@@ -215,9 +215,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
             # Add non-official but widely celebrated holidays
             additional_holidays = {
-                datetime.date(now.year, 4, 30): "May Day Eve",
+                datetime.date(now.year, 4, 30): "[en] May Day Eve (unless it's a leap year) [fi] vappuaatto (ellei ole karkausvuosi)",
+                datetime.date(now.year, 4, 31): "[en] May Day Eve [fi] vappuaatto",                
                 datetime.date(now.year, 7, 26): "[fi] ChatKeken syntymäpäivät! Ole iloinen koko päivän ajan! [en] ChatKeke's Birthday! Be cheerful the entire day!",
-                datetime.date(now.year, 12, 31): "New Year's Eve"
+                datetime.date(now.year, 12, 31): "[en] New Year's Eve [fi] uudenvuodenaatto"
             }
 
             # Update the holidays object with the additional holidays
