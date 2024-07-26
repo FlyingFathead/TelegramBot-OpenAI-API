@@ -21,6 +21,10 @@ import time
 import threading
 import shutil
 
+# Set default values for max days old and max entries to display
+DEFAULT_MAX_DAYS_OLD = 7
+DEFAULT_MAX_ENTRIES = 20
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
@@ -116,7 +120,7 @@ def get_most_read():
 #
 
 # bbc.co.uk // top stories
-def get_bbc_business():
+def get_bbc_business(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://feeds.bbci.co.uk/news/business/rss.xml')
@@ -128,21 +132,19 @@ def get_bbc_business():
         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
                  for entry in feed.entries]
 
-        # Format the items with titles, descriptions, and elapsed time
+        # Filter and format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
             pub_date = pub_date.replace(tzinfo=pytz.timezone('GMT'))
-            current_time = datetime.now(pytz.timezone('GMT'))
-            time_difference = current_time - pub_date
-            minutes = int(time_difference.total_seconds() // 60)
-            if minutes < 60:
-                time_elapsed = f"{minutes}m"
-            else:
-                hours = minutes // 60
-                time_elapsed = f"{hours}h"
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -166,7 +168,7 @@ def get_bbc_business():
         }
 
 # bbc // science & environment
-def get_bbc_science_environment():
+def get_bbc_science_environment(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://feeds.bbci.co.uk/news/science_and_environment/rss.xml')
@@ -178,14 +180,19 @@ def get_bbc_science_environment():
         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
                  for entry in feed.entries]
 
-        # Format the items with titles, descriptions, and dates
+        # Filter and format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
             pub_date = pub_date.replace(tzinfo=pytz.timezone('GMT'))
-            formatted_date = pub_date.strftime("%b %d")
-            formatted_item = f'<p><i>({formatted_date})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                formatted_date = pub_date.strftime("%b %d")
+                formatted_item = f'<p><i>({formatted_date})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -207,9 +214,9 @@ def get_bbc_science_environment():
             'content': "Sori! En päässyt käsiksi bbc.co.uk:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi bbc.co.uk:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
-
+    
 # bbc.co.uk // top stories
-def get_bbc_top_stories():
+def get_bbc_top_stories(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://feeds.bbci.co.uk/news/rss.xml')
@@ -221,21 +228,19 @@ def get_bbc_top_stories():
         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
                  for entry in feed.entries]
 
-        # Format the items with titles, descriptions, and elapsed time
+        # Filter and format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
             pub_date = pub_date.replace(tzinfo=pytz.timezone('GMT'))
-            current_time = datetime.now(pytz.timezone('GMT'))
-            time_difference = current_time - pub_date
-            minutes = int(time_difference.total_seconds() // 60)
-            if minutes < 60:
-                time_elapsed = f"{minutes}m"
-            else:
-                hours = minutes // 60
-                time_elapsed = f"{hours}h"
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -264,7 +269,7 @@ def get_bbc_top_stories():
 
 # cnn // U.S. News
 # CNN news parsing
-def get_cnn_us_news():
+def get_cnn_us_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://rss.cnn.com/rss/edition_us.rss')
@@ -276,20 +281,9 @@ def get_cnn_us_news():
         if not feed.entries:
             raise ValueError("The feed is empty")
 
-        # Check the date of the latest entry
-        latest_entry_date = datetime.strptime(feed.entries[0].published, "%a, %d %b %Y %H:%M:%S %Z")
-        current_date = datetime.now(latest_entry_date.tzinfo)
-
-        # If the latest entry is older than 30 days, return a message indicating the feed is outdated
-        if current_date - latest_entry_date > timedelta(days=30):
-            return {
-                'type': 'text',
-                'content': "CNN's US news RSS feed hasn't been updated recently. Please check the source for the latest news.",
-                'html': "CNN's US news RSS feed hasn't been updated recently. Please check the source for the latest news."
-            }
-
         # Format the items with titles and dates
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for entry in feed.entries:
             # Skip if title and link are not available
             if not all(hasattr(entry, attr) for attr in ['title', 'link']):
@@ -300,12 +294,14 @@ def get_cnn_us_news():
 
             if hasattr(entry, 'published'):
                 pub_date = datetime.strptime(entry.published, "%a, %d %b %Y %H:%M:%S %Z")
-                formatted_date = pub_date.strftime("%b %d")
-                formatted_item = f'<p><i>({formatted_date})</i> <a href="{link}">{title}</a></p>'
-            else:
-                formatted_item = f'<p><a href="{link}">{title}</a></p>'
-
-            formatted_items.append(formatted_item)
+                pub_date = pub_date.replace(tzinfo=pytz.UTC)
+                if (current_time - pub_date).days <= max_days_old:
+                    formatted_date = pub_date.strftime("%b %d")
+                    formatted_item = f'<p><i>({formatted_date})</i> <a href="{link}">{title}</a></p>'
+                    formatted_items.append(formatted_item)
+            
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -329,7 +325,7 @@ def get_cnn_us_news():
         }
 
 # cnn // world edition
-def get_cnn_world_edition():
+def get_cnn_world_edition(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://rss.cnn.com/rss/edition_world.rss')
@@ -339,6 +335,7 @@ def get_cnn_world_edition():
 
         # Format the items with titles and dates
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for entry in feed.entries:
             # Skip if title and link are not available
             if not all(hasattr(entry, attr) for attr in ['title', 'link']):
@@ -349,12 +346,17 @@ def get_cnn_world_edition():
             
             if hasattr(entry, 'published'):
                 pub_date = datetime.strptime(entry.published, "%a, %d %b %Y %H:%M:%S %Z")
-                formatted_date = pub_date.strftime("%b %d")
-                formatted_item = f'<p><i>({formatted_date})</i> <a href="{link}">{title}</a></p>'
+                pub_date = pub_date.replace(tzinfo=pytz.UTC)
+                if (current_time - pub_date).days <= max_days_old:
+                    formatted_date = pub_date.strftime("%b %d")
+                    formatted_item = f'<p><i>({formatted_date})</i> <a href="{link}">{title}</a></p>'
+                    formatted_items.append(formatted_item)
             else:
                 formatted_item = f'<p><a href="{link}">{title}</a></p>'
+                formatted_items.append(formatted_item)
 
-            formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -382,7 +384,7 @@ def get_cnn_world_edition():
 #
 
 # hs.fi // etusivu
-def get_hs_etusivu():
+def get_hs_etusivu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://www.hs.fi/rss/teasers/etusivu.xml')
@@ -399,15 +401,20 @@ def get_hs_etusivu():
 
         # Format the items with titles, descriptions (if available), and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
             pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            time_elapsed = get_time_elapsed(pub_date)
-            if item['description']:
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            else:
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                if item['description']:
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                else:
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -474,7 +481,7 @@ def get_hs_etusivu():
 
 
 # hs.fi // uusimmat
-def get_hs_uusimmat():
+def get_hs_uusimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('http://www.hs.fi/rss/tuoreimmat.xml')
@@ -491,12 +498,17 @@ def get_hs_uusimmat():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
             pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -524,7 +536,7 @@ def get_hs_uusimmat():
 #
 
 # il.fi // uutiset
-def get_il_uutiset():
+def get_il_uutiset(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.iltalehti.fi/rss/uutiset.xml')
@@ -538,11 +550,17 @@ def get_il_uutiset():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -564,9 +582,9 @@ def get_il_uutiset():
             'content': "Sori! En päässyt käsiksi il.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi il.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
-
+    
 # il.fi // urheilu
-def get_il_urheilu():
+def get_il_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.iltalehti.fi/rss/urheilu.xml')
@@ -580,11 +598,17 @@ def get_il_urheilu():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -607,12 +631,12 @@ def get_il_urheilu():
             'html': "Sori! En päässyt käsiksi il.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
 
-
 #
 # )> is.fi
 #
+
 # is.fi // horoskoopit
-def get_is_horoskoopit():
+def get_is_horoskoopit(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # RSS url
         rss_source_url = 'https://www.is.fi/rss/menaiset/horoskooppi.xml'
@@ -623,14 +647,35 @@ def get_is_horoskoopit():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries[:7]]  # Limit to top 7 items
+        # Extract the headlines, descriptions, links, and pubDates if they exist
+        items = []
+        for entry in feed.entries:
+            item = {
+                'title': entry.title,
+                'description': entry.description,
+                'link': entry.link
+            }
+            if hasattr(entry, 'published'):
+                item['pubDate'] = entry.published
+            items.append(item)
 
-        # Format the items with titles and descriptions
-        formatted_items = [
-            f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            for item in items
-        ]
+        # Format the items with titles, descriptions, and elapsed time if pubDate exists
+        formatted_items = []
+        current_time = datetime.now(pytz.UTC)
+        for item in items:
+            if 'pubDate' in item:
+                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+                if (current_time - pub_date).days <= max_days_old:
+                    time_elapsed = get_time_elapsed(pub_date)
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                    formatted_items.append(formatted_item)
+            else:
+                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -656,7 +701,7 @@ def get_is_horoskoopit():
         }
 
 # is.fi // tiedeuutiset
-def get_is_tiede():
+def get_is_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.is.fi/rss/tiede.xml')
@@ -666,6 +711,7 @@ def get_is_tiede():
 
         # Extract the headlines, descriptions, links, and pubDates if they exist
         items = []
+        current_time = datetime.now(pytz.UTC)
         for entry in feed.entries:
             item = {
                 'title': entry.title,
@@ -682,11 +728,16 @@ def get_is_tiede():
             if 'pubDate' in item:
                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
                 pub_date = pub_date.replace(tzinfo=timezone.utc)
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                if (current_time - pub_date).days <= max_days_old:
+                    time_elapsed = get_time_elapsed(pub_date)
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                    formatted_items.append(formatted_item)
             else:
                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -710,7 +761,7 @@ def get_is_tiede():
         }
 
 # hae iltasanomat.fi / digitoday-uutiset
-def get_is_digitoday():
+def get_is_digitoday(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.is.fi/rss/digitoday.xml')
@@ -730,20 +781,26 @@ def get_is_digitoday():
                 item['pubDate'] = entry.published
             items.append(item)
 
-        # Format the items with titles, descriptions, and elapsed time if pubDate exists
-        formatted_items = []
+        # Filter items based on max_days_old
+        current_time = datetime.now(pytz.UTC)
+        filtered_items = []
         for item in items:
             if 'pubDate' in item:
                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
                 pub_date = pub_date.replace(tzinfo=timezone.utc)
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                if (current_time - pub_date).days <= max_days_old:
+                    time_elapsed = get_time_elapsed(pub_date)
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                    filtered_items.append(formatted_item)
             else:
                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+                filtered_items.append(formatted_item)
 
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
+            if len(filtered_items) >= max_entries:
+                break
+
+        # Join the filtered items into a string with each item on a new line
+        items_string = '\n'.join(filtered_items)
         items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Digitoday-osiosta:\n\n' + items_string
 
         print_horizontal_line()
@@ -764,7 +821,7 @@ def get_is_digitoday():
         }
 
 # is.fi / taloussanomat
-def get_is_taloussanomat():
+def get_is_taloussanomat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.is.fi/rss/taloussanomat.xml')
@@ -772,19 +829,39 @@ def get_is_taloussanomat():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries]
+        # Extract the headlines, descriptions, links, and pubDates if they exist
+        items = []
+        current_time = datetime.now(pytz.UTC)
+        for entry in feed.entries:
+            item = {
+                'title': entry.title,
+                'description': entry.description,
+                'link': entry.link
+            }
+            if hasattr(entry, 'published'):
+                item['pubDate'] = entry.published
+            items.append(item)
 
-        # Format the items with titles and descriptions
-        formatted_items = [
-            f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            for item in items
-        ]
+        # Format the items with titles, descriptions, and elapsed time if pubDate exists
+        formatted_items = []
+        for item in items:
+            if 'pubDate' in item:
+                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+                if (current_time - pub_date).days <= max_days_old:
+                    time_elapsed = get_time_elapsed(pub_date)
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                    formatted_items.append(formatted_item)
+            else:
+                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
         items_string_out = 'Tässä tuoreimmat Ilta-Sanomien (is.fi) talousuutiset:\n\n' + items_string
-        # items_string_out = '' + items_string        
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -802,9 +879,9 @@ def get_is_taloussanomat():
             'content': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
-
+    
 # is.fi // tuoreimmat
-def get_is_tuoreimmat():
+def get_is_tuoreimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.is.fi/rss/tuoreimmat.xml')
@@ -818,12 +895,17 @@ def get_is_tuoreimmat():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
             pub_date = pub_date.replace(tzinfo=timezone.utc)
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -847,7 +929,7 @@ def get_is_tuoreimmat():
         }
 
 # is.fi // ulkomaat
-def get_is_ulkomaat():
+def get_is_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://www.is.fi/rss/ulkomaat.xml')
@@ -869,15 +951,21 @@ def get_is_ulkomaat():
 
         # Format the items with titles, descriptions, and elapsed time if pubDate exists
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             if 'pubDate' in item:
                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
                 pub_date = pub_date.replace(tzinfo=timezone.utc)
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                if (current_time - pub_date).days <= max_days_old:
+                    time_elapsed = get_time_elapsed(pub_date)
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                    formatted_items.append(formatted_item)
             else:
                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+                formatted_items.append(formatted_item)
+            
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -905,7 +993,7 @@ def get_is_ulkomaat():
 #
 
 # yle.fi // tuoreimmat
-def get_yle_latest_news():
+def get_yle_latest_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET')
@@ -919,15 +1007,20 @@ def get_yle_latest_news():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n tuoreimmat uutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:<br>' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -945,9 +1038,9 @@ def get_yle_latest_news():
             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
-
+    
 # yle.fi // pääuutiset
-def get_yle_main_news():
+def get_yle_main_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/majorHeadlines/YLE_UUTISET.rss')
@@ -961,15 +1054,20 @@ def get_yle_main_news():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n pääuutiset:\n\n' + items_string
+        items_string_out = 'Tässä yle.fi:n pääuutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -989,7 +1087,7 @@ def get_yle_main_news():
         }
 
 # yle.fi // luetuimmat
-def get_yle_most_read():
+def get_yle_most_read(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/mostRead/YLE_UUTISET.rss')
@@ -1003,11 +1101,16 @@ def get_yle_most_read():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -1031,7 +1134,7 @@ def get_yle_most_read():
         }
     
 # yle.fi // kotimaa
-def get_yle_kotimaa():
+def get_yle_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34837')
@@ -1045,11 +1148,16 @@ def get_yle_kotimaa():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -1073,7 +1181,7 @@ def get_yle_kotimaa():
         }
 
 # yle.fi // ulkomaat
-def get_yle_ulkomaat():
+def get_yle_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34953')
@@ -1087,11 +1195,16 @@ def get_yle_ulkomaat():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
@@ -1114,8 +1227,8 @@ def get_yle_ulkomaat():
             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
 
-# yle.fi // ulkomaat
-def get_yle_uusimaa():
+# yle.fi // uusimaa
+def get_yle_uusimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
         # Fetch the RSS feed
         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-147345')
@@ -1129,11 +1242,16 @@ def get_yle_uusimaa():
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
+        current_time = datetime.now(pytz.UTC)
         for item in items:
             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            formatted_items.append(formatted_item)
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
