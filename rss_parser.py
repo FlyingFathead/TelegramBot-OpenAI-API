@@ -239,7 +239,7 @@ def get_bbc_top_stories():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä bbc.co.uk:n tämän hetken pääuutisaiheet (BBC News):<br>' + items_string
+        items_string_out = 'Tässä BBC:n tämän hetken pääuutisaiheet (BBC News, bbc.co.uk):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
