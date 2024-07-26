@@ -9,6 +9,7 @@ import asyncio
 import logging
 import feedparser  # Make sure to install feedparser: pip install feedparser
 from rss_parser import (
+    get_bbc_science_environment,
     get_cnn_us_news,
     get_hs_etusivu,
     get_hs_uusimmat,
@@ -134,7 +135,8 @@ async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_his
 action_token_functions = {
     "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
     "<[function_x_token]>": function_x,
-    "<[get_cnn_us_news]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_cnn_us_news, "CNN News, U.S. (cnn.com)", chat_history_with_system_message, 'fi'),    
+    "<[get_bbc_science_environment]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_bbc_science_environment, "BBC News Science & Environment (bbc.co.uk)", chat_history_with_system_message, 'en'),
+    "<[get_cnn_us_news]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_cnn_us_news, "CNN News, U.S. (cnn.com)", chat_history_with_system_message, 'en'),
     "<[get_hs_etusivu]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_hs_etusivu, "Helsingin Sanomat (hs.fi) etusivun uutiset", chat_history_with_system_message, 'fi'),    
     "<[get_hs_uusimmat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_hs_uusimmat, "Helsingin Sanomat (hs.fi) uusimmat uutiset", chat_history_with_system_message, 'fi'),
     "<[get_il_urheilu]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_il_urheilu, "Iltalehti (il.fi) urheilu-uutiset", chat_history_with_system_message, 'fi'),    

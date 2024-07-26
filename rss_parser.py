@@ -263,6 +263,7 @@ def get_bbc_top_stories():
 #
 
 # cnn // U.S. News
+# CNN news parsing
 def get_cnn_us_news():
     try:
         # Fetch the RSS feed
@@ -271,16 +272,32 @@ def get_cnn_us_news():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
+        # Check if there are any entries in the feed
+        if not feed.entries:
+            raise ValueError("The feed is empty")
+
+        # Check the date of the latest entry
+        latest_entry_date = datetime.strptime(feed.entries[0].published, "%a, %d %b %Y %H:%M:%S %Z")
+        current_date = datetime.now(latest_entry_date.tzinfo)
+
+        # If the latest entry is older than 30 days, return a message indicating the feed is outdated
+        if current_date - latest_entry_date > timedelta(days=30):
+            return {
+                'type': 'text',
+                'content': "CNN's US news RSS feed hasn't been updated recently. Please check the source for the latest news.",
+                'html': "CNN's US news RSS feed hasn't been updated recently. Please check the source for the latest news."
+            }
+
         # Format the items with titles and dates
         formatted_items = []
         for entry in feed.entries:
             # Skip if title and link are not available
             if not all(hasattr(entry, attr) for attr in ['title', 'link']):
                 continue
-            
+
             title = entry.title
             link = entry.link
-            
+
             if hasattr(entry, 'published'):
                 pub_date = datetime.strptime(entry.published, "%a, %d %b %Y %H:%M:%S %Z")
                 formatted_date = pub_date.strftime("%b %d")
@@ -292,7 +309,7 @@ def get_cnn_us_news():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="Tässä CNN:n (cnn.com) tuoreimmat uutiset USA:sta:\n\n' + items_string
+        items_string_out = 'Tässä CNN:n (cnn.com) tuoreimmat uutiset USA:sta:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
