@@ -30,7 +30,7 @@ def print_horizontal_line(character='-'):
     line = character * terminal_width
     logging.info(line)
 
-# get the time since publication
+# Get the time since publication
 def get_time_elapsed(published_time):
     current_time = datetime.now(pytz.UTC)
     time_difference = current_time - published_time
@@ -38,9 +38,24 @@ def get_time_elapsed(published_time):
     minutes = int(time_difference.total_seconds() // 60)
     if minutes < 60:
         return f"{minutes}m"
-    else:
+    elif minutes < 1440:  # Less than a day
         hours = minutes // 60
         return f"{hours}h"
+    else:
+        days = minutes // 1440
+        return f"{days}d"
+
+# # get the time since publication
+# def get_time_elapsed(published_time):
+#     current_time = datetime.now(pytz.UTC)
+#     time_difference = current_time - published_time
+
+#     minutes = int(time_difference.total_seconds() // 60)
+#     if minutes < 60:
+#         return f"{minutes}m"
+#     else:
+#         hours = minutes // 60
+#         return f"{hours}h"
 
 #
 # ))> weather
@@ -359,20 +374,27 @@ def get_hs_etusivu():
         feed = feedparser.parse(response.content)
 
         # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+        items = [{'title': entry.title,
+                  'description': getattr(entry, 'description', None),
+                  'link': entry.link,
+                  'pubDate': entry.published}
                  for entry in feed.entries]
 
-        # Format the items with titles, descriptions, and elapsed time
+        # Format the items with titles, descriptions (if available), and elapsed time
         formatted_items = []
         for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
             time_elapsed = get_time_elapsed(pub_date)
-            formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
+            if item['description']:
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            else:
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
             formatted_items.append(formatted_item)
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä etusivun uutiset <a href="https://hs.fi/">hs.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä etusivun uutiset hs.fi:stä:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -384,12 +406,55 @@ def get_hs_etusivu():
             'html': f'<ul>{items_string_out}</ul>'
         }
     except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
+        logging.error(f"Error fetching Helsingin Sanomat news: {e}")
         return {
             'type': 'text',
             'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
+
+# # hs.fi // etusivu
+# def get_hs_etusivu():
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('http://www.hs.fi/rss/teasers/etusivu.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             time_elapsed = get_time_elapsed(pub_date)
+#             formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
+#             formatted_items.append(formatted_item)
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä etusivun uutiset hs.fi:stä:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
 
 # hs.fi // uusimmat
 def get_hs_uusimmat():
@@ -401,20 +466,24 @@ def get_hs_uusimmat():
         feed = feedparser.parse(response.content)
 
         # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+        items = [{'title': entry.title,
+                  'description': getattr(entry, 'description', 'No description available'),
+                  'link': entry.link,
+                  'pubDate': entry.published}
                  for entry in feed.entries]
 
         # Format the items with titles, descriptions, and elapsed time
         formatted_items = []
         for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
             time_elapsed = get_time_elapsed(pub_date)
             formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
             formatted_items.append(formatted_item)
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://hs.fi/">hs.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset hs.fi:stä:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -426,7 +495,7 @@ def get_hs_uusimmat():
             'html': f'<ul>{items_string_out}</ul>'
         }
     except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
+        logging.error(f"Error fetching Helsingin Sanomat news: {e}")
         return {
             'type': 'text',
             'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
