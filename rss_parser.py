@@ -460,7 +460,7 @@ def get_il_uutiset():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">il.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">il.fi</a>:stä:<br>' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -502,7 +502,7 @@ def get_il_urheilu():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat urheilu-uutiset <a href="https://is.fi/">il.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat urheilu-uutiset <a href="https://il.fi/">il.fi</a>:stä:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -528,7 +528,6 @@ def get_il_urheilu():
 # is.fi // horoskoopit
 def get_is_horoskoopit():
     try:
-
         # RSS url
         rss_source_url = 'https://www.is.fi/rss/menaiset/horoskooppi.xml'
 
@@ -539,7 +538,7 @@ def get_is_horoskoopit():
         feed = feedparser.parse(response.content)
 
         # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries]
+        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries[:7]]  # Limit to top 7 items
 
         # Format the items with titles and descriptions
         formatted_items = [
@@ -549,7 +548,7 @@ def get_is_horoskoopit():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä horoskoopit <a href="https://is.fi/">is.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat horoskoopit <a href="https://is.fi/">is.fi</a>:stä:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(f'Fetched data from: {rss_source_url}')
@@ -1053,7 +1052,7 @@ def get_bbc_helsinki_forecast():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Here is the three-day weather forecast for Helsinki from BBC:<br>' + items_string
+        items_string_out = 'Here is the three-day weather forecast for Helsinki from BBC:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)

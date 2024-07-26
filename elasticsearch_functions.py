@@ -9,10 +9,13 @@ import asyncio
 import logging
 import feedparser  # Make sure to install feedparser: pip install feedparser
 from rss_parser import (
+    get_il_urheilu,
+    get_is_horoskoopit,
     get_is_tuoreimmat,
     get_is_taloussanomat,
     get_yle_main_news,
-    get_yle_most_read
+    get_yle_most_read,
+    get_yle_uusimaa
 )  # Import the functions
 
 # from bs4 import BeautifulSoup
@@ -128,10 +131,13 @@ async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_his
 action_token_functions = {
     "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
     "<[function_x_token]>": function_x,
+    "<[get_il_urheilu]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_il_urheilu, "Iltalehti (il.fi) urheilu-uutiset", chat_history_with_system_message, 'fi'),    
+    "<[get_is_horoskoopit]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_horoskoopit, "Ilta-Sanomat (is.fi) horoskoopit", chat_history_with_system_message, 'fi'),
     "<[get_is_tuoreimmat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_tuoreimmat, "Ilta-Sanomat (is.fi), tuoreimmat uutiset", chat_history_with_system_message, 'fi'),
     "<[get_is_taloussanomat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_taloussanomat, "Taloussanomat (is.fi/taloussanomat) tuoreimmat", chat_history_with_system_message, 'fi'),
     "<[get_yle_main_news]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_main_news, "YLE (yle.fi) pääuutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_most_read]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_most_read, "YLE (yle.fi) luetuimmat", chat_history_with_system_message, 'fi'),
+    "<[get_yle_uusimaa]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_uusimaa, "YLE (yle.fi) Uusimaa", chat_history_with_system_message, 'fi'),
 }
 
 #
