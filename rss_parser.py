@@ -6,6 +6,7 @@
 
 from datetime import datetime, timezone
 from dateutil import parser as date_parser
+from bs4 import BeautifulSoup
 
 import feedparser
 import requests
@@ -1274,6 +1275,41 @@ def get_yle_uusimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_E
             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
 
+# get DEFCON status
+def get_defcon_status():
+    try:
+        url = "https://www.defconlevel.com/current-level.php"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        defcon_level = soup.find("div", class_="header-defcon-level").get_text(strip=True)
+        description_tag = soup.find("div", class_="header-subtext")
+        description = description_tag.get_text(strip=True) if description_tag else "No description available"
+
+        # Clean the defcon level text
+        defcon_level = ' '.join(defcon_level.split()[:7])  # limit to first few words to avoid extra text
+
+        status_string = f"Current DEFCON Level: {defcon_level}\nDescription: {description}"
+
+        current_time = datetime.now(pytz.UTC).strftime("%Y-%m-%d %H:%M:%S %Z")
+        log_message = f"🚨 Fetched current DEFCON status from defconlevel.com 🚨 at {current_time}"
+
+        logging.info(status_string)
+        logging.info(log_message)
+
+        return {
+            'type': 'text',
+            'content': f"{status_string}\n{log_message}",
+            'html': f'<ul>{status_string}<br>{log_message}</ul>'
+        }
+    except Exception as e:
+        logging.error(f"Error fetching DEFCON status: {e}")
+        return {
+            'type': 'text',
+            'content': "Sori! En päässyt käsiksi DEFCON-tilaan. Mönkään meni! Pahoitteluni!",
+            'html': "Sori! En päässyt käsiksi DEFCON-tilaan. Mönkään meni! Pahoitteluni!"
+        }
+
 # Function to fetch the three-day weather forecast for Helsinki from the BBC weather RSS feed
 def get_bbc_helsinki_forecast():
     url = 'https://weather-broker-cdn.api.bbci.co.uk/en/forecast/rss/3day/2643123'
@@ -1427,6 +1463,8 @@ if __name__ == "__main__":
             sys.exit(1)
     elif command == 'bbc_helsinki_forecast':
         get_bbc_helsinki_forecast()
+    elif command == 'defcon':
+        get_defcon_status()
     else:
         logging.error("Invalid command specified.")
         sys.exit(1)
