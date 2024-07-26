@@ -189,7 +189,7 @@ def get_bbc_science_environment():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä bbc.co.uk:n tuoreimmat tiede- ja ympäristöuutiset (BBC News: Science & Environment):\n\n' + items_string
+        items_string_out = 'Tässä bbc.co.uk:n tuoreimmat tiede- ja ympäristöuutiset.\n(BBC News: Science & Environment):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
