@@ -1020,7 +1020,7 @@ def get_yle_latest_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_M
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:<br>' + items_string
+        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:\n\n + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -1255,7 +1255,7 @@ def get_yle_uusimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_E
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n Uudenmaan uutiset (YLE Uusimaa) RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä yle.fi:n Uudenmaan uutiset (YLE Uusimaa):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
