@@ -146,7 +146,7 @@ def get_bbc_business():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://bbc.co.uk/news">BBC</a>:n tuoreimmat talousuutiset (Business) RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä bbc.co.uk:n tuoreimmat talousuutiset (BBC News Business):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -189,7 +189,7 @@ def get_bbc_science_environment():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://bbc.co.uk/news">BBC</a>:n tuoreimmat tiede- ja ympäristöuutiset (Science & Environment) RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä bbc.co.uk:n tuoreimmat tiede- ja ympäristöuutiset (BBC News: Science & Environment):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -239,7 +239,7 @@ def get_bbc_top_stories():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://bbc.co.uk/news">BBC</a>:n tuoreimmat uutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä bbc.co.uk:n tämän hetken pääuutisaiheet (BBC News):<br>' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -292,7 +292,7 @@ def get_cnn_us_news():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://cnn.com">CNN</a>:n tämän hetken keskeisimmät U.S. News uutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä <a href="Tässä CNN:n (cnn.com) tuoreimmat uutiset USA:sta:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -341,7 +341,7 @@ def get_cnn_world_edition():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://cnn.com">CNN</a>:n tämän hetken keskeisimmät uutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä CNN:n (cnn.com) uutiset maailmalta:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
