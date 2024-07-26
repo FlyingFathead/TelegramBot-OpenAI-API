@@ -629,7 +629,7 @@ def get_is_digitoday():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>:n Digitoday-osion RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>:n Digitoday-osiosta:<br>' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -668,7 +668,8 @@ def get_is_taloussanomat():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>/Taloussanomat RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>:n taloussanomista:\n\n' + items_string
+        # items_string_out = '' + items_string        
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -711,7 +712,7 @@ def get_is_tuoreimmat():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = '' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -751,7 +752,7 @@ def get_is_ulkomaat():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset ulkomailta <a href="https://is.fi/">is.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset ulkomailta <a href="https://is.fi/">is.fi</a>:stä:<br>' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -839,7 +840,7 @@ def get_yle_main_news():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n pääuutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n pääuutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -881,7 +882,7 @@ def get_yle_most_read():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n pääuutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n tämän hetken luetuimmat uutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)

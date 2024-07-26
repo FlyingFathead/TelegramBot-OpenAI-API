@@ -101,6 +101,22 @@ custom_functions.append({
     }
 })
 
+# # jul 26 / 2024
+# custom_functions.append({
+#     'name': 'get_rss_feed',
+#     'description': '[Use to fetch news from various RSS feeds.] Fetches news from specified RSS feed based on feed key.',
+#     'parameters': {
+#         'type': 'object',
+#         'properties': {
+#             'feed_key': {
+#                 'type': 'string',
+#                 'description': 'The key identifying which RSS feed to fetch (e.g.: `is_tuoreimmat` = newest from Ilta-Sanomat).'
+#             }
+#         },
+#         'required': ['feed_key']
+#     }
+# })
+
 # get date / time
 # custom_functions.append({
 #     'name': 'get_global_time',

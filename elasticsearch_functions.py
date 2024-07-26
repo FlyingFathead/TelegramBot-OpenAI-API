@@ -8,7 +8,13 @@ import re
 import asyncio
 import logging
 import feedparser  # Make sure to install feedparser: pip install feedparser
-from rss_parser import get_is_tuoreimmat  # Import the function
+from rss_parser import (
+    get_is_tuoreimmat,
+    get_is_taloussanomat,
+    get_yle_main_news,
+    get_yle_most_read
+)  # Import the functions
+
 # from bs4 import BeautifulSoup
 
 # here we can run our separate helper functions according to elasticsearch's matches
@@ -67,36 +73,50 @@ async def function_x(context, update, chat_history_with_system_message):
     # Return the updated chat history/context for further use
     return chat_history_with_es_context
 
-# Function to fetch, format, and send "IS tuoreimmat" RSS feed
-async def fetch_and_send_is_tuoreimmat(context, update, chat_history_with_system_message):
-    logging.info("Fetching 'IS tuoreimmat' RSS feed")
-    
-    # Fetch the "IS tuoreimmat" RSS feed
-    rss_result = get_is_tuoreimmat()
+# Generic function to fetch, format, and send RSS feeds
+async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_history_with_system_message, language):
+    logging.info(f"Fetching {feed_name} RSS feed")
+
+    # Fetch the RSS feed
+    rss_result = feed_function()
+
+    # Initialize entries_summary
+    entries_summary = ""
 
     # Extract the relevant content from the RSS result
     if rss_result['type'] == 'text':
-        entries_summary = rss_result['html']  # Use the HTML content for Telegram
+        entries_summary = rss_result['html']
     else:
-        entries_summary = "Ilta-Sanomien tuoreiden uutisten haku epäonnistui!"
-    
+        if language == 'fi':
+            entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
+        elif language == 'en':
+            entries_summary = f"{feed_name} feed fetch failed! Sorry!"
+        else:
+            entries_summary = f"{feed_name} feed fetch failed!"
+
     # Sanitize the HTML content
     entries_summary = sanitize_html(entries_summary)
-    
-    # Message to be appended to the context
-    execution_message = "Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):\n\n" + entries_summary
-    
+
+    # Prepare the execution message based on language
+    if language == 'fi':
+        # execution_message = f"Tässä {feed_name}:\n\n{entries_summary}"
+        execution_message = f"{entries_summary}"
+    elif language == 'en':
+        # execution_message = f"Here are the latest news from {feed_name}:\n\n{entries_summary}"
+        execution_message = f"{entries_summary}"
+    else:
+        execution_message = entries_summary
+
     # Split the message if it's too long
     messages = split_message(execution_message, max_length=4000)
-    
+
     # Send each part of the message
-    # to do -- add a flag here to choose whether to post these to the user or not.
     for part in messages:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=part, parse_mode='HTML')
-    
+
     # Append this execution notice to the chat history or context
     chat_history_with_es_context = chat_history_with_system_message + [{"role": "system", "content": execution_message}]
-    
+
     # Return the updated chat history/context for further use
     return chat_history_with_es_context
 
@@ -108,7 +128,10 @@ async def fetch_and_send_is_tuoreimmat(context, update, chat_history_with_system
 action_token_functions = {
     "<[fetch_rss]>": lambda context, update: fetch_rss_feed(context, update, "http://example.com/rss"),  # Example RSS feed URL
     "<[function_x_token]>": function_x,
-    "<[get_is_tuoreimmat]>": fetch_and_send_is_tuoreimmat,  # New action token for fetching IS tuoreimmat    
+    "<[get_is_tuoreimmat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_tuoreimmat, "Ilta-Sanomat (is.fi), tuoreimmat uutiset", chat_history_with_system_message, 'fi'),
+    "<[get_is_taloussanomat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_taloussanomat, "Taloussanomat (is.fi/taloussanomat) tuoreimmat", chat_history_with_system_message, 'fi'),
+    "<[get_yle_main_news]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_main_news, "YLE (yle.fi) pääuutiset", chat_history_with_system_message, 'fi'),
+    "<[get_yle_most_read]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_most_read, "YLE (yle.fi) luetuimmat", chat_history_with_system_message, 'fi'),
 }
 
 #
