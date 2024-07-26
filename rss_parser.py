@@ -146,7 +146,7 @@ def get_bbc_business():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä bbc.co.uk:n tuoreimmat talousuutiset (BBC News Business):\n\n' + items_string
+        items_string_out = 'Latest business news from bbc.co.uk (BBC News Business):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -664,18 +664,33 @@ def get_is_tiede():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries]
+        # Extract the headlines, descriptions, links, and pubDates if they exist
+        items = []
+        for entry in feed.entries:
+            item = {
+                'title': entry.title,
+                'description': entry.description,
+                'link': entry.link
+            }
+            if hasattr(entry, 'published'):
+                item['pubDate'] = entry.published
+            items.append(item)
 
-        # Format the items with titles and descriptions
-        formatted_items = [
-            f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            for item in items
-        ]
+        # Format the items with titles, descriptions, and elapsed time if pubDate exists
+        formatted_items = []
+        for item in items:
+            if 'pubDate' in item:
+                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            else:
+                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            formatted_items.append(formatted_item)
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat tiedeuutiset <a href="https://is.fi/">is.fi</a>:n RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat tiedeuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -703,18 +718,33 @@ def get_is_digitoday():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries]
+        # Extract the headlines, descriptions, links, and pubDates if they exist
+        items = []
+        for entry in feed.entries:
+            item = {
+                'title': entry.title,
+                'description': entry.description,
+                'link': entry.link
+            }
+            if hasattr(entry, 'published'):
+                item['pubDate'] = entry.published
+            items.append(item)
 
-        # Format the items with titles and descriptions
-        formatted_items = [
-            f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            for item in items
-        ]
+        # Format the items with titles, descriptions, and elapsed time if pubDate exists
+        formatted_items = []
+        for item in items:
+            if 'pubDate' in item:
+                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            else:
+                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            formatted_items.append(formatted_item)
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>:n Digitoday-osiosta:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Digitoday-osiosta:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -753,7 +783,7 @@ def get_is_taloussanomat():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset <a href="https://is.fi/">is.fi</a>:n taloussanomista:\n\n' + items_string
+        items_string_out = 'Tässä tuoreimmat Ilta-Sanomien (is.fi) talousuutiset:\n\n' + items_string
         # items_string_out = '' + items_string        
 
         print_horizontal_line()
@@ -797,7 +827,7 @@ def get_is_tuoreimmat():
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):' + items_string
+        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -816,7 +846,6 @@ def get_is_tuoreimmat():
             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
 
-
 # is.fi // ulkomaat
 def get_is_ulkomaat():
     try:
@@ -826,18 +855,33 @@ def get_is_ulkomaat():
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, and links
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link} for entry in feed.entries]
+        # Extract the headlines, descriptions, links, and pubDates if they exist
+        items = []
+        for entry in feed.entries:
+            item = {
+                'title': entry.title,
+                'description': entry.description,
+                'link': entry.link
+            }
+            if hasattr(entry, 'published'):
+                item['pubDate'] = entry.published
+            items.append(item)
 
-        # Format the items with titles and descriptions
-        formatted_items = [
-            f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-            for item in items
-        ]
+        # Format the items with titles, descriptions, and elapsed time if pubDate exists
+        formatted_items = []
+        for item in items:
+            if 'pubDate' in item:
+                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            else:
+                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+            formatted_items.append(formatted_item)
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset ulkomailta <a href="https://is.fi/">is.fi</a>:stä:<br>' + items_string
+        items_string_out = 'Tässä tuoreimmat ulkomaanuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
