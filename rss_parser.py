@@ -1020,7 +1020,7 @@ def get_yle_latest_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_M
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:\n\n + items_string
+        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
