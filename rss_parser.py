@@ -1162,7 +1162,7 @@ def get_yle_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_E
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n kotimaan uutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä yle.fi:n kotimaan uutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -1209,7 +1209,7 @@ def get_yle_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n ulkomaanuutiset RSS-syötteestä:<br>' + items_string
+        items_string_out = 'Tässä yle.fi:n ulkomaan uutiset:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
