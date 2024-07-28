@@ -1049,766 +1049,892 @@ def get_is_viihde(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENT
             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
 
-#
-# )> YLE
-#
+# #
+# # )> YLE
+# #
 
-# yle.fi // tuoreimmat
+# overall rss fetcher for yle news
+def fetch_and_process_yle_rss_feed(url, category_name, max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    try:
+        # Ensure max_days_old and max_entries are integers
+        max_days_old = int(max_days_old)
+        max_entries = int(max_entries)
+
+        # Fetch the RSS feed
+        response = requests.get(url)
+
+        # Parse the RSS feed
+        feed = feedparser.parse(response.content)
+
+        # Extract the headlines, descriptions, links, and pubDates
+        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+                 for entry in feed.entries]
+
+        # Format the items with titles, descriptions, and elapsed time
+        formatted_items = []
+        current_time = datetime.now(pytz.UTC)
+        for item in items:
+            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            if (current_time - pub_date).days <= max_days_old:
+                time_elapsed = get_time_elapsed(pub_date)
+                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                formatted_items.append(formatted_item)
+            if len(formatted_items) >= max_entries:
+                break
+
+        # Join the formatted items into a string with each item on a new line
+        items_string = '\n'.join(formatted_items)
+        items_string_out = f'Tässä yle.fi:n {category_name}:\n\n' + items_string
+
+        print_horizontal_line()
+        logging.info(items_string_out)
+        print_horizontal_line()
+
+        return {
+            'type': 'text',
+            'content': items_string_out,
+            'html': f'<ul>{items_string_out}</ul>'
+        }
+    except Exception as e:
+        logging.error(f"Error fetching yle.fi {category_name} news: {e}")
+        return {
+            'type': 'text',
+            'content': f"Sori! En päässyt käsiksi yle.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!",
+            'html': f"Sori! En päässyt käsiksi yle.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!"
+        }
+    
 def get_yle_latest_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET', 'tuoreimmat uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-    
-# yle.fi // pääuutiset
 def get_yle_main_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/majorHeadlines/YLE_UUTISET.rss')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/majorHeadlines/YLE_UUTISET.rss', 'pääuutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n pääuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // luetuimmat
 def get_yle_most_read(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/mostRead/YLE_UUTISET.rss')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/mostRead/YLE_UUTISET.rss', 'luetuimmat uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n tämän hetken luetuimmat uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-    
-# yle.fi // kotimaa
 def get_yle_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34837')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34837', 'kotimaan uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n kotimaan uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // kulttuuri
 def get_yle_kulttuuri(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-150067')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-150067', 'kulttuuriuutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n kulttuuriuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // liikenne
 def get_yle_liikenne(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-12')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-12', 'liikenneuutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n liikenneuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // luonto
 def get_yle_luonto(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35354')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35354', 'luontouutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n luontouutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // media
 def get_yle_media(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35057')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35057', 'mediauutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n mediauutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // näkökulmat
 def get_yle_nakokulmat(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
-# def get_yle_nakokulmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35381')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35381', 'näkökulmat-uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n näkökulmat-uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // terveys
 def get_yle_terveys(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35138')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35138', 'terveysuutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n terveysuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // tiede
 def get_yle_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-819')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-819', 'tiedeuutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n tiedeuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // ulkomaat
 def get_yle_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34953')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34953', 'ulkomaan uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n ulkomaan uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // urheilu
 def get_yle_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_URHEILU')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_URHEILU', 'urheilu-uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n urheilu-uutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // viihde
 def get_yle_viihde(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-36066')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n viihdeuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-36066', 'viihdeuutiset', max_days_old, max_entries)
 
 #
-# > yle.fi / regional news
+# > yle.fi regional news
 #
 
-# yle.fi // uusimaa
 def get_yle_uusimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-147345')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-147345', 'Uudenmaan uutiset (YLE Uusimaa)', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n Uudenmaan uutiset (YLE Uusimaa):\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# yle.fi // etelä-karjala
 def get_yle_etela_karjala(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-141372')
+    return fetch_and_process_yle_rss_feed('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-141372', 'Etelä-Karjalan uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
+def get_yle_etela_pohjanmaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_yle_rss_feed(
+        'https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-146311',
+        'Etelä-Pohjanmaan uutiset', max_days_old, max_entries
+    )
 
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-                 for entry in feed.entries]
+def get_yle_etela_savo(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_yle_rss_feed(
+        'https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-141852',
+        'Etelä-Savon uutiset', max_days_old, max_entries
+    )
 
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            if len(formatted_items) >= max_entries:
-                break
+def get_yle_kainuu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_yle_rss_feed(
+        'https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-141399',
+        'Kainuun uutiset',
+        max_days_old,
+        max_entries
+    )
 
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä yle.fi:n Etelä-Karjala-uutiset:\n\n' + items_string
 
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
 
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching yle.fi news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
+
+# # yle.fi // tuoreimmat
+# def get_yle_latest_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n tuoreimmat uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+    
+# # yle.fi // pääuutiset
+# def get_yle_main_news(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/majorHeadlines/YLE_UUTISET.rss')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n pääuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // luetuimmat
+# def get_yle_most_read(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/mostRead/YLE_UUTISET.rss')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä <a href="https://yle.fi/">yle.fi</a>:n tämän hetken luetuimmat uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+    
+# # yle.fi // kotimaa
+# def get_yle_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34837')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n kotimaan uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // kulttuuri
+# def get_yle_kulttuuri(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-150067')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n kulttuuriuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // liikenne
+# def get_yle_liikenne(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-12')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n liikenneuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // luonto
+# def get_yle_luonto(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35354')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n luontouutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // media
+# def get_yle_media(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35057')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n mediauutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // näkökulmat
+# def get_yle_nakokulmat(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+# # def get_yle_nakokulmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35381')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n näkökulmat-uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // terveys
+# def get_yle_terveys(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-35138')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n terveysuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // tiede
+# def get_yle_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-819')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n tiedeuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // ulkomaat
+# def get_yle_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-34953')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n ulkomaan uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // urheilu
+# def get_yle_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_URHEILU')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n urheilu-uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // viihde
+# def get_yle_viihde(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-36066')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n viihdeuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# #
+# # > yle.fi / regional news
+# #
+
+# # yle.fi // uusimaa
+# def get_yle_uusimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-147345')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n Uudenmaan uutiset (YLE Uusimaa):\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # yle.fi // etelä-karjala
+# def get_yle_etela_karjala(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-141372')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
+#             pub_date = pub_date.replace(tzinfo=pytz.UTC)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä yle.fi:n Etelä-Karjala-uutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching yle.fi news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi yle.fi:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
 
 #
 # > others

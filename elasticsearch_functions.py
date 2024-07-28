@@ -24,6 +24,9 @@ from rss_parser import (
     get_is_tiede,
     get_is_ulkomaat,
     get_is_viihde,
+    get_yle_etela_karjala,
+    get_yle_etela_savo,
+    get_yle_etela_pohjanmaa,
     get_yle_latest_news,
     get_yle_kotimaa,    
     get_yle_kulttuuri,
@@ -133,7 +136,7 @@ async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_his
     # Create the system message with an instructional prefix and suffix
     system_message = {
         "role": "system",
-        "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try the to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want:\n\n {execution_message} \n\n[END OF INFO]"
+        "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try the to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[END OF INFO]"
     }
 
     # Append this execution notice to the chat history or context
@@ -211,6 +214,10 @@ action_token_functions = {
     "<[get_is_taloussanomat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_taloussanomat, "Taloussanomat (is.fi/taloussanomat) tuoreimmat", chat_history_with_system_message, 'fi'),
     "<[get_is_ulkomaat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_ulkomaat, "Ilta-Sanomat (is.fi) ulkomaat", chat_history_with_system_message, 'fi'),
     "<[get_is_viihde]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_is_viihde, "Ilta-Sanomat (is.fi) Viihdeuutiset (IS Viihde)", chat_history_with_system_message, 'fi'),
+    "<[get_yle_etela_karjala]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_etela_karjala, "YLE (yle.fi) Etelä-Karjala-uutiset", chat_history_with_system_message, 'fi'),
+    "<[get_yle_etela_pohjanmaa]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_etela_pohjanmaa, "YLE (yle.fi) Etelä-Pohjanmaa-uutiset", chat_history_with_system_message, 'fi'),
+    "<[get_yle_etela_savo]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_etela_savo, "YLE (yle.fi) Etelä-Savon uutiset", chat_history_with_system_message, 'fi'),
+    "<[get_yle_kainuu]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_kainuu, "YLE (yle.fi) Kainuun uutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_kotimaa]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_kotimaa, "YLE (yle.fi) kotimaan uutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_kulttuuri]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_kulttuuri, "YLE (yle.fi) kulttuuriuutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_latest_news]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_latest_news, "YLE (yle.fi) tuoreimmat uutiset", chat_history_with_system_message, 'fi'),
@@ -220,9 +227,9 @@ action_token_functions = {
     "<[get_yle_media]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_media, "YLE (yle.fi) mediauutiset", chat_history_with_system_message, 'fi'),    
     "<[get_yle_most_read]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_most_read, "YLE (yle.fi) luetuimmat", chat_history_with_system_message, 'fi'),
     "<[get_yle_nakokulmat]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_nakokulmat, "YLE (yle.fi) näkökulmat-uutiset", chat_history_with_system_message, 'fi'),
-    "<[get_yle_uusimaa]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_uusimaa, "YLE (yle.fi) Uusimaa", chat_history_with_system_message, 'fi'),
     "<[get_yle_tiede]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_tiede, "YLE (yle.fi) tiedeuutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_terveys]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_terveys, "YLE (yle.fi) terveysuutiset", chat_history_with_system_message, 'fi'),
+    "<[get_yle_uusimaa]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_uusimaa, "YLE (yle.fi) Uusimaa", chat_history_with_system_message, 'fi'),
     "<[get_yle_urheilu]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_urheilu, "YLE (yle.fi) urheilu-uutiset", chat_history_with_system_message, 'fi'),
     "<[get_yle_viihde]>": lambda context, update, chat_history_with_system_message: fetch_and_send_rss(context, update, get_yle_viihde, "YLE (yle.fi) viihdeuutiset", chat_history_with_system_message, 'fi'),
 }
