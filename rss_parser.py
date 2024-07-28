@@ -1289,6 +1289,14 @@ def get_yle_novosti(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_E
         'Novosti Yle', max_days_old, max_entries
     )
 
+def get_yle_karjalakse(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_yle_rss_feed(
+        'https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_KARJALAKSE',
+        'karjalakse-uutiset',
+        max_days_old,
+        max_entries
+    )
+
 #
 # > others
 #
