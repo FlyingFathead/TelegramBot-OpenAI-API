@@ -606,281 +606,59 @@ def get_il_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_EN
 # )> is.fi
 #
 
-# is.fi // horoskoopit
-def get_is_horoskoopit(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+# Fetch and process RSS feed for IS.fi
+def fetch_and_process_is_rss_feed(url, category_name, max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
-        # RSS url
-        rss_source_url = 'https://www.is.fi/rss/menaiset/horoskooppi.xml'
+        # Ensure max_days_old and max_entries are integers
+        max_days_old = int(max_days_old)
+        max_entries = int(max_entries)
 
         # Fetch the RSS feed
-        response = requests.get(rss_source_url)
+        response = requests.get(url)
 
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
 
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
-
-        # Format the items with titles, descriptions, and elapsed time if pubDate exists
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    formatted_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat horoskoopit <a href="https://is.fi/">is.fi</a>:stä:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(f'Fetched data from: {rss_source_url}')
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# is.fi // tiedeuutiset
-def get_is_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/tiede.xml')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        current_time = datetime.now(pytz.UTC)
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
-
-        # Format the items with titles, descriptions, and elapsed time if pubDate exists
-        formatted_items = []
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    formatted_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat tiedeuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# hae iltasanomat.fi / digitoday-uutiset
-def get_is_digitoday(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/digitoday.xml')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
-
-        # Filter items based on max_days_old
-        current_time = datetime.now(pytz.UTC)
-        filtered_items = []
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    filtered_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                filtered_items.append(formatted_item)
-
-            if len(filtered_items) >= max_entries:
-                break
-
-        # Join the filtered items into a string with each item on a new line
-        items_string = '\n'.join(filtered_items)
-        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Digitoday-osiosta:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# is.fi / taloussanomat
-def get_is_taloussanomat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/taloussanomat.xml')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        current_time = datetime.now(pytz.UTC)
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
-
-        # Format the items with titles, descriptions, and elapsed time if pubDate exists
-        formatted_items = []
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    formatted_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat Ilta-Sanomien (is.fi) talousuutiset:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat/Taloussanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-    
-# is.fi // tuoreimmat
-def get_is_tuoreimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/tuoreimmat.xml')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
+        # Define possible date formats
+        date_formats = ["%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z"]
 
         # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+        items = [{'title': entry.title,
+                  'description': getattr(entry, 'description', None),
+                  'link': entry.link,
+                  'pubDate': entry.published}
                  for entry in feed.entries]
 
-        # Format the items with titles, descriptions, and elapsed time
+        # Format the items with titles, descriptions (if available), and elapsed time
         formatted_items = []
         current_time = datetime.now(pytz.UTC)
         for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-            pub_date = pub_date.replace(tzinfo=timezone.utc)
+            pub_date = None
+            for date_format in date_formats:
+                try:
+                    pub_date = datetime.strptime(item['pubDate'], date_format)
+                    pub_date = pub_date.replace(tzinfo=pytz.UTC)
+                    break
+                except ValueError:
+                    continue
+            if pub_date is None:
+                logging.error(f"Failed to parse date: {item['pubDate']}")
+                continue
+
             if (current_time - pub_date).days <= max_days_old:
                 time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                if item['description']:
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+                else:
+                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
                 formatted_items.append(formatted_item)
-            
+
             if len(formatted_items) >= max_entries:
                 break
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):\n\n' + items_string
+        items_string_out = f'Tässä IS.fi:n {category_name}:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -892,132 +670,128 @@ def get_is_tuoreimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX
             'html': f'<ul>{items_string_out}</ul>'
         }
     except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
+        logging.error(f"Error fetching IS.fi {category_name} news: {e}")
         return {
             'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+            'content': f"Sori! En päässyt käsiksi IS.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!",
+            'html': f"Sori! En päässyt käsiksi IS.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
+
+# is.fi // tuoreimmat uutiset
+def get_is_tuoreimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/tuoreimmat.xml', 'tuoreimmat uutiset', max_days_old, max_entries)
+
+# is.fi // kotimaan uutiset
+def get_is_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/kotimaa.xml', 'kotimaan uutiset', max_days_old, max_entries)
+
+# is.fi // politiikka
+def get_is_politiikka(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/politiikka.xml', 'politiikan uutiset', max_days_old, max_entries)
+
+# is.fi // taloussanomat
+def get_is_taloussanomat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/taloussanomat.xml', 'taloussanomat', max_days_old, max_entries)
 
 # is.fi // ulkomaat
 def get_is_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/ulkomaat.xml')
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/ulkomaat.xml', 'ulkomaan uutiset', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
+# is.fi // pääkirjoitus
+def get_is_paakirjoitus(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/paakirjoitus.xml', 'pääkirjoitus', max_days_old, max_entries)
 
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
-
-        # Format the items with titles, descriptions, and elapsed time if pubDate exists
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    formatted_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-            
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat ulkomaanuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
-
-# hae iltasanomat.fi / viihde-uutiset
+# is.fi // viihde
 def get_is_viihde(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('https://www.is.fi/rss/viihde.xml')
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/viihde.xml', 'viihde', max_days_old, max_entries)
 
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
+# is.fi // TV & elokuva
+def get_is_tv_ja_elokuvat(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/tv-ja-elokuvat.xml', 'TV & elokuva', max_days_old, max_entries)
 
-        # Extract the headlines, descriptions, links, and pubDates if they exist
-        items = []
-        for entry in feed.entries:
-            item = {
-                'title': entry.title,
-                'description': entry.description,
-                'link': entry.link
-            }
-            if hasattr(entry, 'published'):
-                item['pubDate'] = entry.published
-            items.append(item)
+# is.fi // musiikki
+def get_is_musiikki(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/musiikki.xml', 'musiikki', max_days_old, max_entries)
 
-        # Filter items based on max_days_old
-        current_time = datetime.now(pytz.UTC)
-        filtered_items = []
-        for item in items:
-            if 'pubDate' in item:
-                pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
-                pub_date = pub_date.replace(tzinfo=timezone.utc)
-                if (current_time - pub_date).days <= max_days_old:
-                    time_elapsed = get_time_elapsed(pub_date)
-                    formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                    filtered_items.append(formatted_item)
-            else:
-                formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                filtered_items.append(formatted_item)
+# is.fi // kuninkaalliset
+def get_is_kuninkaalliset(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/kuninkaalliset.xml', 'kuninkaalliset', max_days_old, max_entries)
 
-            if len(filtered_items) >= max_entries:
-                break
+# is.fi // horoskooppi
+def get_is_horoskoopit(max_days_old=30, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/horoskooppi.xml', 'horoskoopit', max_days_old, max_entries)
 
-        # Join the filtered items into a string with each item on a new line
-        items_string = '\n'.join(filtered_items)
-        items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Viihde-osiosta:\n\n' + items_string
+# is.fi // urheilu
+def get_is_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/urheilu.xml', 'urheilu', max_days_old, max_entries)
 
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
+# is.fi // jääkiekko
+def get_is_jaakiekko(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/jaakiekko.xml', 'jääkiekko', max_days_old, max_entries)
 
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Iltasanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
+# is.fi // tiede
+def get_is_tiede(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/tiede.xml', 'tiedeuutiset', max_days_old, max_entries)
+
+# is.fi // jalkapallo
+def get_is_jalkapallo(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/jalkapallo.xml', 'jalkapallo', max_days_old, max_entries)
+
+# is.fi // ralli
+def get_is_ralli(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/ralli.xml', 'ralli', max_days_old, max_entries)
+
+# is.fi // yleisurheilu
+def get_is_yleisurheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/yleisurheilu.xml', 'yleisurheilu', max_days_old, max_entries)
+
+# is.fi // hiihto
+def get_is_hiihto(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/hiihtolajit.xml', 'hiihto', max_days_old, max_entries)
+
+# is.fi // formula 1
+def get_is_formula1(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/formula1.xml', 'formula 1', max_days_old, max_entries)
+
+# is.fi // ravit
+def get_is_ravit(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/ravit.xml', 'ravit', max_days_old, max_entries)
+
+# is.fi // digitoday
+def get_is_digitoday(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/digitoday.xml', 'digitoday', max_days_old, max_entries)
+
+# is.fi // esports
+def get_is_esports(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/digitoday/esports.xml', 'esports', max_days_old, max_entries)
+
+# is.fi // autot
+def get_is_autot(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/autot.xml', 'autot', max_days_old, max_entries)
+
+# is.fi // me naiset
+def get_is_menaiset(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/menaiset.xml', 'me naiset', max_days_old, max_entries)
+
+# is.fi // hyvä olo
+def get_is_hyvaolo(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/hyvaolo.xml', 'hyvä olo', max_days_old, max_entries)
+
+# is.fi // ruokala
+def get_is_ruokala(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/ruokala.xml', 'ruokala', max_days_old, max_entries)
+
+# is.fi // asuminen
+def get_is_asuminen(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/asuminen.xml', 'asuminen', max_days_old, max_entries)
+
+# is.fi // matkat
+def get_is_matkat(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/matkat.xml', 'matkat', max_days_old, max_entries)
+
+# is.fi // perhe
+def get_is_perhe(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_is_rss_feed('https://www.is.fi/rss/perhe.xml', 'perhe', max_days_old, max_entries)
 
 # #
 # # )> YLE
@@ -1465,3 +1239,417 @@ if __name__ == "__main__":
         logging.error("Invalid command specified.")
         sys.exit(1)
 
+
+# # is.fi // horoskoopit
+# def get_is_horoskoopit(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # RSS url
+#         rss_source_url = 'https://www.is.fi/rss/menaiset/horoskooppi.xml'
+
+#         # Fetch the RSS feed
+#         response = requests.get(rss_source_url)
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Format the items with titles, descriptions, and elapsed time if pubDate exists
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     formatted_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä tuoreimmat horoskoopit <a href="https://is.fi/">is.fi</a>:stä:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(f'Fetched data from: {rss_source_url}')
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # is.fi // tiedeuutiset
+# def get_is_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/tiede.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Format the items with titles, descriptions, and elapsed time if pubDate exists
+#         formatted_items = []
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     formatted_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä tuoreimmat tiedeuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # hae iltasanomat.fi / digitoday-uutiset
+# def get_is_digitoday(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/digitoday.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Filter items based on max_days_old
+#         current_time = datetime.now(pytz.UTC)
+#         filtered_items = []
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     filtered_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 filtered_items.append(formatted_item)
+
+#             if len(filtered_items) >= max_entries:
+#                 break
+
+#         # Join the filtered items into a string with each item on a new line
+#         items_string = '\n'.join(filtered_items)
+#         items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Digitoday-osiosta:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # is.fi / taloussanomat
+# def get_is_taloussanomat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/taloussanomat.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Format the items with titles, descriptions, and elapsed time if pubDate exists
+#         formatted_items = []
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     formatted_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä tuoreimmat Ilta-Sanomien (is.fi) talousuutiset:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat/Taloussanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n/Taloussanomien uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+    
+# # is.fi // tuoreimmat
+# def get_is_tuoreimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/tuoreimmat.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates
+#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
+#                  for entry in feed.entries]
+
+#         # Format the items with titles, descriptions, and elapsed time
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#             pub_date = pub_date.replace(tzinfo=timezone.utc)
+#             if (current_time - pub_date).days <= max_days_old:
+#                 time_elapsed = get_time_elapsed(pub_date)
+#                 formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+            
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomista (is.fi):\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # is.fi // ulkomaat
+# def get_is_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/ulkomaat.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Format the items with titles, descriptions, and elapsed time if pubDate exists
+#         formatted_items = []
+#         current_time = datetime.now(pytz.UTC)
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     formatted_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 formatted_items.append(formatted_item)
+            
+#             if len(formatted_items) >= max_entries:
+#                 break
+
+#         # Join the formatted items into a string with each item on a new line
+#         items_string = '\n'.join(formatted_items)
+#         items_string_out = 'Tässä tuoreimmat ulkomaanuutiset Ilta-Sanomista (is.fi):\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+
+# # hae iltasanomat.fi / viihde-uutiset
+# def get_is_viihde(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+#     try:
+#         # Fetch the RSS feed
+#         response = requests.get('https://www.is.fi/rss/viihde.xml')
+
+#         # Parse the RSS feed
+#         feed = feedparser.parse(response.content)
+
+#         # Extract the headlines, descriptions, links, and pubDates if they exist
+#         items = []
+#         for entry in feed.entries:
+#             item = {
+#                 'title': entry.title,
+#                 'description': entry.description,
+#                 'link': entry.link
+#             }
+#             if hasattr(entry, 'published'):
+#                 item['pubDate'] = entry.published
+#             items.append(item)
+
+#         # Filter items based on max_days_old
+#         current_time = datetime.now(pytz.UTC)
+#         filtered_items = []
+#         for item in items:
+#             if 'pubDate' in item:
+#                 pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %Z")
+#                 pub_date = pub_date.replace(tzinfo=timezone.utc)
+#                 if (current_time - pub_date).days <= max_days_old:
+#                     time_elapsed = get_time_elapsed(pub_date)
+#                     formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                     filtered_items.append(formatted_item)
+#             else:
+#                 formatted_item = f'<p><a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
+#                 filtered_items.append(formatted_item)
+
+#             if len(filtered_items) >= max_entries:
+#                 break
+
+#         # Join the filtered items into a string with each item on a new line
+#         items_string = '\n'.join(filtered_items)
+#         items_string_out = 'Tässä tuoreimmat uutiset Ilta-Sanomien (is.fi) Viihde-osiosta:\n\n' + items_string
+
+#         print_horizontal_line()
+#         logging.info(items_string_out)
+#         print_horizontal_line()
+
+#         return {
+#             'type': 'text',
+#             'content': items_string_out,
+#             'html': f'<ul>{items_string_out}</ul>'
+#         }
+#     except Exception as e:
+#         logging.error(f"Error fetching Iltasanomat news: {e}")
+#         return {
+#             'type': 'text',
+#             'content': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
+#             'html': "Sori! En päässyt käsiksi IS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+#         }
+    
