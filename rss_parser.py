@@ -386,12 +386,65 @@ def get_cnn_world_edition(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT
 
 # hs.fi // etusivu
 def get_hs_etusivu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/teasers/etusivu.xml', 'etusivun uutiset', max_days_old, max_entries)
+
+def get_hs_uusimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/tuoreimmat.xml', 'uusimmat uutiset', max_days_old, max_entries)
+
+def get_hs_kotimaa(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/suomi.xml', 'kotimaan uutiset', max_days_old, max_entries)
+
+def get_hs_ulkomaat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/maailma.xml', 'ulkomaan uutiset', max_days_old, max_entries)
+
+def get_hs_talous(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/talous.xml', 'talousuutiset', max_days_old, max_entries)
+
+def get_hs_politiikka(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/politiikka.xml', 'politiikan uutiset', max_days_old, max_entries)
+
+def get_hs_helsinki(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/helsinki.xml', 'Helsingin uutiset', max_days_old, max_entries)
+
+def get_hs_urheilu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/urheilu.xml', 'urheilu-uutiset', max_days_old, max_entries)
+
+def get_hs_kulttuuri(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/kulttuuri.xml', 'kulttuuriuutiset', max_days_old, max_entries)
+
+def get_hs_paakirjoitukset(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/paakirjoitukset.xml', 'pääkirjoitukset', max_days_old, max_entries)
+
+def get_hs_lastenuutiset(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/lastenuutiset.xml', 'lasten uutiset', max_days_old, max_entries)
+
+def get_hs_ruoka(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/ruoka.xml', 'ruoka', max_days_old, max_entries)
+
+def get_hs_elama(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/elama.xml', 'elämä', max_days_old, max_entries)
+
+def get_hs_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/tiede.xml', 'tiedeuutiset', max_days_old, max_entries)
+
+def get_hs_kuukausiliite(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+    return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/kuukausiliite.xml', 'kuukausiliite', max_days_old, max_entries)
+
+# Fetch and process RSS feed for HS
+def fetch_and_process_hs_rss_feed(url, category_name, max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     try:
+        # Ensure max_days_old and max_entries are integers
+        max_days_old = int(max_days_old)
+        max_entries = int(max_entries)
+
         # Fetch the RSS feed
-        response = requests.get('http://www.hs.fi/rss/teasers/etusivu.xml')
+        response = requests.get(url)
 
         # Parse the RSS feed
         feed = feedparser.parse(response.content)
+
+        # Define possible date formats
+        date_formats = ["%a, %d %b %Y %H:%M:%S %Z", "%a, %d %b %Y %H:%M:%S GMT"]
 
         # Extract the headlines, descriptions, links, and pubDates
         items = [{'title': entry.title,
@@ -404,8 +457,18 @@ def get_hs_etusivu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_EN
         formatted_items = []
         current_time = datetime.now(pytz.UTC)
         for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
+            pub_date = None
+            for date_format in date_formats:
+                try:
+                    pub_date = datetime.strptime(item['pubDate'], date_format)
+                    pub_date = pub_date.replace(tzinfo=pytz.UTC)
+                    break
+                except ValueError:
+                    continue
+            if pub_date is None:
+                logging.error(f"Failed to parse date: {item['pubDate']}")
+                continue
+
             if (current_time - pub_date).days <= max_days_old:
                 time_elapsed = get_time_elapsed(pub_date)
                 if item['description']:
@@ -419,7 +482,7 @@ def get_hs_etusivu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_EN
 
         # Join the formatted items into a string with each item on a new line
         items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä etusivun uutiset hs.fi:stä:\n\n' + items_string
+        items_string_out = f'Tässä hs.fi:n {category_name}:\n\n' + items_string
 
         print_horizontal_line()
         logging.info(items_string_out)
@@ -431,106 +494,13 @@ def get_hs_etusivu(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_EN
             'html': f'<ul>{items_string_out}</ul>'
         }
     except Exception as e:
-        logging.error(f"Error fetching Helsingin Sanomat news: {e}")
+        logging.error(f"Error fetching hs.fi {category_name} news: {e}")
         return {
             'type': 'text',
-            'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
+            'content': f"Sori! En päässyt käsiksi hs.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!",
+            'html': f"Sori! En päässyt käsiksi hs.fi:n {category_name}-uutisvirtaan. Mönkään meni! Pahoitteluni!"
         }
-
-# # hs.fi // etusivu
-# def get_hs_etusivu():
-#     try:
-#         # Fetch the RSS feed
-#         response = requests.get('http://www.hs.fi/rss/teasers/etusivu.xml')
-
-#         # Parse the RSS feed
-#         feed = feedparser.parse(response.content)
-
-#         # Extract the headlines, descriptions, links, and pubDates
-#         items = [{'title': entry.title, 'description': entry.description, 'link': entry.link, 'pubDate': entry.published}
-#                  for entry in feed.entries]
-
-#         # Format the items with titles, descriptions, and elapsed time
-#         formatted_items = []
-#         for item in items:
-#             pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S %z")
-#             time_elapsed = get_time_elapsed(pub_date)
-#             formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a></p>'
-#             formatted_items.append(formatted_item)
-
-#         # Join the formatted items into a string with each item on a new line
-#         items_string = '\n'.join(formatted_items)
-#         items_string_out = 'Tässä etusivun uutiset hs.fi:stä:\n\n' + items_string
-
-#         print_horizontal_line()
-#         logging.info(items_string_out)
-#         print_horizontal_line()
-
-#         return {
-#             'type': 'text',
-#             'content': items_string_out,
-#             'html': f'<ul>{items_string_out}</ul>'
-#         }
-#     except Exception as e:
-#         logging.error(f"Error fetching Iltasanomat news: {e}")
-#         return {
-#             'type': 'text',
-#             'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-#             'html': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-#         }
-
-
-# hs.fi // uusimmat
-def get_hs_uusimmat(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
-    try:
-        # Fetch the RSS feed
-        response = requests.get('http://www.hs.fi/rss/tuoreimmat.xml')
-
-        # Parse the RSS feed
-        feed = feedparser.parse(response.content)
-
-        # Extract the headlines, descriptions, links, and pubDates
-        items = [{'title': entry.title,
-                  'description': getattr(entry, 'description', 'No description available'),
-                  'link': entry.link,
-                  'pubDate': entry.published}
-                 for entry in feed.entries]
-
-        # Format the items with titles, descriptions, and elapsed time
-        formatted_items = []
-        current_time = datetime.now(pytz.UTC)
-        for item in items:
-            pub_date = datetime.strptime(item['pubDate'], "%a, %d %b %Y %H:%M:%S GMT")
-            pub_date = pub_date.replace(tzinfo=pytz.UTC)
-            if (current_time - pub_date).days <= max_days_old:
-                time_elapsed = get_time_elapsed(pub_date)
-                formatted_item = f'<p><i>({time_elapsed})</i> <a href="{item["link"]}">{item["title"]}</a>: {item["description"]}</p>'
-                formatted_items.append(formatted_item)
-
-            if len(formatted_items) >= max_entries:
-                break
-
-        # Join the formatted items into a string with each item on a new line
-        items_string = '\n'.join(formatted_items)
-        items_string_out = 'Tässä tuoreimmat uutiset hs.fi:stä:\n\n' + items_string
-
-        print_horizontal_line()
-        logging.info(items_string_out)
-        print_horizontal_line()
-
-        return {
-            'type': 'text',
-            'content': items_string_out,
-            'html': f'<ul>{items_string_out}</ul>'
-        }
-    except Exception as e:
-        logging.error(f"Error fetching Helsingin Sanomat news: {e}")
-        return {
-            'type': 'text',
-            'content': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!",
-            'html': "Sori! En päässyt käsiksi HS:n uutisvirtaan. Mönkään meni! Pahoitteluni!"
-        }
+    
 
 #
 # )> il.fi
@@ -1494,3 +1464,4 @@ if __name__ == "__main__":
     else:
         logging.error("Invalid command specified.")
         sys.exit(1)
+
