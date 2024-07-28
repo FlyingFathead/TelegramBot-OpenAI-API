@@ -415,19 +415,19 @@ def get_hs_kulttuuri(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_
 def get_hs_paakirjoitukset(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/paakirjoitukset.xml', 'pääkirjoitukset', max_days_old, max_entries)
 
-def get_hs_lastenuutiset(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+def get_hs_lastenuutiset(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/lastenuutiset.xml', 'lasten uutiset', max_days_old, max_entries)
 
-def get_hs_ruoka(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+def get_hs_ruoka(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/ruoka.xml', 'ruoka', max_days_old, max_entries)
 
-def get_hs_elama(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+def get_hs_elama(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/elama.xml', 'elämä', max_days_old, max_entries)
 
-def get_hs_tiede(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+def get_hs_tiede(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/tiede.xml', 'tiedeuutiset', max_days_old, max_entries)
 
-def get_hs_kuukausiliite(max_days_old=DEFAULT_MAX_DAYS_OLD, max_entries=DEFAULT_MAX_ENTRIES):
+def get_hs_kuukausiliite(max_days_old=365, max_entries=DEFAULT_MAX_ENTRIES):
     return fetch_and_process_hs_rss_feed('http://www.hs.fi/rss/kuukausiliite.xml', 'kuukausiliite', max_days_old, max_entries)
 
 # Fetch and process RSS feed for HS
