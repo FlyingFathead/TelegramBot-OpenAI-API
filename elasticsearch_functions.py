@@ -123,92 +123,58 @@ async def function_x(context, update, chat_history_with_system_message):
 # Generic function to fetch, format, and send RSS feeds
 async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_history_with_system_message, language):
     logging.info(f"Fetching {feed_name} RSS feed")
+    
+    try:
+        # Fetch the RSS feed
+        rss_result = feed_function()
 
-    # Fetch the RSS feed
-    rss_result = feed_function()
+        # Initialize entries_summary
+        entries_summary = ""
 
-    # Initialize entries_summary
-    entries_summary = ""
-
-    # Extract the relevant content from the RSS result
-    if rss_result['type'] == 'text':
-        entries_summary = rss_result['html']
-    else:
-        if language == 'fi':
-            entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
-        elif language == 'en':
-            entries_summary = f"{feed_name} feed fetch failed! Sorry!"
+        # Extract the relevant content from the RSS result
+        if rss_result['type'] == 'text':
+            entries_summary = rss_result['html']
         else:
-            entries_summary = f"{feed_name} feed fetch failed!"
+            if language == 'fi':
+                entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
+            elif language == 'en':
+                entries_summary = f"{feed_name} feed fetch failed! Sorry!"
+            else:
+                entries_summary = f"{feed_name} feed fetch failed!"
 
-    # Sanitize the HTML content
-    entries_summary = sanitize_html(entries_summary)
+        # Sanitize the HTML content
+        entries_summary = sanitize_html(entries_summary)
 
-    # Prepare the execution message based on language
-    if language == 'fi':
-        execution_message = f"Latest news from {feed_name}: {entries_summary}"
-    elif language == 'en':
-        execution_message = f"Latest news from {feed_name}: {entries_summary}"
-    else:
-        execution_message = entries_summary
+        # Prepare the execution message based on language
+        if language == 'fi':
+            execution_message = f"Latest news from {feed_name}: {entries_summary}"
+        elif language == 'en':
+            execution_message = f"Latest news from {feed_name}: {entries_summary}"
+        else:
+            execution_message = entries_summary
 
-    # Create the system message with an instructional prefix and suffix
-    system_message = {
-        "role": "system",
-        "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try the to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[END OF INFO]"
-    }
+        # Create the system message with an instructional prefix and suffix
+        system_message = {
+            "role": "system",
+            "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[END OF INFO]"
+        }
 
-    # Append this execution notice to the chat history or context
-    chat_history_with_es_context = chat_history_with_system_message + [system_message]
+        # Append this execution notice to the chat history or context
+        chat_history_with_es_context = chat_history_with_system_message + [system_message]
 
-    return chat_history_with_es_context
+        return chat_history_with_es_context
 
-# # (up until 28 jul 2024) Generic function to fetch, format, and send RSS feeds
-# async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_history_with_system_message, language):
-#     logging.info(f"Fetching {feed_name} RSS feed")
+    except Exception as e:
+        logging.error(f"Error fetching {feed_name} RSS feed: {e}")
+        if language == 'fi':
+            error_message = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
+        elif language == 'en':
+            error_message = f"{feed_name} feed fetch failed! Sorry!"
+        else:
+            error_message = f"{feed_name} feed fetch failed!"
 
-#     # Fetch the RSS feed
-#     rss_result = feed_function()
-
-#     # Initialize entries_summary
-#     entries_summary = ""
-
-#     # Extract the relevant content from the RSS result
-#     if rss_result['type'] == 'text':
-#         entries_summary = rss_result['html']
-#     else:
-#         if language == 'fi':
-#             entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
-#         elif language == 'en':
-#             entries_summary = f"{feed_name} feed fetch failed! Sorry!"
-#         else:
-#             entries_summary = f"{feed_name} feed fetch failed!"
-
-#     # Sanitize the HTML content
-#     entries_summary = sanitize_html(entries_summary)
-
-#     # Prepare the execution message based on language
-#     if language == 'fi':
-#         # execution_message = f"Tässä {feed_name}:\n\n{entries_summary}"
-#         execution_message = f"{entries_summary}"
-#     elif language == 'en':
-#         # execution_message = f"Here are the latest news from {feed_name}:\n\n{entries_summary}"
-#         execution_message = f"{entries_summary}"
-#     else:
-#         execution_message = entries_summary
-
-#     # Split the message if it's too long
-#     messages = split_message(execution_message, max_length=4000)
-
-#     # Send each part of the message
-#     for part in messages:
-#         await context.bot.send_message(chat_id=update.effective_chat.id, text=part, parse_mode='HTML')
-
-#     # Append this execution notice to the chat history or context
-#     chat_history_with_es_context = chat_history_with_system_message + [{"role": "system", "content": execution_message}]
-
-#     # Return the updated chat history/context for further use
-#     return chat_history_with_es_context
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=error_message)
+        return chat_history_with_system_message
 
 #
 # > mapping action token to function
@@ -307,28 +273,99 @@ def split_message(message, max_length=4000):
 
     return list(chunk_text(message))
 
-# In this setup:
-# 
-# - `fetch_rss_feed` is a generic function that takes a feed URL and fetches the top 5 entries, sending a summary back to the user.
-# - The `action_token_functions` dictionary includes a token `<[fetch_rss]>` mapped to a lambda function that calls `fetch_rss_feed` with a predefined URL. You can extend this by making the URL dynamic based on the Elasticsearch context.
-# - When the token `<[fetch_rss]>` is detected in the Elasticsearch context, `fetch_rss_feed` is executed, fetching and relaying RSS feed data to the user.
-# 
-# This modular approach allows you to expand your bot's capabilities flexibly, adding new tokens and functions as needed to enhance user interaction based on the context provided by Elasticsearch.
 
-# (old)
 
-# # Function to fetch and send "IS tuoreimmat" RSS feed
-# async def fetch_and_send_is_tuoreimmat(context, update):
-#     logging.info("Fetching IS tuoreimmat RSS feed")
-    
-#     # Fetch the "IS tuoreimmat" RSS feed
-#     rss_result = get_is_tuoreimmat()
-    
+# # === old code ===
+# # (up until 28 jul 2024) Generic function to fetch, format, and send RSS feeds
+# #
+# async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_history_with_system_message, language):
+#     logging.info(f"Fetching {feed_name} RSS feed")
+
+#     # Fetch the RSS feed
+#     rss_result = feed_function()
+
+#     # Initialize entries_summary
+#     entries_summary = ""
+
 #     # Extract the relevant content from the RSS result
 #     if rss_result['type'] == 'text':
-#         entries_summary = rss_result['content']
+#         entries_summary = rss_result['html']
 #     else:
-#         entries_summary = "Tuoreimpien uutisten haku Ilta-Sanomien RSS-feedistä epäonnistui, sori!"
-    
-#     # Send the entries summary to the user
-#     await context.bot.send_message(chat_id=update.effective_chat.id, text=entries_summary)
+#         if language == 'fi':
+#             entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
+#         elif language == 'en':
+#             entries_summary = f"{feed_name} feed fetch failed! Sorry!"
+#         else:
+#             entries_summary = f"{feed_name} feed fetch failed!"
+
+#     # Sanitize the HTML content
+#     entries_summary = sanitize_html(entries_summary)
+
+#     # Prepare the execution message based on language
+#     if language == 'fi':
+#         # execution_message = f"Tässä {feed_name}:\n\n{entries_summary}"
+#         execution_message = f"{entries_summary}"
+#     elif language == 'en':
+#         # execution_message = f"Here are the latest news from {feed_name}:\n\n{entries_summary}"
+#         execution_message = f"{entries_summary}"
+#     else:
+#         execution_message = entries_summary
+
+#     # Split the message if it's too long
+#     messages = split_message(execution_message, max_length=4000)
+
+#     # Send each part of the message
+#     for part in messages:
+#         await context.bot.send_message(chat_id=update.effective_chat.id, text=part, parse_mode='HTML')
+
+#     # Append this execution notice to the chat history or context
+#     chat_history_with_es_context = chat_history_with_system_message + [{"role": "system", "content": execution_message}]
+
+#     # Return the updated chat history/context for further use
+#     return chat_history_with_es_context
+
+# old
+
+# # Generic function to fetch, format, and send RSS feeds
+# async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_history_with_system_message, language):
+#     logging.info(f"Fetching {feed_name} RSS feed")
+
+#     # Fetch the RSS feed
+#     rss_result = feed_function()
+
+#     # Initialize entries_summary
+#     entries_summary = ""
+
+#     # Extract the relevant content from the RSS result
+#     if rss_result['type'] == 'text':
+#         entries_summary = rss_result['html']
+#     else:
+#         if language == 'fi':
+#             entries_summary = f"{feed_name}-uutissyötteen haku epäonnistui! Sori!"
+#         elif language == 'en':
+#             entries_summary = f"{feed_name} feed fetch failed! Sorry!"
+#         else:
+#             entries_summary = f"{feed_name} feed fetch failed!"
+
+#     # Sanitize the HTML content
+#     entries_summary = sanitize_html(entries_summary)
+
+#     # Prepare the execution message based on language
+#     if language == 'fi':
+#         execution_message = f"Latest news from {feed_name}: {entries_summary}"
+#     elif language == 'en':
+#         execution_message = f"Latest news from {feed_name}: {entries_summary}"
+#     else:
+#         execution_message = entries_summary
+
+#     # Create the system message with an instructional prefix and suffix
+#     system_message = {
+#         "role": "system",
+#         "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try the to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[END OF INFO]"
+#     }
+
+#     # Append this execution notice to the chat history or context
+#     chat_history_with_es_context = chat_history_with_system_message + [system_message]
+
+#     return chat_history_with_es_context
+
