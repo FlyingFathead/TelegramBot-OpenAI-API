@@ -66,7 +66,8 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
-- v0.734 - Over 100 RSS feeds by default (when RAG triggered) and DuckDuckGo searches added as a function call
+- v0.734 - Now hosting over 100 RSS feeds by default (when RAG triggered)
+  - DuckDuckGo searches added as a function call
 - v0.733 - RSS parsing logic streamlined into RAG context
 - v0.7321 - RSS parsing improvements
 - v0.732 - added ElasticSearch RAG function calls to RSS feeds 
