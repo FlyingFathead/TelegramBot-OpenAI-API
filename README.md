@@ -19,7 +19,7 @@
 - **Supports RSS feeds from all possible RSS sources**  
   - Can be used to fetch RSS feeds, such as all types of news sources etc
 - **Built-in DuckDuckGo searches from function calls**
-  - You can make your queries even more precise with relevant urls etc.
+  - Make your assistant even more precise with relevant urls etc.
 
 # Prerequisites
 - Tested & working on Python 3.10.12
