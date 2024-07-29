@@ -42,6 +42,21 @@ custom_functions = [
 ]
 
 custom_functions.append({
+    'name': 'get_duckduckgo_search',
+    'description': '[Use when the user requests for internet search results and if Perplexity API is too murky.] Fetches the first page search results from the first place DuckDuckGo for a given query. This function uses the Lynx browser to scrape the DuckDuckGo HTML results page.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'search_query': {
+                'type': 'string',
+                'description': 'The search query to fetch results for.'
+            }
+        },
+        'required': ['search_query']  # Mark 'search_query' as a required property
+    }
+})
+
+custom_functions.append({
         'name': 'get_directions_from_addresses',
         'description': '[Use when user requests for directions] Provides directions between two addresses using the OpenRouteService API.',
         'parameters': {

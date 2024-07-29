@@ -9,15 +9,17 @@
 - Daily token usage tracking & rate limiting for API usage / cost management
 - **Supports Perplexity API models in conjunction with OpenAI models**
   - Very useful for i.e. fact-checking latest data to supplement OpenAI's cutoff dates
-- **Supports Elasticsearch for RAG**  
+- **Built-in Elasticsearch RAG step**  
   - Increase the knowledge rate with your own documents
   - Quickly generate additional knowledge with the built-in Q&A pair creator
 - **Supports holiday notifications via Python's `holidays` module**
   - Can be localized to any supported country, can also add in your own special days as a reminder
 - **Supports fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
   - Can be used to fetch all types of financial & stock market data in real time
-- **Supports RSS feeds from all RSS sources**  
+- **Supports RSS feeds from all possible RSS sources**  
   - Can be used to fetch RSS feeds, such as all types of news sources etc
+- **Built-in DuckDuckGo searches from function calls**
+  - You can make your queries even more precise with relevant urls etc.
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -63,6 +65,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.734 - Over 100 RSS feeds by default (when RAG triggered) and DuckDuckGo searches added as a function call
 - v0.733 - RSS parsing logic streamlined into RAG context
 - v0.7321 - RSS parsing improvements
 - v0.732 - added ElasticSearch RAG function calls to RSS feeds 

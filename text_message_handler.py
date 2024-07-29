@@ -31,6 +31,7 @@ from modules import markdown_to_html
 
 # the tg-bot's API function calls
 from custom_functions import custom_functions, observe_chat
+from api_get_duckduckgo_search import get_duckduckgo_search
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
@@ -413,6 +414,60 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.user_data.pop('active_translation', None)
 
                         return  # Exit the loop after handling the custom function
+
+                    # ~~~~~~~~~~~~~~~~~
+                    # DuckDuckGo Search
+                    # ~~~~~~~~~~~~~~~~~
+
+                    elif function_name == 'get_duckduckgo_search':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        search_query = arguments.get('search_query', '')
+
+                        if search_query:
+                            search_results = await get_duckduckgo_search(search_query)
+                            if search_results:
+                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
+                            else:
+                                system_message = "No results found for your query."
+                        else:
+                            system_message = "Please provide a search query."
+
+                        # Append the search results or the relevant message as a system message
+                        chat_history.append({"role": "system", "content": system_message})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Debugging: Log the updated chat history
+                        bot.logger.info(f"Updated chat history: {chat_history}")
+
+                        # Make an API request using the updated chat history
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+
+                        # Extract and handle the content from the API response
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
+
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
+
+                        # Update usage metrics and logs
+                        bot_token_count = bot.count_tokens(bot_reply)
+                        bot.total_token_usage += bot_token_count
+                        bot.write_total_token_usage(bot.total_token_usage)
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
+
+                        # Ensure the bot has a substantive response to send
+                        if bot_reply:
+                            escaped_reply = markdown_to_html(bot_reply)
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
+                        else:
+                            bot.logger.error("Attempted to send an empty message.")
+                            # fallback_message = "I'm not sure how to respond to that. Could you provide more details or ask about something else?"
+                            # await context.bot.send_message(chat_id=chat_id, text=fallback_message, parse_mode=ParseMode.HTML)
+                            pass
+
+                        # Finalize the function call
+                        stop_typing_event.set()
+                        context.user_data.pop('active_translation', None)
+                        return
 
                     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Alpha Vantage / Yahoo! Finance API
