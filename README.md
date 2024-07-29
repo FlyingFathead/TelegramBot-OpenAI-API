@@ -43,6 +43,7 @@ yfinance>=0.2.41
 yt-dlp>=2024.3.10
 ```
 - (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
+- NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install in Debian/Ubuntu linuxes with: `sudo apt-get install lynx`)
 
 ## Other requirements:
 - Telegram API bot token 
