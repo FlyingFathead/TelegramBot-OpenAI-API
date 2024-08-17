@@ -349,10 +349,28 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             try:
                                 # Set a timeout of 5 seconds (adjust as needed)
                                 calc_result = await asyncio.wait_for(calculate_expression(expression), timeout=5)
-                                system_message = f"[Calculator result, explain to the user in their language if needed]: {calc_result}\n\n[NOTE: format your response appropriately, possibly incorporating additional context or user intent.]"
+                                
+                                if calc_result is None or calc_result.strip() == "":
+                                    # Handle the case where the calculation returned None or an empty result
+                                    system_message = "Calculator returned None or an empty result. Please ensure the expression is valid."
+                                    bot.logger.warning(f"Calculator returned None or empty result for expression: '{expression}'")
+                                else:
+                                    # Proper result was returned, log and format it
+                                    # calc_result = f"`{calc_result}`"  # Wrap the result in backticks for code formatting in Markdown.
+                                    calc_result = f"<code>{calc_result}</code>"  # Wrap the result in <code> tags for HTML formatting.
+                                    system_message = (
+                                        f"[Calculator result, explain to the user in their language if needed. "
+                                        "IMPORTANT: Do not translate or simplify the mathematical expressions themselves. "
+                                        "NOTE: Telegram doesn't support LaTeX. Use simple HTML formatting. If the user explicitly asks for LaTeX or mentions LaTeX, use LaTeX formatting; "
+                                        "otherwise, use plain text or Unicode with simple HTML.]:\n{calc_result}\n\n"
+                                        "[NOTE: format your response appropriately, possibly incorporating additional context or user intent, TRANSLATE it to the user's language if needed.]"
+                                    ).format(calc_result=calc_result)  # This ensures the result is inserted correctly
+
+                                    bot.logger.info(f"Calculation result: {calc_result}")
+
                             except asyncio.TimeoutError:
                                 # Handle the case where the calculation took too long
-                                system_message = f"Calculation timed out after 5 seconds. Please try a simpler expression."
+                                system_message = "Calculation timed out after 5 seconds. Please try a simpler expression."
                                 bot.logger.error(f"TimeoutError: Calculation for expression '{expression}' exceeded the time limit.")
                             except Exception as e:
                                 # Handle other exceptions
@@ -360,6 +378,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 bot.logger.error(f"Error evaluating expression '{expression}': {e}")
                         else:
                             system_message = "Please provide a valid expression for calculation."
+                            bot.logger.warning("Received an empty expression for calculation.")
 
                         # Append the calculation result or the error message as a system message
                         chat_history.append({"role": "system", "content": system_message})
@@ -385,13 +404,18 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
-                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = markdown_to_html(bot_reply)
+                            escaped_reply = bot_reply
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
+                            # If no content to send, log and add a system message
                             bot.logger.error("Attempted to send an empty message.")
-                            # fallback_message = "I'm not sure how to respond to that. Could you provide more details or ask about something else?"
-                            # await context.bot.send_message(chat_id=chat_id, text=fallback_message, parse_mode=ParseMode.HTML)
-                            pass
+                            system_message = "Calculator returned an empty result or encountered an error, resulting in no response to send."
+                            chat_history.append({"role": "system", "content": system_message})
+                            context.chat_data['chat_history'] = chat_history
+
+                            # Optionally, you can log this as a fallback
+                            bot.logger.info("Added system message indicating an empty result.")
 
                         # Finalize the function call
                         stop_typing_event.set()
@@ -471,7 +495,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # View the output (i.e. for markdown etc formatting debugging)
                         logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                        escaped_reply = markdown_to_html(bot_reply)
+                        # escaped_reply = markdown_to_html(bot_reply)
+                        escaped_reply = bot_reply
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                         # Log the bot's response
@@ -499,7 +524,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if search_query:
                             search_results = await get_duckduckgo_search(search_query)
                             if search_results:
-                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
+                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][USE SIMPLE, TELEGRAM-COMPLIANT HTML IN YOUR OUTPUT.]"
                             else:
                                 system_message = "No results found for your query."
                         else:
@@ -529,7 +554,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
-                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = markdown_to_html(bot_reply)
+                            escaped_reply = bot_reply
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
@@ -553,7 +579,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if url:
                             webpage_content = await get_website_dump(url)
                             if webpage_content:
-                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
+                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Do NOT use <pre> tags. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
                             else:
                                 system_message = "No content found for the specified URL."
                         else:
@@ -581,6 +607,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
                             escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = bot_reply
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
@@ -952,7 +979,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # view the output (i.e. for markdown etc formatting debugging)
                 logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                escaped_reply = markdown_to_html(bot_reply)
+                # escaped_reply = markdown_to_html(bot_reply)
+                escaped_reply = bot_reply
                 logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                 # Log the bot's response

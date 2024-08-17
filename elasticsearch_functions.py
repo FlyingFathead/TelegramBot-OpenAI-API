@@ -193,7 +193,7 @@ async def fetch_and_send_rss(context, update, feed_function, feed_name, chat_his
         # Create the system message with an instructional prefix and suffix
         system_message = {
             "role": "system",
-            "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[END OF INFO]"
+            "content": f"[INFO]: Here are the latest news from: {feed_name}. Use this information wisely in your response and translate it to the user's language if necessary (= if the question was in Finnish, translate to Finnish). Try to include the most important and relevant news/topics that the user might be interested in when giving your response. You can include as many topics as you want, but if the user is asking specifically for something from source, remember to emphasize that, and try to find out the most interesting topics:\n\n {execution_message} \n\n[USE SIMPLE, TELEGRAM-COMPLIANT HTML IN YOUR OUTPUT.][END OF INFO]"
         }
 
         # Append this execution notice to the chat history or context

@@ -74,7 +74,9 @@ async def calculate_expression(expression: str):
             logger.error(error_message)
             return error_message
 
-        result_message = f"The result of `{expression}` is `{result}`."
+        # result_message = f"The result of `{expression}` is `{result}`."
+        result_message = f"The result of <code>{expression}</code> is <code>{result}</code>."
+        
         logger.info(f"Calculation successful: {result_message}")
         return result_message
     except Exception as e:
