@@ -529,7 +529,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if search_query:
                             search_results = await get_duckduckgo_search(search_query)
                             if search_results:
-                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][USE SIMPLE, TELEGRAM-COMPLIANT HTML IN YOUR OUTPUT.]"
+                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][Use SIMPLE, Telegram-compliant HTML: Use these HTML tags if needed: <b> for bold, <i> for italics, <u> for underline, <s> for strikethrough, <code> for inline code, <pre> for preformatted blocks, and <a href=...> for hyperlinks.. Do not use Markdown!]"
                             else:
                                 system_message = "No results found for your query."
                         else:
