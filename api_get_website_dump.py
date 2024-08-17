@@ -55,7 +55,7 @@ async def get_website_dump(url, max_tokens=10000):
 
     # Check if the domain is allowed
     if not is_domain_allowed(url):
-        error_message = f"Error: Domain not allowed for URL: {url}"
+        error_message = f"Error: Cannot browse the address, not allowed for URL: {url}"
         logging.error(error_message)
         return error_message
 
