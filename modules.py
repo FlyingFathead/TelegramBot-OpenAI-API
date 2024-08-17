@@ -102,8 +102,11 @@ def preserve_html_and_escape_text(text):
 
 def markdown_to_html(text):
     try:
+        # Supported URL schemes, now including tel: and mailto:
+        supported_schemes = r'(https?|ftp|sftp|mailto|tel|sms|geo|file|data|git|ssh|ircs?|svn|news|magnet|ws|wss|jdbc)'
+        
         # Convert Markdown links [text](url) to HTML <a href="url">text</a>
-        text = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', text)
+        text = re.sub(r'\[(.*?)\]\((' + supported_schemes + r':\S+)\)', r'<a href="\2">\1</a>', text)
 
         # Handle bold and italics, without over-escaping
         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
