@@ -40,6 +40,7 @@ from api_perplexity_search import query_perplexity, translate_response, translat
 from api_get_global_time import get_global_time
 from api_get_stock_prices_yfinance import get_stock_price, search_stock_symbol
 from api_get_website_dump import get_website_dump
+from calc_module import calculate_expression
 
 # handlers for the custom function calls
 from perplexity_handler import handle_query_perplexity
@@ -335,8 +336,70 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     function_call = response_json['choices'][0]['message']['function_call']
                     function_name = function_call['name']
 
+                    # ~~~~~~~~~~~~~~~~~~~~~~
+                    # Calculator Function
+                    # ~~~~~~~~~~~~~~~~~~~~~~
+
+                    # calculator module for mathematical equations
+                    if function_name == 'calculate_expression':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        expression = arguments.get('expression', '')
+
+                        if expression:
+                            try:
+                                # Set a timeout of 5 seconds (adjust as needed)
+                                calc_result = await asyncio.wait_for(calculate_expression(expression), timeout=5)
+                                system_message = f"[Calculator result, explain to the user in their language if needed]: {calc_result}\n\n[NOTE: format your response appropriately, possibly incorporating additional context or user intent.]"
+                            except asyncio.TimeoutError:
+                                # Handle the case where the calculation took too long
+                                system_message = f"Calculation timed out after 5 seconds. Please try a simpler expression."
+                                bot.logger.error(f"TimeoutError: Calculation for expression '{expression}' exceeded the time limit.")
+                            except Exception as e:
+                                # Handle other exceptions
+                                system_message = f"An error occurred while evaluating the expression: {str(e)}"
+                                bot.logger.error(f"Error evaluating expression '{expression}': {e}")
+                        else:
+                            system_message = "Please provide a valid expression for calculation."
+
+                        # Append the calculation result or the error message as a system message
+                        chat_history.append({"role": "system", "content": system_message})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Debugging: Log the updated chat history
+                        bot.logger.info(f"Updated chat history with calculator result: {chat_history}")
+
+                        # Make an API request using the updated chat history
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+
+                        # Extract and handle the content from the API response
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
+
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
+
+                        # Update usage metrics and logs
+                        bot_token_count = bot.count_tokens(bot_reply)
+                        bot.total_token_usage += bot_token_count
+                        bot.write_total_token_usage(bot.total_token_usage)
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
+
+                        # Ensure the bot has a substantive response to send
+                        if bot_reply:
+                            escaped_reply = markdown_to_html(bot_reply)
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
+                        else:
+                            bot.logger.error("Attempted to send an empty message.")
+                            # fallback_message = "I'm not sure how to respond to that. Could you provide more details or ask about something else?"
+                            # await context.bot.send_message(chat_id=chat_id, text=fallback_message, parse_mode=ParseMode.HTML)
+                            pass
+
+                        # Finalize the function call
+                        stop_typing_event.set()
+                        context.user_data.pop('active_translation', None)
+                        return
+
                     # get the weather via openweathermap api
-                    if function_name == 'get_weather':
+                    elif function_name == 'get_weather':
                         # Fetch the weather data
                         arguments = json.loads(function_call.get('arguments', '{}'))
                         city_name = arguments.get('city_name', 'DefaultCity')

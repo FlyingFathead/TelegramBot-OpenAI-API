@@ -56,6 +56,7 @@ custom_functions.append({
     }
 })
 
+# website fetcher and dumper
 custom_functions.append({
     'name': 'get_website_dump',
     'description': '[Use to fetch information from a specific website.] Fetches the content of a website using the lynx --dump command and returns the plain text output.',
@@ -71,6 +72,23 @@ custom_functions.append({
     }
 })
 
+# calculator module
+custom_functions.append({
+    'name': 'calculate_expression',
+    'description': '[Use for mathematical calculations, such as basic arithmetic operations.] Evaluates a mathematical expression provided as a string.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'expression': {
+                'type': 'string',
+                'description': 'The mathematical expression to evaluate.'
+            }
+        },
+        'required': ['expression']
+    }
+})
+
+# direction finder (from address to address)
 custom_functions.append({
         'name': 'get_directions_from_addresses',
         'description': '[Use when user requests for directions] Provides directions between two addresses using the OpenRouteService API.',

@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.735"
+version_number = "0.736"
 
 # experimental modules
 import requests
