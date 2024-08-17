@@ -68,42 +68,144 @@ def reset_token_usage_at_midnight(token_usage_file, reset_in_memory_counter_call
     except Exception as e:
         logging.error(f"Failed to reset token usage: {e}")
 
+
 def escape_html(text):
-    return html.escape(text)
+    # Escape only the necessary HTML characters, avoiding double-escaping
+    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+def escape_except_a(text):
+    # Escape all HTML special characters except within <a> tags
+    escaped_text = ""
+    last_end = 0
+    for match in re.finditer(r'<a href="(.*?)">(.*?)</a>', text):
+        # Append the text before the <a> tag, escaping it
+        escaped_text += html.escape(text[last_end:match.start()])
+        # Append the <a> tag as it is, without escaping
+        escaped_text += match.group(0)
+        last_end = match.end()
+    # Escape the rest of the text after the last <a> tag
+    escaped_text += html.escape(text[last_end:])
+    return escaped_text
+
+def preserve_html_and_escape_text(text):
+    # Escape all HTML special characters outside of tags
+    escaped_text = ""
+    last_end = 0
+    for match in re.finditer(r'<a href="(.*?)">(.*?)</a>', text):
+        # Escape the text before the <a> tag, but leave the <a> tag as it is
+        escaped_text += html.escape(text[last_end:match.start()])
+        escaped_text += match.group(0)  # Append the <a> tag
+        last_end = match.end()
+    # Escape the remaining text after the last <a> tag
+    escaped_text += html.escape(text[last_end:])
+    return escaped_text
 
 def markdown_to_html(text):
-    # Split the text into code blocks and other parts
-    parts = re.split(r'(```.*?```)', text, flags=re.DOTALL)
-    for i, part in enumerate(parts):
-        # Only process non-code blocks
-        if not part.startswith('```'):
-            part = escape_html(part)
-            part = re.sub(r'`(.*?)`', r'<code>\1</code>', part)
-            part = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', part)
-            part = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', part)
-            part = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', part)
-            part = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', part)            
-            part = re.sub(r'^######\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            part = re.sub(r'^#####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            part = re.sub(r'^####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            part = re.sub(r'^###\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            part = re.sub(r'^##\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            part = re.sub(r'^#\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
-            parts[i] = part
-        else:
-            # For code blocks, extract the language hint (if any)
-            language_match = re.match(r'```(\w+)?\s', part)
-            language = language_match.group(1) if language_match else ''
-            # Remove the language hint and backticks from the actual code
-            code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
-            code_content = code_content.rstrip('`').rstrip()
-            # Escape HTML characters in code content
-            code_content = escape_html(code_content)
-            # Wrap the code with <pre> and <code>
-            parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
+    try:
+        # Convert Markdown links [text](url) to HTML <a href="url">text</a>
+        text = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', text)
 
-    # Reassemble the parts into the final HTML
-    return ''.join(parts)
+        # Handle bold and italics, without over-escaping
+        text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+        text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+        text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+
+        # Handle inline code
+        text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+
+        # Handle headers
+        text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
+        text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
+        text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
+        text = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', text)
+        text = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', text)
+        text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
+
+        return text
+    except Exception as e:
+        print(f"Error during markdown to HTML conversion: {str(e)}")
+        return text  # Return original text as a fallback
+
+# def markdown_to_html(text):
+#     try:
+#         # Convert Markdown links [text](url) to HTML <a href="url">text</a> first
+#         text = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', text)
+
+#         # Split the text into code blocks and other parts
+#         parts = re.split(r'(```.*?```)', text, flags=re.DOTALL)
+#         for i, part in enumerate(parts):
+#             # Only process non-code blocks
+#             if not part.startswith('```'):
+#                 # Escape all HTML special characters except within <a> tags
+#                 part = preserve_html_and_escape_text(part)
+
+#                 # Apply other markdown to HTML transformations
+#                 part = re.sub(r'`(.*?)`', r'<code>\1</code>', part)
+#                 part = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', part)
+#                 part = re.sub(r'\*(.*?)\*', r'<i>\1</i>', part)
+#                 part = re.sub(r'_(.*?)_', r'<i>\1</i>', part)
+#                 part = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', part)
+#                 part = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', part)
+#                 part = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', part)
+#                 part = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', part)
+#                 part = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', part)
+#                 part = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', part)
+#                 parts[i] = part
+#             else:
+#                 # Handle code blocks
+#                 language_match = re.match(r'```(\w+)?\s', part)
+#                 language = language_match.group(1) if language_match else ''
+#                 code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
+#                 code_content = code_content.rstrip('`').rstrip()
+#                 code_content = html.escape(code_content)
+#                 parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
+
+#         # Reassemble the parts into the final HTML
+#         final_html = ''.join(parts)
+#         return final_html
+#     except Exception as e:
+#         print(f"Error during markdown to HTML conversion: {str(e)}")
+#         return html.escape(text)  # As a fallback, escape the entire input
+
+# # ==========================================
+# # v0.737 method // may lead to over-escaping
+# # ==========================================
+# def escape_html(text):
+#     return html.escape(text)
+
+# def markdown_to_html(text):
+#     # Split the text into code blocks and other parts
+#     parts = re.split(r'(```.*?```)', text, flags=re.DOTALL)
+#     for i, part in enumerate(parts):
+#         # Only process non-code blocks
+#         if not part.startswith('```'):
+#             part = escape_html(part)
+#             part = re.sub(r'`(.*?)`', r'<code>\1</code>', part)
+#             part = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', part)
+#             part = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', part)
+#             part = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', part)
+#             part = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', part)            
+#             part = re.sub(r'^######\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             part = re.sub(r'^#####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             part = re.sub(r'^####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             part = re.sub(r'^###\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             part = re.sub(r'^##\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             part = re.sub(r'^#\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+#             parts[i] = part
+#         else:
+#             # For code blocks, extract the language hint (if any)
+#             language_match = re.match(r'```(\w+)?\s', part)
+#             language = language_match.group(1) if language_match else ''
+#             # Remove the language hint and backticks from the actual code
+#             code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
+#             code_content = code_content.rstrip('`').rstrip()
+#             # Escape HTML characters in code content
+#             code_content = escape_html(code_content)
+#             # Wrap the code with <pre> and <code>
+#             parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
+
+#     # Reassemble the parts into the final HTML
+#     return ''.join(parts)
 
 # # convert markdowns to html
 # def escape_html(text):
