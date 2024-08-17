@@ -10,6 +10,7 @@ import httpx
 import requests
 import logging
 import datetime
+import time
 import json
 import asyncio
 import openai
@@ -38,6 +39,7 @@ from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 from api_get_global_time import get_global_time
 from api_get_stock_prices_yfinance import get_stock_price, search_stock_symbol
+from api_get_website_dump import get_website_dump
 
 # handlers for the custom function calls
 from perplexity_handler import handle_query_perplexity
@@ -237,13 +239,21 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
         # Process any YouTube URLs before the Elasticsearch RAG
         youtube_context_messages = await process_url_message(user_message)
+        logger.info(f"YouTube context messages: {youtube_context_messages}")
 
-        # Process YouTube URLs and append data.
+        # # Process YouTube URLs and append data.
+        # for youtube_context in youtube_context_messages:
+        #     chat_history_with_system_message.append({
+        #         "role": "system", 
+        #         "content": youtube_context
+        #     })
+
         for youtube_context in youtube_context_messages:
             chat_history_with_system_message.append({
                 "role": "system", 
                 "content": youtube_context
             })
+            logger.info(f"Added YouTube context: {youtube_context}")
 
         # ~~~~~~~~~~~~~~~~~
         # Elasticsearch RAG
@@ -465,6 +475,54 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             pass
 
                         # Finalize the function call
+                        stop_typing_event.set()
+                        context.user_data.pop('active_translation', None)
+                        return
+
+                    # ~~~~~~~~~~~~~~~~~~~~~~~
+                    # Website quick peek dump
+                    # ~~~~~~~~~~~~~~~~~~~~~~~
+
+                    elif function_name == 'get_website_dump':
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        url = arguments.get('url', '')
+
+                        if url:
+                            webpage_content = await get_website_dump(url)
+                            if webpage_content:
+                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
+                            else:
+                                system_message = "No content found for the specified URL."
+                        else:
+                            system_message = "URL was invalid. Please provide a valid URL."
+
+                        # Append the webpage content or the relevant message as a system message
+                        chat_history.append({"role": "system", "content": system_message})
+                        context.chat_data['chat_history'] = chat_history
+
+                        # Make an API request using the updated chat history
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+
+                        # Extract and handle the content from the API response
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
+
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
+
+                        # Update usage metrics and logs
+                        bot_token_count = bot.count_tokens(bot_reply)
+                        bot.total_token_usage += bot_token_count
+                        bot.write_total_token_usage(bot.total_token_usage)
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
+
+                        # Ensure the bot has a substantive response to send
+                        if bot_reply:
+                            escaped_reply = markdown_to_html(bot_reply)
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
+                        else:
+                            bot.logger.error("Attempted to send an empty message.")
+                            pass
+
                         stop_typing_event.set()
                         context.user_data.pop('active_translation', None)
                         return
@@ -1026,6 +1084,32 @@ async def make_api_request(bot, chat_history, timeout=30):
                                     timeout=timeout)
         response_json = response.json()
     return response_json
+
+# # retry function
+# async def retry_async(function, retries=3, delay=2, *args, **kwargs):
+#     """
+#     Retries a function up to a specified number of times with a delay between retries.
+    
+#     Args:
+#         function: The async function to retry.
+#         retries: Number of retry attempts.
+#         delay: Delay between retries in seconds.
+#         *args: Positional arguments for the function.
+#         **kwargs: Keyword arguments for the function.
+
+#     Returns:
+#         The result of the function if successful, or None if all retries fail.
+#     """
+#     for attempt in range(retries):
+#         try:
+#             result = await function(*args, **kwargs)
+#             if result:
+#                 return result
+#         except Exception as e:
+#             logging.warning(f"Attempt {attempt + 1} failed: {e}")
+#         time.sleep(delay)
+#     logging.error(f"All {retries} retries failed for function {function.__name__}.")
+#     return None
 
 # (old version) /// typing message animation as an async module, if needed for longer wait times
 # async def send_typing_animation(bot, chat_id, duration=30):

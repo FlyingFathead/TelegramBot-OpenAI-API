@@ -14,5 +14,6 @@ timezonefinder>=6.4.0
 yfinance>=0.2.41
 yt-dlp>=2024.3.10
 feedparser>=6.0.11
+tiktoken>=0.7.0
 
 # markdown

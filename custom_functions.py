@@ -57,6 +57,21 @@ custom_functions.append({
 })
 
 custom_functions.append({
+    'name': 'get_website_dump',
+    'description': '[Use to fetch information from a specific website.] Fetches the content of a website using the lynx --dump command and returns the plain text output.',
+    'parameters': {
+        'type': 'object',
+        'properties': {
+            'url': {
+                'type': 'string',
+                'description': 'The URL of the website to fetch content from.'
+            }
+        },
+        'required': ['url']
+    }
+})
+
+custom_functions.append({
         'name': 'get_directions_from_addresses',
         'description': '[Use when user requests for directions] Provides directions between two addresses using the OpenRouteService API.',
         'parameters': {

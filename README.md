@@ -1,25 +1,27 @@
 # TelegramBot-OpenAI-API
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
-- **Supports transcribed voice messages over Whisper API**
+- **Transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
-- **Supports real-time weather info, weather alerts and other detailed weather & geolocation information retrieval via OpenWeatherMap API and WeatherAPI**
-- **Supports geolocation and map lookups via MapTiler API**
+- **Real-time weather info, weather alerts and other detailed weather & geolocation information retrieval via OpenWeatherMap API and WeatherAPI**
+- **Geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
-- **Supports navigation instructions via Openrouteservice API**  
+- **Navigation instructions via Openrouteservice API**  
 - Daily token usage tracking & rate limiting for API usage / cost management
-- **Supports Perplexity API models in conjunction with OpenAI models**
+- **Perplexity API models in conjunction with OpenAI models**
   - Very useful for i.e. fact-checking latest data to supplement OpenAI's cutoff dates
-- **Built-in Elasticsearch RAG step**  
+- **Built-in Elasticsearch RAG steps**  
   - Increase the knowledge rate with your own documents
   - Quickly generate additional knowledge with the built-in Q&A pair creator
-- **Supports holiday notifications via Python's `holidays` module**
+- **Holiday notifications via Python's `holidays` module**
   - Can be localized to any supported country, can also add in your own special days as a reminder
-- **Supports fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
+- **Fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
   - Can be used to fetch all types of financial & stock market data in real time
-- **Supports RSS feeds from all possible RSS sources**  
+- **RSS feeds from all possible and availabale RSS sources**  
   - Can be used to fetch RSS feeds, such as all types of news sources etc
-- **Built-in DuckDuckGo searches from function calls**
+- **DuckDuckGo searches as context-augmented function calls**
   - Make your assistant even more precise with relevant urls etc.
+- **Web browsing (page dumps w/ links) as context-augmented function calls**
+  - With optional domain/IP address allow/disallow lists for safety
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -38,6 +40,7 @@ python-telegram-bot>=20.7
 transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
+tiktoken>=0.7.0
 timezonefinder>=6.4.0
 yfinance>=0.2.41
 yt-dlp>=2024.3.10
@@ -66,6 +69,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.735 - Lynx website browsing with allow/disallow lists for domains allowed/disallowed to be viewed
 - v0.734 - Now hosting over 100 RSS feeds by default (when RAG triggered)
   - DuckDuckGo searches added as a function call
 - v0.733 - RSS parsing logic streamlined into RAG context
