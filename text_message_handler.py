@@ -559,8 +559,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
-                            # escaped_reply = markdown_to_html(bot_reply)
-                            escaped_reply = bot_reply
+                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = bot_reply
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
