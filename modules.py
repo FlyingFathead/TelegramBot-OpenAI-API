@@ -6,6 +6,7 @@ import datetime
 import logging
 from transformers import GPT2Tokenizer
 import re
+import html
 
 logger = logging.getLogger('TelegramBotLogger')
 
@@ -67,13 +68,8 @@ def reset_token_usage_at_midnight(token_usage_file, reset_in_memory_counter_call
     except Exception as e:
         logging.error(f"Failed to reset token usage: {e}")
 
-# convert markdowns to html
 def escape_html(text):
-    # Escape HTML special characters
-    return (text.replace('&', '&amp;')
-                .replace('<', '&lt;')
-                .replace('>', '&gt;')
-                .replace('"', '&quot;'))
+    return html.escape(text)
 
 def markdown_to_html(text):
     # Split the text into code blocks and other parts
@@ -87,10 +83,16 @@ def markdown_to_html(text):
             part = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', part)
             part = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', part)
             part = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', part)
+            part = re.sub(r'^######\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+            part = re.sub(r'^#####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+            part = re.sub(r'^####\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+            part = re.sub(r'^###\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+            part = re.sub(r'^##\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
+            part = re.sub(r'^#\s*(.*)', r'➤ <b>\1</b>', part, flags=re.MULTILINE)
             parts[i] = part
         else:
             # For code blocks, extract the language hint (if any)
-            language_match = re.match(r'```(\w+)\s', part)
+            language_match = re.match(r'```(\w+)?\s', part)
             language = language_match.group(1) if language_match else ''
             # Remove the language hint and backticks from the actual code
             code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
@@ -100,11 +102,47 @@ def markdown_to_html(text):
             # Wrap the code with <pre> and <code>
             parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
 
-    # Reassemble the parts into the final HTML, removing extra newlines after code blocks
-    # text = ''.join(parts).replace('</pre>\n\n', '</pre>\n')
-    # return text
     # Reassemble the parts into the final HTML
-    return ''.join(parts)   
+    return ''.join(parts)
+
+# # convert markdowns to html
+# def escape_html(text):
+#     # Escape HTML special characters
+#     return (text.replace('&', '&amp;')
+#                 .replace('<', '&lt;')
+#                 .replace('>', '&gt;')
+#                 .replace('"', '&quot;'))
+
+# def markdown_to_html(text):
+#     # Split the text into code blocks and other parts
+#     parts = re.split(r'(```.*?```)', text, flags=re.DOTALL)
+#     for i, part in enumerate(parts):
+#         # Only process non-code blocks
+#         if not part.startswith('```'):
+#             part = escape_html(part)
+#             part = re.sub(r'`(.*?)`', r'<code>\1</code>', part)
+#             part = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', part)
+#             part = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', part)
+#             part = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', part)
+#             part = re.sub(r'\[(.*?)\]\((https?://\S+)\)', r'<a href="\2">\1</a>', part)
+#             parts[i] = part
+#         else:
+#             # For code blocks, extract the language hint (if any)
+#             language_match = re.match(r'```(\w+)\s', part)
+#             language = language_match.group(1) if language_match else ''
+#             # Remove the language hint and backticks from the actual code
+#             code_content = re.sub(r'```(\w+)?\s', '', part, count=1)
+#             code_content = code_content.rstrip('`').rstrip()
+#             # Escape HTML characters in code content
+#             code_content = escape_html(code_content)
+#             # Wrap the code with <pre> and <code>
+#             parts[i] = f'<pre><code class="{language}">{code_content}</code></pre>'
+
+#     # Reassemble the parts into the final HTML, removing extra newlines after code blocks
+#     # text = ''.join(parts).replace('</pre>\n\n', '</pre>\n')
+#     # return text
+#     # Reassemble the parts into the final HTML
+#     return ''.join(parts)   
 
 # Check and update the global rate limit.
 def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_limit_reset_time):

@@ -36,14 +36,16 @@ from api_get_duckduckgo_search import get_duckduckgo_search
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
-from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 from api_get_global_time import get_global_time
 from api_get_stock_prices_yfinance import get_stock_price, search_stock_symbol
 from api_get_website_dump import get_website_dump
 from calc_module import calculate_expression
 
 # handlers for the custom function calls
-from perplexity_handler import handle_query_perplexity
+from api_perplexity_search import query_perplexity
+# from perplexity_handler import handle_query_perplexity
+# from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
+# from api_perplexity_search import query_perplexity, smart_chunk, split_message
 
 # RAG via elasticsearch
 from elasticsearch_handler import search_es_for_context
@@ -422,7 +424,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.user_data.pop('active_translation', None)
                         return
 
-                    # get the weather via openweathermap api
+                    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    # weather via openweathermap api
+                    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
                     elif function_name == 'get_weather':
                         # Fetch the weather data
                         arguments = json.loads(function_call.get('arguments', '{}'))
@@ -495,8 +500,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # View the output (i.e. for markdown etc formatting debugging)
                         logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                        # escaped_reply = markdown_to_html(bot_reply)
-                        escaped_reply = bot_reply
+                        escaped_reply = markdown_to_html(bot_reply)
+                        # escaped_reply = bot_reply
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                         # Log the bot's response
@@ -771,9 +776,80 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     # Handling the Perplexity API call with automatic translation
 
                     elif function_name == 'query_perplexity':
-                        response_sent = await handle_query_perplexity(context, update, chat_id, function_call, user_message, bot, chat_history)
-                        if response_sent:
-                            return
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        question = arguments.get('question', '')
+
+                        if not question:
+                            logging.warning("No question was provided for the Perplexity query.")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text="No question was provided for the Perplexity query. Please provide a question.",
+                                parse_mode=ParseMode.HTML
+                            )
+                            return True
+
+                        # Make the asynchronous API call to query Perplexity
+                        perplexity_response = await query_perplexity(context.bot, chat_id, question)
+
+                        # Log the raw Perplexity API response for debugging
+                        logging.info(f"Raw Perplexity API Response: {perplexity_response}")
+
+                        if not perplexity_response:
+                            logging.error("Perplexity API returned an invalid or empty response.")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text="Error processing the Perplexity query. Please try again later.",
+                                parse_mode=ParseMode.HTML
+                            )
+                            return True
+
+                        # Add Perplexity response to chat history as a system message
+                        # system_message = f"[Perplexity.ai response. Translate to the user's language if needed and use Telegram-compliant HTML in formatting. DO NOT use Markdown!]: {perplexity_response} [USE TELEGRAM HTML IN THE FORMATTING OF YOUR RESPONSE, NOT MARKDOWN, TRANSLATE TO USER'S LANGUAGE IF NEEDED.]"
+                        system_message = (
+                            f"[Perplexity.ai response]: {perplexity_response} "
+                            "[Translate to the user's language if needed. "
+                            "Use only Telegram-compatible HTML; keep it simple. CONVERT MARKDOWN TO HTML."
+                            "and do NOT use <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <pre> tags. If you want to use a codeblock, use <code>]. Remember to translate to the user's language, i.e. if they're asking in Finnish instead of English, translate into Finnish!"
+                        )
+                        chat_history.append({"role": "system", "content": system_message})
+                        context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
+
+                        # Log the updated chat history
+                        bot.logger.info(f"Updated chat history: {chat_history}")
+
+                        # Make an API request using the updated chat history
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+
+                        # Extract and handle the content from the API response
+                        bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
+
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
+
+                        # Update usage metrics and logs
+                        bot_token_count = bot.count_tokens(bot_reply)
+                        bot.total_token_usage += bot_token_count
+                        bot.write_total_token_usage(bot.total_token_usage)
+                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
+
+                        # Ensure the bot has a substantive response to send
+                        if bot_reply:
+                            # escaped_reply = bot_reply
+                            escaped_reply = markdown_to_html(bot_reply)                            
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
+                        else:
+                            bot.logger.error("Attempted to send an empty message.")
+                            # Optional fallback message or pass
+                            pass
+
+                        # Finalize the function call
+                        context.user_data.pop('active_translation', None)
+                        return True
+
+                    # elif function_name == 'query_perplexity':
+                    #     response_sent = await handle_query_perplexity(context, update, chat_id, function_call, user_message, bot, chat_history)
+                    #     if response_sent:
+                    #         return
 
                     # old code
                     # elif function_name == 'query_perplexity':
@@ -979,8 +1055,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # view the output (i.e. for markdown etc formatting debugging)
                 logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                # escaped_reply = markdown_to_html(bot_reply)
-                escaped_reply = bot_reply
+                escaped_reply = markdown_to_html(bot_reply)
+                # escaped_reply = bot_reply
                 logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                 # Log the bot's response

@@ -8,6 +8,9 @@ from functools import partial
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
+import json
+import httpx
+import openai
 
 # juhlapäivien käännösnimet
 holiday_replacements = {
