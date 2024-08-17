@@ -25,6 +25,7 @@ DISALLOWED_DOMAINS = [
 # check if the domain is allowed or not
 def is_domain_allowed(url):
     if not USE_DOMAIN_RESTRICTIONS:
+        logging.warning("Domain restrictions are NOT in use. All domains are allowed.")
         return True  # If restrictions are not used, allow all domains
 
     parsed_url = urllib.parse.urlparse(url)
