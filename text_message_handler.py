@@ -1228,6 +1228,29 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
             parse_mode=ParseMode.HTML  # Adjust as necessary
         )
 
+# api requests with retry
+async def make_api_request_with_retry(bot, chat_history, retries=3, timeout=30):
+    attempt = 0
+    while attempt < retries:
+        try:
+            response_json = await make_api_request(bot, chat_history, timeout)
+            # Check if the response content is empty or None
+            bot_reply_content = response_json['choices'][0]['message'].get('content', '')
+            if bot_reply_content and bot_reply_content.strip():
+                return response_json
+            else:
+                bot.logger.warning(f"Attempt {attempt + 1}: Blank response received, retrying...")
+                attempt += 1
+                await asyncio.sleep(2)  # Optional: Add a slight delay between retries
+
+        except Exception as e:
+            bot.logger.error(f"Attempt {attempt + 1}: Error during API request - {str(e)}")
+            attempt += 1
+            await asyncio.sleep(2)  # Optional: Add a slight delay between retries
+
+    bot.logger.error("All retry attempts failed, returning last attempt's response (if any).")
+    return response_json  # Return the last response even if blank
+
 # API request function module
 async def make_api_request(bot, chat_history, timeout=30):
     # Prepare the payload for the API request with updated chat history

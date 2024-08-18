@@ -9,10 +9,14 @@ logger = logging.getLogger(__name__)
 
 # Below are some safety measures so that the outputs aren't absolutely insane in length.
 # Define maximum allowed length for the result and maximum magnitude
-MAX_OUTPUT_LENGTH = 100  # Adjust as necessary
+MAX_OUTPUT_LENGTH = 500  # Adjust as necessary
 MAX_MAGNITUDE = 1e100    # Example maximum magnitude
 
 def safe_eval(expression):
+
+    # Replace '^' with '**' for exponentiation
+    expression = expression.replace('^', '**')
+
     allowed_operators = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
@@ -74,12 +78,18 @@ async def calculate_expression(expression: str):
             logger.error(error_message)
             return error_message
 
-        # result_message = f"The result of `{expression}` is `{result}`."
+        # Construct the success message
         result_message = f"The result of <code>{expression}</code> is <code>{result}</code>."
-        
         logger.info(f"Calculation successful: {result_message}")
         return result_message
-    except Exception as e:
-        error_message = f"Error evaluating expression `{expression}`: {str(e)}"
+    except ValueError as ve:
+        # Specific handling for ValueError (e.g., unsupported operations)
+        error_message = f"Error evaluating expression `{expression}`: {str(ve)}"
         logger.error(error_message)
         return error_message
+    except Exception as e:
+        # General error handling
+        error_message = f"An unexpected error occurred while evaluating `{expression}`: {str(e)}"
+        logger.error(error_message)
+        return error_message
+    
