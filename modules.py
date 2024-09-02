@@ -100,23 +100,32 @@ def preserve_html_and_escape_text(text):
     escaped_text += html.escape(text[last_end:])
     return escaped_text
 
+# markdown to html parsing
 def markdown_to_html(text):
     try:
-        # Supported URL schemes, now including tel: and mailto:
-        supported_schemes = r'(https?|ftp|sftp|mailto|tel|sms|geo|file|data|git|ssh|ircs?|svn|news|magnet|ws|wss|jdbc)'
-        
-        # Convert Markdown links [text](url) to HTML <a href="url">text</a>
-        text = re.sub(r'\[(.*?)\]\((' + supported_schemes + r':\S+)\)', r'<a href="\2">\1</a>', text)
+        # Handle the code blocks with optional language specification
+        def replace_codeblock(match):
+            full_codeblock = match.group(0)  # Get the entire matched code block
+            code_content = match.group(2)  # Get the actual code inside the block
+            language = match.group(1)  # Get the language identifier
 
-        # Handle bold and italics, without over-escaping
+            # Escape the code content for HTML
+            escaped_code = html.escape(code_content.strip())
+
+            # Return the formatted code block with the language class if provided
+            if language:
+                return f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
+            else:
+                return f'<pre><code>{escaped_code}</code></pre>'
+
+        # Regex to capture language identifier and code block
+        text = re.sub(r'```(\w+)?\n([\s\S]*?)```', replace_codeblock, text)
+
+        # Handle inline code and other markdown elements
         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
         text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
         text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
-
-        # Handle inline code
-        text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
-
-        # Handle headers
+        text = re.sub(r'`([^`]*)`', r'<code>\1</code>', text)
         text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
         text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
         text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
@@ -125,9 +134,38 @@ def markdown_to_html(text):
         text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
 
         return text
+
     except Exception as e:
-        print(f"Error during markdown to HTML conversion: {str(e)}")
-        return text  # Return original text as a fallback
+        return str(e)
+    
+# def markdown_to_html(text):
+#     try:
+#         # Supported URL schemes, now including tel: and mailto:
+#         supported_schemes = r'(https?|ftp|sftp|mailto|tel|sms|geo|file|data|git|ssh|ircs?|svn|news|magnet|ws|wss|jdbc)'
+        
+#         # Convert Markdown links [text](url) to HTML <a href="url">text</a>
+#         text = re.sub(r'\[(.*?)\]\((' + supported_schemes + r':\S+)\)', r'<a href="\2">\1</a>', text)
+
+#         # Handle bold and italics, without over-escaping
+#         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+#         text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+#         text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+
+#         # Handle inline code
+#         text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+
+#         # Handle headers
+#         text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
+
+#         return text
+#     except Exception as e:
+#         print(f"Error during markdown to HTML conversion: {str(e)}")
+#         return text  # Return original text as a fallback
 
 # def markdown_to_html(text):
 #     try:
