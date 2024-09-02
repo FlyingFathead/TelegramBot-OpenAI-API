@@ -100,26 +100,30 @@ def preserve_html_and_escape_text(text):
     escaped_text += html.escape(text[last_end:])
     return escaped_text
 
-# markdown to html parsing
+# markdown to html parsing (v0.737.2)
 def markdown_to_html(text):
     try:
-        # Handle the code blocks with optional language specification
+        # Handle the code blocks with optional language specification first
         def replace_codeblock(match):
-            full_codeblock = match.group(0)  # Get the entire matched code block
-            code_content = match.group(2)  # Get the actual code inside the block
+            codeblock = match.group(2)  # Get the actual code inside the block
             language = match.group(1)  # Get the language identifier
-
-            # Escape the code content for HTML
-            escaped_code = html.escape(code_content.strip())
-
-            # Return the formatted code block with the language class if provided
+            escaped_code = html.escape(codeblock.strip())
             if language:
                 return f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
             else:
                 return f'<pre><code>{escaped_code}</code></pre>'
 
-        # Regex to capture language identifier and code block
+        # Replace code blocks with <pre><code> tags
         text = re.sub(r'```(\w+)?\n([\s\S]*?)```', replace_codeblock, text)
+
+        # Now handle Markdown links and convert them to HTML
+        def replace_markdown_link(match):
+            link_text = match.group(1)  # The text to display
+            url = match.group(2)  # The URL
+            return f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
+
+        # Replace Markdown links [text](url) with HTML <a> tags
+        text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_markdown_link, text)
 
         # Handle inline code and other markdown elements
         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
@@ -137,6 +141,44 @@ def markdown_to_html(text):
 
     except Exception as e:
         return str(e)
+
+# # markdown to html parsing (v0.737.1)
+# def markdown_to_html(text):
+#     try:
+#         # Handle the code blocks with optional language specification
+#         def replace_codeblock(match):
+#             full_codeblock = match.group(0)  # Get the entire matched code block
+#             code_content = match.group(2)  # Get the actual code inside the block
+#             language = match.group(1)  # Get the language identifier
+
+#             # Escape the code content for HTML
+#             escaped_code = html.escape(code_content.strip())
+
+#             # Return the formatted code block with the language class if provided
+#             if language:
+#                 return f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
+#             else:
+#                 return f'<pre><code>{escaped_code}</code></pre>'
+
+#         # Regex to capture language identifier and code block
+#         text = re.sub(r'```(\w+)?\n([\s\S]*?)```', replace_codeblock, text)
+
+#         # Handle inline code and other markdown elements
+#         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+#         text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+#         text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+#         text = re.sub(r'`([^`]*)`', r'<code>\1</code>', text)
+#         text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
+
+#         return text
+
+#     except Exception as e:
+#         return str(e)
     
 # def markdown_to_html(text):
 #     try:
