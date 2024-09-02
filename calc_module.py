@@ -79,7 +79,7 @@ async def calculate_expression(expression: str):
             return error_message
 
         # Construct the success message
-        result_message = f"The result of <code>{expression}</code> is <code>{result}</code>."
+        result_message = f"[NOTE: If using i.e. Finnish, you can word it i.e. with: 'Tulos laskutoimitukselle:'] The result of <code>{expression}</code> is <code>{result}</code>."
         logger.info(f"Calculation successful: {result_message}")
         return result_message
     except ValueError as ve:
