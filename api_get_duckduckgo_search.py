@@ -34,9 +34,54 @@ def print_horizontal_line(length=50, character='-'):
 # Main DuckDuckGo search function
 async def get_duckduckgo_search(search_terms, user_message):
     try:
+        # Check if agentic browsing is enabled before doing anything else
+        if not enable_agentic_browsing:
+            logger.info("Agentic browsing is disabled. Returning basic DuckDuckGo results without sub-agent processing.")
+            
+            # Perform the DuckDuckGo search and return the raw results without involving sub-agent
+            formatted_query = quote(search_terms)
+            search_url = f"https://duckduckgo.com/html/?q={formatted_query}"
+
+            # Using asyncio subprocess to run lynx dump
+            process = await asyncio.create_subprocess_exec(
+                "lynx", "--dump", search_url,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_message = stderr.decode('utf-8').strip()
+                logger.error(f"Error: {error_message}")
+                return f"Error: {error_message}"
+
+            response_text = stdout.decode('utf-8')
+            cleaned_text = parse_duckduckgo(response_text)  # Clean the text by removing DuckDuckGo links
+
+            # Initialize a set to keep track of the links we've seen
+            seen_links = set()
+            unique_links = []
+            
+            lines = cleaned_text.split('\n')
+            for line in lines:
+                if 'http' in line:
+                    link = 'http' + line.split('http')[1].split(' ')[0]
+                    if link not in seen_links:
+                        seen_links.add(link)
+                        unique_links.append(line)
+                else:
+                    unique_links.append(line)
+            
+            unique_text = '\n'.join(unique_links)
+            logger.info(unique_text)
+
+            # Directly return the DuckDuckGo search results as formatted text
+            return format_for_telegram_html(unique_text)
+
+        # Continue if agentic browsing is enabled
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print_horizontal_line()
-        logger.info(f"[{timestamp}] DuckDuckGo searching: {search_terms}")
+        logger.info(f"[{timestamp}] Agentic browsing-enabled DuckDuckGo searching: {search_terms}")
         print_horizontal_line()
 
         formatted_query = quote(search_terms)
@@ -76,7 +121,7 @@ async def get_duckduckgo_search(search_terms, user_message):
         logger.info(unique_text)
         print_horizontal_line()
 
-        # Call the sub-agent to further process results
+        # Call the sub-agent to further process results, only if agentic browsing is enabled
         sub_agent_result = await sub_agent_openai_call(user_message, search_terms, unique_text)
 
         # Failsafe: if sub-agent result is empty, return the DuckDuckGo results instead
@@ -169,46 +214,28 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
 
                     logger.info(f"Function 'visit_webpage' called with arguments: {arguments}")
 
-                    # Validate the URL before attempting to fetch the content
+                    # Attempt to fetch content from the provided URL
                     if url:
-                        logger.info(f"Attempting to fetch content from URL: {url}")
-
                         try:
-                            # Fetch the content from the provided URL
+                            logger.info(f"Attempting to fetch content from URL: {url}")
                             page_content = await fetch_link_content(url)
                             
-                            # Check if the content is empty
+                            # Check if the content is empty or invalid
                             if not page_content or not page_content.strip():
-                                logger.error(f"No content returned from {url}.")
-                                return f"Error: No content returned from {url}."
+                                logger.error(f"Empty content fetched from {url}. Returning DuckDuckGo results.")
+                                return format_for_telegram_html(search_results)
 
                             logger.info(f"Fetched content from {url}, content length: {len(page_content)} characters")
-
-                            # Log the first 500 characters of the page content for debugging
-                            logger.debug(f"First 500 characters of fetched content: {page_content[:500]}")
-
-                            # Append the fetched content to the chat context
-                            system_message['content'] += f"\n\nFetched content from {url}:\n{page_content}\n"
-                            logger.info(f"Appended fetched content to system message. Updated content length: {len(system_message['content'])}")
-
-                            # Return the fetched content
                             return f"Sub-agent fetched the following content from {url}:\n\n{page_content}"
 
                         except Exception as e:
-                            # Log any errors that occur during the fetch
-                            logger.error(f"Error occurred while fetching content from {url}: {str(e)}")
-                            return f"Error: Failed to fetch content from {url}. Details: {str(e)}"
+                            logger.error(f"Error while fetching content from {url}: {str(e)}. Returning DuckDuckGo results.")
+                            return format_for_telegram_html(search_results)
                     else:
-                        # Log the case where no valid URL was provided
-                        logger.error("Sub-agent function call did not provide a valid URL.")
-                        return "Error: No valid URL provided for the sub-agent to fetch."
+                        logger.error("No valid URL provided by sub-agent. Returning DuckDuckGo results.")
+                        return format_for_telegram_html(search_results)
 
-                else:
-                    # Log unknown function calls
-                    logger.error(f"Unknown function call requested by the sub-agent: {function_name}")
-                    return f"Error: Unknown function call: {function_name}"
-
-            # If there's no function call, return the sub-agent's reply as is
+            # If no function call, return the sub-agent's reply as is
             agent_reply = response_json['choices'][0]['message']['content']
             logger.info(f"Sub-agent reply: {agent_reply}")
             return format_for_telegram_html(agent_reply)
@@ -218,8 +245,8 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
             attempt += 1
             await asyncio.sleep(2)  # Optional delay between retries
 
-    logger.error(f"All {retries} retry attempts failed. Returning DuckDuckGo search results.")
-    return f"Sub-agent failed after {retries} attempts. Returning DuckDuckGo search results:\n{search_results}"
+    logger.error(f"All {retries} attempts failed. Returning DuckDuckGo search results.")
+    return format_for_telegram_html(search_results)
 
 # Fetch content from a link using lynx or requests
 async def fetch_link_content(link):
@@ -247,8 +274,10 @@ async def fetch_link_content(link):
         if process.returncode != 0:
             error_message = stderr.decode('utf-8').strip()
             logger.error(f"Error during lynx execution: {error_message}")
-            return f"Error: {error_message}"
-
+            
+            # Fail fast here and return original search results
+            return f"Error: Unable to access {link}. Fallback to search results."
+        
         # Decoding the response text from stdout
         page_content = stdout.decode('utf-8')
         logger.info(f"Lynx dump output received. Content length: {len(page_content)} characters")
@@ -270,7 +299,7 @@ async def fetch_link_content(link):
 
     except Exception as e:
         logger.error(f"Exception occurred during fetch_link_content: {str(e)}")
-        return f"Error: {str(e)}"
+        return f"Error: Failed to fetch content from {link}. Details: {str(e)}"
 
 # Clean DuckDuckGo search results
 def parse_duckduckgo(text):
