@@ -1,6 +1,6 @@
 # TelegramBot-OpenAI-API
 
-## _Powered by ChatKeke_ 🚀
+## 🤖 _Powered by ChatKeke_ 🚀
 
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
 - **🎙 Transcribed voice messages over Whisper API**
