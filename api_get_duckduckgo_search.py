@@ -1,24 +1,27 @@
 # api_get_duckduckgo_search.py
 
 import asyncio
-from urllib.parse import quote, unquote, unquote_plus
+import logging
+from urllib.parse import quote, unquote_plus
 import datetime
 import shutil
 import re
-import sys
 
-# print term width horizontal line
-def print_horizontal_line(character='-'):
-    terminal_width = shutil.get_terminal_size().columns
-    line = character * terminal_width
-    print(line)
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Print term width horizontal line
+def print_horizontal_line(length=50, character='-'):
+    line = character * length
+    logger.info(line)
 
 async def get_duckduckgo_search(search_terms):
     try:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print_horizontal_line()
-        print(f"[{timestamp}] DuckDuckGo-haku käyttäjän pyynnöstä: {search_terms}")
+        logger.info(f"[{timestamp}] DuckDuckGo searching: {search_terms}")
         print_horizontal_line()
+
         formatted_query = quote(search_terms)
         search_url = f"https://duckduckgo.com/html/?q={formatted_query}"
 
@@ -32,8 +35,8 @@ async def get_duckduckgo_search(search_terms):
 
         if process.returncode != 0:
             error_message = stderr.decode('utf-8').strip()
-            print(f"Virhe: {error_message}")
-            return f"Virhe: {error_message}"
+            logger.error(f"Error: {error_message}")
+            return f"Error: {error_message}"
 
         response_text = stdout.decode('utf-8')
         cleaned_text = parse_duckduckgo(response_text)  # Clean the text by removing DuckDuckGo links
@@ -53,15 +56,14 @@ async def get_duckduckgo_search(search_terms):
                 unique_links.append(line)
         
         unique_text = '\n'.join(unique_links)
-        print_horizontal_line()
-        print(unique_text)
+        logger.info(unique_text)
         print_horizontal_line()
 
         return unique_text
 
     except Exception as e:
-        print(f"Virhe: {str(e)}")
-        return f"Virhe: {str(e)}"
+        logger.error(f"Error: {str(e)}")
+        return f"Error: {str(e)}"
 
 def parse_duckduckgo(text):
     duckduckgo_pattern = r'(https://duckduckgo\.com/l/\?uddg=[^\s]+)'
