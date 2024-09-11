@@ -1,5 +1,7 @@
 # api_get_duckduckgo_search.py
 
+import httpx
+import json
 import asyncio
 import logging
 from urllib.parse import quote, unquote_plus
@@ -74,24 +76,211 @@ async def get_duckduckgo_search(search_terms, user_message):
         logger.info(unique_text)
         print_horizontal_line()
 
-        # Check if agentic browsing is enabled
-        if enable_agentic_browsing:
-            # Send to sub-agent (OpenAI API) for further processing
-            sub_agent_result = await sub_agent_openai_call(user_message, search_terms, unique_text)
-            return sub_agent_result
-        else:
-            logger.info("Agentic browsing is disabled. Returning DuckDuckGo search results only.")
-            return unique_text
+        # Call the sub-agent to further process results
+        sub_agent_result = await sub_agent_openai_call(user_message, search_terms, unique_text)
+
+        # Failsafe: if sub-agent result is empty, return the DuckDuckGo results instead
+        if not sub_agent_result.strip():
+            logger.warning("Sub-agent returned empty. Falling back to DuckDuckGo results.")
+            return format_for_telegram_html(unique_text)
+
+        return sub_agent_result
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         return f"Error: {str(e)}"
 
-# Function to clean up and parse the DuckDuckGo results
+# OpenAI sub-agent call handler
+async def sub_agent_openai_call(user_message, search_terms, search_results, retries=3, timeout=30):
+    """
+    Pass the user's message, search terms, and DuckDuckGo results to the OpenAI API sub-agent for further processing.
+    Includes retry logic to handle failures.
+    """
+    attempt = 0
+    while attempt < retries:
+        try:
+            logger.info(f"Sub-agent attempt {attempt + 1}: Preparing to send API request to OpenAI.")
+
+            # Prepare the system message for the sub-agent
+            system_message = {
+                "role": "system",
+                "content": f"The user's input was: {user_message}\n"
+                           f"The search term used was: {search_terms}\n"
+                           f"The DuckDuckGo search results are:\n{search_results}\n"
+                           "You may call the `visit_webpage` function if you need to visit a webpage for further details."
+            }
+
+            # Define the available functions
+            functions = [
+                {
+                    "name": "visit_webpage",
+                    "description": "Fetch the contents of a webpage for further analysis.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string",
+                                "description": "The URL of the webpage to visit."
+                            }
+                        },
+                        "required": ["url"]
+                    }
+                }
+            ]
+
+            # Payload for the API request
+            payload = {
+                "model": model_name,  # Use the model from config.ini
+                "messages": [system_message],
+                "functions": functions,  # Add the functions to the payload
+                "function_call": "auto",  # Let the model decide if/when to call the function
+                "temperature": temperature,  # Use temperature from config.ini
+                "max_tokens": max_tokens  # Use max_tokens from config.ini
+            }
+
+            # Make the API request using httpx
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {openai.api_key}"
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    data=json.dumps(payload),
+                    headers=headers,
+                    timeout=timeout
+                )
+
+            response_json = response.json()
+            logger.info(f"Sub-agent API request completed. Response: {response_json}")
+
+            # Check if OpenAI returned a function call
+            if 'function_call' in response_json['choices'][0]['message']:
+                function_call = response_json['choices'][0]['message']['function_call']
+                function_name = function_call['name']
+                logger.info(f"Sub-agent requested function call: {function_name}")
+
+                # Handle the custom function calls
+                if function_name == 'visit_webpage':
+                    # Extract the arguments from the function call
+                    arguments = json.loads(function_call.get('arguments', '{}'))
+                    url = arguments.get('url', '')
+
+                    logger.info(f"Function 'visit_webpage' called with arguments: {arguments}")
+
+                    # Validate the URL before attempting to fetch the content
+                    if url:
+                        logger.info(f"Attempting to fetch content from URL: {url}")
+
+                        try:
+                            # Fetch the content from the provided URL
+                            page_content = await fetch_link_content(url)
+                            
+                            # Check if the content is empty
+                            if not page_content or not page_content.strip():
+                                logger.error(f"No content returned from {url}.")
+                                return f"Error: No content returned from {url}."
+
+                            logger.info(f"Fetched content from {url}, content length: {len(page_content)} characters")
+
+                            # Log the first 500 characters of the page content for debugging
+                            logger.debug(f"First 500 characters of fetched content: {page_content[:500]}")
+
+                            # Append the fetched content to the chat context
+                            system_message['content'] += f"\n\nFetched content from {url}:\n{page_content}\n"
+                            logger.info(f"Appended fetched content to system message. Updated content length: {len(system_message['content'])}")
+
+                            # Return the fetched content
+                            return f"Sub-agent fetched the following content from {url}:\n\n{page_content}"
+
+                        except Exception as e:
+                            # Log any errors that occur during the fetch
+                            logger.error(f"Error occurred while fetching content from {url}: {str(e)}")
+                            return f"Error: Failed to fetch content from {url}. Details: {str(e)}"
+                    else:
+                        # Log the case where no valid URL was provided
+                        logger.error("Sub-agent function call did not provide a valid URL.")
+                        return "Error: No valid URL provided for the sub-agent to fetch."
+
+                else:
+                    # Log unknown function calls
+                    logger.error(f"Unknown function call requested by the sub-agent: {function_name}")
+                    return f"Error: Unknown function call: {function_name}"
+
+            # If there's no function call, return the sub-agent's reply as is
+            agent_reply = response_json['choices'][0]['message']['content']
+            logger.info(f"Sub-agent reply: {agent_reply}")
+            return format_for_telegram_html(agent_reply)
+
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1}: Error during sub-agent API request - {str(e)}")
+            attempt += 1
+            await asyncio.sleep(2)  # Optional delay between retries
+
+    logger.error(f"All {retries} retry attempts failed. Returning DuckDuckGo search results.")
+    return f"Sub-agent failed after {retries} attempts. Returning DuckDuckGo search results:\n{search_results}"
+
+# Fetch content from a link using lynx or requests
+async def fetch_link_content(link):
+    if not link:
+        logger.error("No valid link provided to fetch content from.")
+        return "Error: No valid link provided."
+
+    logger.info(f"Starting to fetch content from link: {link}")
+    
+    try:
+        # Starting subprocess execution
+        logger.info(f"Running lynx dump command for link: {link}")
+        process = await asyncio.create_subprocess_exec(
+            "lynx", "--dump", link,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        # Collecting stdout and stderr
+        stdout, stderr = await process.communicate()
+
+        # Log process return code
+        logger.info(f"Lynx process completed with return code: {process.returncode}")
+
+        if process.returncode != 0:
+            error_message = stderr.decode('utf-8').strip()
+            logger.error(f"Error during lynx execution: {error_message}")
+            return f"Error: {error_message}"
+
+        # Decoding the response text from stdout
+        page_content = stdout.decode('utf-8')
+        logger.info(f"Lynx dump output received. Content length: {len(page_content)} characters")
+
+        # **Filter out binary content like base64 image data**
+        if "data:image/" in page_content:
+            logger.warning("Binary image data detected, skipping this content.")
+            return "[Binary image data detected, content skipped.]"
+
+        # Limiting the content size if enabled
+        if enable_content_size_limit and len(page_content) > max_content_size:
+            logger.info(f"Limiting page content to {max_content_size} characters.")
+            page_content = page_content[:max_content_size] + "\n\n[Content truncated due to size limit.]"
+
+        formatted_content = format_for_telegram_html(page_content)
+        logger.info(f"Formatted content ready for return, final content length: {len(formatted_content)} characters")
+
+        return formatted_content
+
+    except Exception as e:
+        logger.error(f"Exception occurred during fetch_link_content: {str(e)}")
+        return f"Error: {str(e)}"
+
+# Clean DuckDuckGo search results
 def parse_duckduckgo(text):
+    # General URL pattern to capture all URLs
+    url_pattern = r'(http[s]?://[^\s]+)'
+    cleaned_text = text
+
+    # Replace DuckDuckGo obfuscated links with original ones
     duckduckgo_pattern = r'(https://duckduckgo\.com/l/\?uddg=[^\s]+)'
     matches = re.findall(duckduckgo_pattern, text)
-    cleaned_text = text
     for match in matches:
         cleaned_url = match.split('&rut=')[0]
         original_url = unquote_plus(cleaned_url.split('uddg=')[1])
@@ -101,91 +290,71 @@ def parse_duckduckgo(text):
     lines = cleaned_text.split('\n')
     cleaned_lines = [line.strip() for line in lines if line.strip()]  # Removes empty lines and strips whitespace
 
+    # Process and format lines with URLs, excluding DuckDuckGo links
     concise_lines = []
     for line in cleaned_lines:
-        if 'http' in line:
-            url = line.split(' ')[0]  # Assumes URL is the first part of the line
-            title = ' '.join(line.split(' ')[1:])  # The rest is title
-            concise_line = f"{title} - {url}"  # Format: Title - URL
-            concise_lines.append(concise_line)
+        url_match = re.search(url_pattern, line)
+        if url_match:
+            url = url_match.group(0)  # Extract the URL
+            # Exclude any URLs that contain 'duckduckgo.com'
+            if 'duckduckgo.com' not in url:
+                title = line.replace(url, '').strip()  # Remove the URL from the line to get the title
+                concise_line = f"{title} - {url}" if title else url  # Format: Title - URL
+                concise_lines.append(concise_line)
         else:
             concise_lines.append(line)  # For lines without URLs
 
-    return '\n'.join(concise_lines)
+    return format_for_telegram_html('\n'.join(concise_lines))
 
-# OpenAI sub-agent call
-async def sub_agent_openai_call(user_message, search_terms, search_results):
+# Format for Telegram HTML
+def format_for_telegram_html(text):
     """
-    Pass the user's message, search terms, and DuckDuckGo results to the OpenAI API sub-agent for further processing.
+    Formats text to be Telegram-compliant, removing <br> tags and converting special characters,
+    but preserving valid HTML tags like <a>, <b>, <i>, etc.
     """
-    try:
-        # System message for sub-agent
-        system_message = {
-            "role": "system",
-            "content": f"The user's input was: {user_message}\n"
-                       f"The search term used was: {search_terms}\n"
-                       f"The DuckDuckGo search results are:\n{search_results}\n"
-                       "INSTRUCTIONS: Choose a webpage to visit for more information (list the linked URLs like `lynx --dump` does), "
-                       "or respond with '0' if you think these results are enough to provide the needed information."
-        }
+    # Remove <br> tags completely (instead of converting to newlines)
+    text = re.sub(r"<br\s*/?>", "", text)
 
-        # OpenAI API request to the sub-agent
-        response = openai.ChatCompletion.create(
-            model=model_name,  # Use the model from config.ini
-            messages=[system_message],
-            temperature=temperature,  # Use temperature from config.ini
-            max_tokens=max_tokens,  # Use max_tokens from config.ini
-            timeout=timeout  # Use timeout from config.ini
-        )
+    # Escape special characters, but leave valid HTML tags intact
+    # Handles &, <, and >, but preserves valid HTML tags like <a>, <b>, <i>
+    def escape_non_html_entities(match):
+        char = match.group(0)
+        if char == "&":
+            return "&amp;"
+        return char
 
-        # Extract the sub-agent's response
-        agent_reply = response['choices'][0]['message']['content']
+    # Escape & but do not touch valid HTML tags
+    text = re.sub(r"[&](?!#?\w+;)", escape_non_html_entities, text)
 
-        if agent_reply == "0":
-            return f"Sub-agent determined no further browsing needed.\nSearch results:\n{search_results}"
-        else:
-            # If agent chose a link, fetch its content
-            chosen_link = extract_link_from_results(search_results, agent_reply)
-            page_content = await fetch_link_content(chosen_link)
-            return f"Sub-agent browsed link {agent_reply} and fetched this content:\n{page_content}"
+    # Remove extra newlines (more than 2 newlines in a row)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
-    except Exception as e:
-        logger.error(f"Error in sub-agent call: {str(e)}")
-        return f"Error in sub-agent call: {str(e)}"
+    return text
 
-# Extract a link from the search results based on the number
-def extract_link_from_results(search_results, link_number):
-    lines = search_results.split('\n')
-    link = ''
-    for line in lines:
-        if 'http' in line and str(link_number) in line:
-            link = line.split('http')[1].split(' ')[0]
-            break
-    return 'http' + link
+# # Format for Telegram HTML
+# def format_for_telegram_html(text):
+#     """
+#     Formats text to be Telegram-compliant, escaping special characters and converting basic HTML
+#     tags like <br> to newline characters.
+#     """
+#     text = text.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
 
-# Fetch content from a link using lynx or requests
-async def fetch_link_content(link):
-    logger.info(f"Fetching content from link: {link}")
-    process = await asyncio.create_subprocess_exec(
-        "lynx", "--dump", link,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
+#     # Escape special characters
+#     replacements = {
+#         "&": "&amp;",
+#         "<": "&lt;",
+#         ">": "&gt;",
+#         '"': "&quot;",
+#         "'": "&#39;"
+#     }
 
-    if process.returncode != 0:
-        error_message = stderr.decode('utf-8').strip()
-        logger.error(f"Error: {error_message}")
-        return f"Error: {error_message}"
+#     for key, value in replacements.items():
+#         text = text.replace(key, value)
 
-    page_content = stdout.decode('utf-8')
+#     # Remove multiple newlines
+#     text = re.sub(r"\n{3,}", "\n\n", text)
 
-    # Limit the content size if enabled
-    if enable_content_size_limit and len(page_content) > max_content_size:
-        logger.info(f"Limiting page content to {max_content_size} characters.")
-        page_content = page_content[:max_content_size] + "\n\n[Content truncated due to size limit.]"
-
-    return page_content
+#     return text
 
 # import asyncio
 # import logging
@@ -251,32 +420,6 @@ async def fetch_link_content(link):
 #     except Exception as e:
 #         logger.error(f"Error: {str(e)}")
 #         return f"Error: {str(e)}"
-
-# def parse_duckduckgo(text):
-#     duckduckgo_pattern = r'(https://duckduckgo\.com/l/\?uddg=[^\s]+)'
-#     matches = re.findall(duckduckgo_pattern, text)
-#     cleaned_text = text
-#     for match in matches:
-#         cleaned_url = match.split('&rut=')[0]
-#         original_url = unquote_plus(cleaned_url.split('uddg=')[1])
-#         cleaned_text = cleaned_text.replace(match, original_url)
-
-#     # Further clean up to remove empty lines and unnecessary spaces
-#     lines = cleaned_text.split('\n')
-#     cleaned_lines = [line.strip() for line in lines if line.strip()]  # Removes empty lines and strips whitespace
-
-#     # Optional: Further processing to condense the information
-#     concise_lines = []
-#     for line in cleaned_lines:
-#         if 'http' in line:
-#             url = line.split(' ')[0]  # Assumes URL is the first part of the line
-#             title = ' '.join(line.split(' ')[1:])  # The rest is title
-#             concise_line = f"{title} - {url}"  # Format: Title - URL
-#             concise_lines.append(concise_line)
-#         else:
-#             concise_lines.append(line)  # For lines without URLs
-
-#     return '\n'.join(concise_lines)
 
 # # # === old method ===
 # # def parse_duckduckgo(text):
