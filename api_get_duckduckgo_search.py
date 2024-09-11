@@ -148,7 +148,7 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
                 "content": f"The user's input was: {user_message}\n"
                            f"The search term used was: {search_terms}\n"
                            f"DuckDuckGo search results are:\n{search_results}\n"
-                           "You may call the `visit_webpage` function if you need to visit a webpage for further details. The answer must be in Telegram-compliant HTML. <ul>, <li>, <pre> or <br> tags are NOT allowed. If the original question had any specifics in them that are not visible, such as a request to visit the page when it's found, use the `visit_webpage` function call to go there."
+                           "You may call the `visit_webpage` function if you need to visit a webpage for further details. The answer must be in Telegram-compliant HTML. <ul>, <li>, <pre> or <br> tags are NOT allowed. If the original question had any specifics in them that are not visible, such as a request to visit the page when it's found, use the `visit_webpage` function call to go there. Answer in user's original language! Finnish if it was in Finnish, English if it was in English, etc."
             }
 
             # Define the available functions
