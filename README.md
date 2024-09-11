@@ -1,32 +1,32 @@
 # TelegramBot-OpenAI-API
 
-## _Powered by ChatKeke_
+## _Powered by ChatKeke_ 🚀
 
 - A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
-- **Transcribed voice messages over Whisper API**
+- **🎙 Transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
-- **Real-time weather info, weather alerts and other detailed weather & geolocation information retrieval via OpenWeatherMap API and WeatherAPI**
-- **Geolocation and map lookups via MapTiler API**
+- **☁️ Real-time weather info, weather alerts, and geolocation data via OpenWeatherMap & WeatherAPI**
+- **🗺 Geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
-- **Navigation instructions via Openrouteservice API**  
-- Daily token usage tracking & rate limiting for API usage / cost management
-- **Perplexity API models in conjunction with OpenAI models**
-  - Very useful for i.e. fact-checking latest data to supplement OpenAI's cutoff dates
-- **Built-in Elasticsearch RAG steps**  
-  - Increase the knowledge rate with your own documents
-  - Quickly generate additional knowledge with the built-in Q&A pair creator
-- **Holiday notifications via Python's `holidays` module**
-  - Can be localized to any supported country, can also add in your own special days as a reminder
-- **Fetching of stock prices via Alpha Vantage API & Yahoo! Finance**
-  - Can be used to fetch all types of financial & stock market data in real time
-- **RSS feeds from all possible and availabale RSS sources**  
-  - Can be used to fetch RSS feeds, such as all types of news sources etc
-- **DuckDuckGo searches as context-augmented function calls**
-  - Make your assistant even more precise with relevant urls etc.
-- **Web browsing (page dumps w/ links) as context-augmented function calls**
-  - With optional domain/IP address allow/disallow lists for safety
-- **Calculator function call module for precise calculations**
-  - No more fumbling around with AI hallucinations in arithmetics!
+- **🧭 Navigation instructions via Openrouteservice API**  
+- **📊 Daily token usage tracking & rate limiting for API usage / cost management**
+- **🔍 Perplexity API models alongside OpenAI models**
+  - Useful for fact-checking and supplementing OpenAI's cutoff dates
+- **📚 Built-in Elasticsearch RAG steps**  
+  - Increase knowledge rate with your own documents
+  - Generate extra insights with the Q&A pair creator
+- **📅 Holiday notifications via Python's `holidays` module**
+  - Localized to supported countries, or add your own special reminders
+- **📈 Fetching stock prices via Alpha Vantage API & Yahoo! Finance**
+  - Real-time access to financial & stock market data
+- **📰 RSS feeds from all available sources**
+  - Fetch news and more via RSS
+- **🦆 DuckDuckGo searches as context-augmented function calls**  
+  - New! **Sub-agentic browsing** for enhanced, precise searches!
+- **🌐 Web browsing (page dumps w/ links) as context-augmented function calls**
+  - With optional domain/IP allow/disallow lists for safety
+- **🧮 Calculator function call module for precise calculations**
+  - No more fumbling with AI arithmetic hallucinations!
 
 # Prerequisites
 - Tested & working on Python 3.10.12
@@ -74,6 +74,10 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.74 - sub-agentic browsing with DuckDuckGo search engine searches is here! 
+  - Enabled from `config.ini` via `EnableAgenticBrowsing = True`
+  - It allows the AI helper to follow links for further info and return relevant results
+  - Additional bugfixes to edge cases and their output parsing
 - v0.7373 - small fixes to `api_get_duckduckgo_search.py`; agentic link following WIP
 - v0.7372 - Further parsing logic changes (`markdown_to_html` in `modules.py`)
 - v0.7371 - Improved parsing for markdown/html

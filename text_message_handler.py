@@ -363,7 +363,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                     system_message = (
                                         f"[Calculator result, explain to the user in their language if needed. "
                                         "IMPORTANT: Do not translate or simplify the mathematical expressions themselves. "
-                                        "NOTE: Telegram doesn't support LaTeX. Use simple HTML formatting. If the user explicitly asks for LaTeX or mentions LaTeX, use LaTeX formatting; "
+                                        "NOTE: Telegram doesn't support LaTeX. Use simple HTML formatting, note that <pre> or <br> are NOT allowed HTML tags. If the user explicitly asks for LaTeX or mentions LaTeX, use LaTeX formatting; "
                                         "otherwise, use plain text or Unicode with simple HTML.]:\n{calc_result}\n\n"
                                         "[NOTE: format your response appropriately, possibly incorporating additional context or user intent, TRANSLATE it to the user's language if needed.]"
                                     ).format(calc_result=calc_result)  # This ensures the result is inserted correctly
@@ -529,7 +529,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if search_query:
                             search_results = await get_duckduckgo_search(search_query, user_message)
                             if search_results:
-                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][Use SIMPLE, Telegram-compliant HTML: Use these HTML tags if needed: <b> for bold, <i> for italics, <u> for underline, <s> for strikethrough, <code> for inline code, <pre> for preformatted blocks, and <a href=...> for hyperlinks.. Do not use Markdown!]"
+                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][Use SIMPLE, Telegram-compliant HTML: Use these HTML tags if needed: <b> for bold, <i> for italics, <u> for underline, <s> for strikethrough, <code> for inline code, <pre> for preformatted blocks, and <a href=...> for hyperlinks.. Do NOT use <pre>, <br>, <ul>, <li> or Markdown in your response!]"
                             else:
                                 system_message = "No results found for your query."
                         else:
@@ -559,13 +559,26 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
+                            # Function to clean unsupported tags
+                            def sanitize_html(content):
+                                # Remove unsupported HTML tags
+                                for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
+                                    content = content.replace(tag, '')
+                                # Optionally: Replace line breaks with "\n" to preserve formatting
+                                content = content.replace('<br>', '\n').replace('<br/>', '\n')
+                                return content
+
+                            # Convert markdown to HTML
                             escaped_reply = markdown_to_html(bot_reply)
-                            # escaped_reply = bot_reply
+
+                            # Sanitize the HTML to remove any unsupported tags
+                            escaped_reply = sanitize_html(escaped_reply)
+
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
-                            # fallback_message = "I'm not sure how to respond to that. Could you provide more details or ask about something else?"
-                            # await context.bot.send_message(chat_id=chat_id, text=fallback_message, parse_mode=ParseMode.HTML)
+                            escaped_reply = "🤔"
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                             pass
 
                         # Finalize the function call
@@ -584,7 +597,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if url:
                             webpage_content = await get_website_dump(url)
                             if webpage_content:
-                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Do NOT use <pre> tags. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
+                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Do NOT use <pre> or <br> tags! Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
                             else:
                                 system_message = "No content found for the specified URL."
                         else:
@@ -611,11 +624,26 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
+                            # Function to clean unsupported tags
+                            def sanitize_html(content):
+                                # Remove unsupported HTML tags
+                                for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
+                                    content = content.replace(tag, '')
+                                # Optionally: Replace line breaks with "\n" to preserve formatting
+                                content = content.replace('<br>', '\n').replace('<br/>', '\n')
+                                return content
+
+                            # Convert markdown to HTML
                             escaped_reply = markdown_to_html(bot_reply)
-                            # escaped_reply = bot_reply
+
+                            # Sanitize the HTML to remove any unsupported tags
+                            escaped_reply = sanitize_html(escaped_reply)
+
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
+                            escaped_reply = "🤔"
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                             pass
 
                         stop_typing_event.set()
@@ -804,7 +832,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             return True
 
                         # Add Perplexity response to chat history as a system message
-                        # system_message = f"[Perplexity.ai response. Translate to the user's language if needed and use Telegram-compliant HTML in formatting. DO NOT use Markdown!]: {perplexity_response} [USE TELEGRAM HTML IN THE FORMATTING OF YOUR RESPONSE, NOT MARKDOWN, TRANSLATE TO USER'S LANGUAGE IF NEEDED.]"
+                        # system_message = f"[Perplexity.ai response. Translate to the user's language if needed and use Telegram-compliant HTML in formatting. DO NOT use Markdown!]: {perplexity_response} [USE TELEGRAM HTML IN THE FORMATTING OF YOUR RESPONSE, NOT MARKDOWN, TRANSLATE TO USER'S LANGUAGE IF NEEDED.]"                        
                         system_message = (
                             f"[Perplexity.ai response]: {perplexity_response} "
                             "[Translate to the user's language if needed. "
@@ -840,6 +868,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         else:
                             bot.logger.error("Attempted to send an empty message.")
                             # Optional fallback message or pass
+                            escaped_reply = "🤔"
+                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                             pass
 
                         # Finalize the function call

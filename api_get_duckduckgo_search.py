@@ -137,10 +137,6 @@ async def get_duckduckgo_search(search_terms, user_message):
 
 # OpenAI sub-agent call handler
 async def sub_agent_openai_call(user_message, search_terms, search_results, retries=3, timeout=30):
-    """
-    Pass the user's message, search terms, and DuckDuckGo results to the OpenAI API sub-agent for further processing.
-    Includes retry logic to handle failures.
-    """
     attempt = 0
     while attempt < retries:
         try:
@@ -151,8 +147,8 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
                 "role": "system",
                 "content": f"The user's input was: {user_message}\n"
                            f"The search term used was: {search_terms}\n"
-                           f"The DuckDuckGo search results are:\n{search_results}\n"
-                           "You may call the `visit_webpage` function if you need to visit a webpage for further details."
+                           f"DuckDuckGo search results are:\n{search_results}\n"
+                           "You may call the `visit_webpage` function if you need to visit a webpage for further details. The answer must be in Telegram-compliant HTML. <ul>, <li>, <pre> or <br> tags are NOT allowed. If the original question had any specifics in them that are not visible, such as a request to visit the page when it's found, use the `visit_webpage` function call to go there."
             }
 
             # Define the available functions
@@ -219,25 +215,35 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
                         try:
                             logger.info(f"Attempting to fetch content from URL: {url}")
                             page_content = await fetch_link_content(url)
-                            
-                            # Check if the content is empty or invalid
-                            if not page_content or not page_content.strip():
-                                logger.error(f"Empty content fetched from {url}. Returning DuckDuckGo results.")
+
+                            # If lynx fails, return DuckDuckGo results immediately
+                            if "Error" in page_content:
+                                logger.error(f"Fetching content failed from {url}. Returning DuckDuckGo search results.")
                                 return format_for_telegram_html(search_results)
 
                             logger.info(f"Fetched content from {url}, content length: {len(page_content)} characters")
+
+                            # Return fetched content if successful
                             return f"Sub-agent fetched the following content from {url}:\n\n{page_content}"
 
                         except Exception as e:
-                            logger.error(f"Error while fetching content from {url}: {str(e)}. Returning DuckDuckGo results.")
+                            # Catch and log any exception during the fetch
+                            logger.error(f"Failed to fetch content from {url}: {str(e)}. Returning DuckDuckGo results.")
                             return format_for_telegram_html(search_results)
                     else:
                         logger.error("No valid URL provided by sub-agent. Returning DuckDuckGo results.")
                         return format_for_telegram_html(search_results)
 
-            # If no function call, return the sub-agent's reply as is
+            # If there's no function call, return the sub-agent's reply as is
             agent_reply = response_json['choices'][0]['message']['content']
             logger.info(f"Sub-agent reply: {agent_reply}")
+
+            # ***Ensure this is not None***
+            if agent_reply is None:
+                logger.error("Sub-agent response content was None. Returning DuckDuckGo results.")
+                return format_for_telegram_html(search_results)
+
+            # ***Return the final reply***
             return format_for_telegram_html(agent_reply)
 
         except Exception as e:
@@ -245,7 +251,7 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
             attempt += 1
             await asyncio.sleep(2)  # Optional delay between retries
 
-    logger.error(f"All {retries} attempts failed. Returning DuckDuckGo search results.")
+    logger.error(f"All {retries} retry attempts failed. Returning DuckDuckGo search results.")
     return format_for_telegram_html(search_results)
 
 # Fetch content from a link using lynx or requests
@@ -274,18 +280,13 @@ async def fetch_link_content(link):
         if process.returncode != 0:
             error_message = stderr.decode('utf-8').strip()
             logger.error(f"Error during lynx execution: {error_message}")
-            
-            # Fail fast here and return original search results
-            return f"Error: Unable to access {link}. Fallback to search results."
-        
+
+            # ***Return DuckDuckGo results instead of fake content***
+            return "Error: Unable to fetch the content. Returning DuckDuckGo results instead."
+
         # Decoding the response text from stdout
         page_content = stdout.decode('utf-8')
         logger.info(f"Lynx dump output received. Content length: {len(page_content)} characters")
-
-        # **Filter out binary content like base64 image data**
-        if "data:image/" in page_content:
-            logger.warning("Binary image data detected, skipping this content.")
-            return "[Binary image data detected, content skipped.]"
 
         # Limiting the content size if enabled
         if enable_content_size_limit and len(page_content) > max_content_size:
@@ -299,8 +300,8 @@ async def fetch_link_content(link):
 
     except Exception as e:
         logger.error(f"Exception occurred during fetch_link_content: {str(e)}")
-        return f"Error: Failed to fetch content from {link}. Details: {str(e)}"
-
+        return f"Error: Failed to fetch content from {link}. Returning DuckDuckGo results instead."
+    
 # Clean DuckDuckGo search results
 def parse_duckduckgo(text):
     # General URL pattern to capture all URLs
