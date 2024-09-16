@@ -74,6 +74,7 @@ yt-dlp>=2024.3.10
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 # Changelog
+- v0.741 - changed to most current Perplexity API model (`llama-3.1-sonar-small-128k-online`) due to deprecations and updates in their models
 - v0.74 - sub-agentic browsing with DuckDuckGo search engine searches is here! 
   - Enabled from `config.ini` via `EnableAgenticBrowsing = True`
   - It allows the AI helper to follow links for further info and return relevant results
