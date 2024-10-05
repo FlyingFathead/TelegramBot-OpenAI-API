@@ -30,13 +30,7 @@
 - **🐳 Dockerized for safety and ease of deplyoment**
   - For those who love their Dockers, ready to roll within minutes!
 
-# Prerequisites
-- Tested & working on Python `3.10.12` to `3.12.2`
-- Install required Python packages with `pip install -r requirements.txt` (tested and working with the versions listed in [requirements.txt](./requirements.txt)
-- `pydub` usually requires `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality, but if you are, suggested install (Debian/Ubuntu Linux): `sudo apt-get install ffmpeg`
-- NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install on Debian/Ubuntu Linux with: `sudo apt-get install lynx`)
-
-## Other requirements:
+## General minimum requirements:
 
 - **Telegram API bot token** 
   - use the [`@BotFather`](https://t.me/BotFather) bot on Telegram to set up your bot and get a Telegram Bot API token for it
@@ -45,7 +39,13 @@
 
 ---
 
-# Installing (No Docker)
+# Installing without Docker on Linux
+
+## Prerequisites
+- Tested & working on Python `3.10.12` to `3.12.2`
+- Install required Python packages with `pip install -r requirements.txt` (tested and working with the versions listed in [requirements.txt](./requirements.txt)
+- `pydub` usually requires `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality, but if you are, suggested install (Debian/Ubuntu Linux): `sudo apt-get install ffmpeg`
+- NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install on Debian/Ubuntu Linux with: `sudo apt-get install lynx`)
 
 1. **Clone the repository with:**
 
@@ -93,7 +93,7 @@
 
 ---
 
-# **Dockerized Install Instructions**
+# **Installing Dockerized**
 
 ### **Prerequisites**
 1. **Docker** must be installed on your machine.
