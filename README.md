@@ -58,10 +58,10 @@ tiktoken>=0.7.0
 
 ## Other requirements:
 
-- Telegram API bot token 
-  - use the `@BotFather` bot on Telegram (set up a bot and get a bot token)
-- OpenAI API token
-  - from: https://platform.openai.com/
+- **Telegram API bot token** 
+  - use the [`@BotFather`](https://t.me/BotFather) bot on Telegram to set up your bot and get a Telegram Bot API token for it
+- **OpenAI API token**
+  - Get one from from: https://platform.openai.com/
 
 ---
 
