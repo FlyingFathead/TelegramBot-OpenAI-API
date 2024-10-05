@@ -1,8 +1,7 @@
 #!/bin/bash
 
-function hzline() {
-printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' - ;
-}
+# horizontal line
+function hzline() { printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' - ; }
 
 # Check if Docker is installed
 if ! [ -x "$(command -v docker)" ]; then
@@ -17,6 +16,19 @@ echo "::: Welcome to the TelegramBot-OpenAI-API setup." &&
 echo "::: Source code & repo: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/" &&
 hzline &&
 echo
+
+# Check if .env file already exists and prompt the user
+if [ -f .env ]; then
+  echo "Warning: A .env file already exists in this directory."
+  while true; do
+    read -p "Do you want to overwrite the existing .env file? (y/n): " yn
+    case $yn in
+      [Yy]* ) break;;
+      [Nn]* ) echo "Exiting setup without overwriting .env file."; exit 0;;
+      * ) echo "Please answer yes or no.";;
+    esac
+  done
+fi
 
 # Function to check for empty or invalid inputs for required keys
 validate_input() {
