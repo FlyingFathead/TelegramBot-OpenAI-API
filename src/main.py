@@ -1,4 +1,4 @@
-# Simple OpenAI API-utilizing Telegram Bot
+# Multi-API Telegram Bot (Powered by ChatKeke)
 #
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
@@ -6,6 +6,12 @@
 #
 # version of this program
 version_number = "0.7431"
+
+# Add the project root directory to Python's path
+import sys
+from pathlib import Path
+# Adding the project root to the Python path to resolve imports from root level
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 # experimental modules
 import requests
@@ -37,7 +43,10 @@ from telegram.helpers import escape_markdown
 from functools import partial
 
 # tg-bot modules
-from config_paths import CONFIG_PATH, TOKEN_FILE_PATH
+from config_paths import (
+    CONFIG_PATH, TOKEN_FILE_PATH, API_TOKEN_PATH,
+    LOG_FILE_PATH, CHAT_LOG_FILE_PATH, TOKEN_USAGE_FILE_PATH, CHAT_LOG_MAX_SIZE
+)
 from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands
@@ -66,15 +75,6 @@ class TelegramBot:
 
     def __init__(self):
 
-        # Attempt to get bot & API tokens
-        try:
-            self.telegram_bot_token = get_bot_token()
-            self.openai_api_key = get_api_key()  # Store the API key as an attribute
-            openai.api_key = self.openai_api_key
-        except FileNotFoundError as e:
-            self.logger.error(f"Required configuration not found: {e}")
-            sys.exit(1)
-
         # Load configuration first
         self.load_config()
 
@@ -84,9 +84,25 @@ class TelegramBot:
         # Initialize chat logging if enabled
         self.initialize_chat_logging()
 
+        # Assign self.logger after initializing logging
+        self.logger = logging.getLogger('TelegramBotLogger')
+
+        # Set chat_log_file to CHAT_LOG_FILE_PATH
+        from config_paths import CHAT_LOG_FILE_PATH
+        self.chat_log_file = CHAT_LOG_FILE_PATH
+
+        # Attempt to get bot & API tokens
+        try:
+            self.telegram_bot_token = get_bot_token()
+            self.openai_api_key = get_api_key()  # Store the API key as an attribute
+            openai.api_key = self.openai_api_key
+        except FileNotFoundError as e:
+            self.logger.error(f"Required configuration not found: {e}")
+            sys.exit(1)
+
         # Explicitly set the initial token usage to 0
         self.total_token_usage = 0
-        self.token_usage_file = 'token_usage.json'
+        self.token_usage_file = TOKEN_USAGE_FILE_PATH
 
         # Log the initial token count
         self.logger.info(f"Initial token usage set to: {self.total_token_usage}")
@@ -145,24 +161,33 @@ class TelegramBot:
         self.admin_only_reset = self.config.getboolean('AdminOnlyReset', True)
 
     def initialize_logging(self):
-        self.logger = logging.getLogger('TelegramBotLogger')
-        self.logger.setLevel(logging.INFO)
+        # TelegramBotLogger
+        telegram_logger = logging.getLogger('TelegramBotLogger')
+        telegram_logger.setLevel(logging.INFO)
         if self.logfile_enabled:
-            file_handler = RotatingFileHandler(self.logfile_file, maxBytes=1048576, backupCount=5)
-            file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-            self.logger.addHandler(file_handler)
+            file_handler = RotatingFileHandler(
+                LOG_FILE_PATH, maxBytes=1048576, backupCount=5  # Adjust maxBytes as needed
+            )
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(formatter)
+            telegram_logger.addHandler(file_handler)
+        
+        # StreamHandler for console output
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(logging.ERROR)
         stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(stream_handler)
+        telegram_logger.addHandler(stream_handler)
 
     def initialize_chat_logging(self):
         if self.chat_logging_enabled:
-            self.chat_logger = logging.getLogger('ChatLogger')
-            chat_handler = RotatingFileHandler(self.chat_log_file, maxBytes=self.chat_log_max_size, backupCount=5)
-            chat_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
-            self.chat_logger.addHandler(chat_handler)
-            self.chat_logger.setLevel(logging.INFO)
+            chat_logger = logging.getLogger('ChatLogger')
+            chat_logger.setLevel(logging.INFO)
+            chat_handler = RotatingFileHandler(
+                CHAT_LOG_FILE_PATH, maxBytes=CHAT_LOG_MAX_SIZE, backupCount=5
+            )
+            chat_formatter = logging.Formatter('%(asctime)s - %(message)s')
+            chat_handler.setFormatter(chat_formatter)
+            chat_logger.addHandler(chat_handler)
 
     # Check and update the global rate limit.
     def check_global_rate_limit(self):
@@ -210,8 +235,23 @@ class TelegramBot:
         asyncio.run(self.schedule_daily_reset())
 
     # logging functionality
-    def log_message(self, message_type, user_id, message):
-        log_message(self.chat_log_file, self.chat_log_max_size, message_type, user_id, message, self.chat_logging_enabled)
+    def log_message(self, message_type, user_id=None, message='', source=None):
+        """
+        Wrapper for the modules.log_message function to include source.
+
+        Args:
+            message_type (str): Type of the message ('User' or 'Bot').
+            user_id (int, optional): ID of the user sending the message. Defaults to None.
+            message (str, optional): The message content. Defaults to ''.
+            source (str, optional): Source of the message (e.g., 'Calculator Module'). Defaults to None.
+        """
+        log_message(
+            message_type=message_type,
+            user_id=user_id,
+            message=message,
+            chat_logging_enabled=self.chat_logging_enabled,
+            source=source
+        )
 
     # trim the chat history to meet up with max token limits
     def trim_chat_history(self, chat_history, max_total_tokens):
@@ -232,22 +272,6 @@ class TelegramBot:
         max_tokens = max_allowed_tokens - input_tokens
         # Ensure max_tokens is positive and within a reasonable range
         return max(1, min(max_tokens, max_allowed_tokens))
-
-    # Define a function to update chat history in a file
-    def update_chat_history(self, chat_history):
-        with open('chat_history.txt', 'a') as file:
-            for message in chat_history:
-                file.write(message + '\n')
-
-    # Define a function to retrieve chat history from a file
-    def retrieve_chat_history(self):
-        chat_history = []
-        try:
-            with open('chat_history.txt', 'r') as file:
-                chat_history = [line.strip() for line in file.readlines()]
-        except FileNotFoundError:
-            pass
-        return chat_history
 
     # split long messages
     def split_large_messages(self, message, max_length=4096):

@@ -48,12 +48,11 @@ from api_perplexity_search import query_perplexity
 # from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 # from api_perplexity_search import query_perplexity, smart_chunk, split_message
 
-# RAG via elasticsearch
-from elasticsearch_handler import search_es_for_context
-from elasticsearch_functions import action_token_functions
-
 # url processing
 from url_handler import process_url_message
+
+# Get the 'ChatLogger' defined in main.py
+logger = logging.getLogger('ChatLogger')
 
 # Load the configuration file
 config = configparser.ConfigParser()
@@ -62,9 +61,25 @@ config.read(CONFIG_PATH)
 # Read the holiday notification flag
 enable_holiday_notification = config.getboolean('HolidaySettings', 'EnableHolidayNotification', fallback=False)
 
+# RAG via elasticsearch
+# from elasticsearch_handler import search_es_for_context
+# from elasticsearch_functions import action_token_functions
 # Access the Elasticsearch enabled flag
 elasticsearch_enabled = config.getboolean('Elasticsearch', 'ElasticsearchEnabled', fallback=False)
 ELASTICSEARCH_ENABLED = elasticsearch_enabled
+
+if elasticsearch_enabled:
+    try:
+        from elasticsearch_handler import search_es_for_context
+        from elasticsearch_functions import action_token_functions
+        logging.info("Elasticsearch modules imported successfully.")
+    except ImportError:
+        logging.error("Elasticsearch is enabled in config.ini but the 'elasticsearch' module is not installed.")
+        elasticsearch_enabled = False
+else:
+    search_es_for_context = None
+    action_token_functions = {}
+    logging.info("Elasticsearch is disabled in config.ini.")
 
 # additional check for message length
 MAX_TELEGRAM_MESSAGE_LENGTH = 4000
@@ -211,7 +226,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # Log the incoming user message
         bot.log_message('User', update.message.from_user.id, update.message.text)
 
-
         # Check if holiday notification is enabled
         if enable_holiday_notification:
             # Get the current date and time in Finland's timezone
@@ -268,7 +282,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         chat_history_with_es_context = chat_history_with_system_message
 
         # Assuming ELASTICSEARCH_ENABLED is true and we have fetched es_context
-        if ELASTICSEARCH_ENABLED:
+        if elasticsearch_enabled and search_es_for_context:
             logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
 
             es_context = await search_es_for_context(user_message)
@@ -281,12 +295,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 for token, function in action_token_functions.items():
                     if token in es_context:
                         logger.info(f"Action token found: {token}. Executing corresponding function.")
-                        
+
                         # Execute the mapped function
                         chat_history_with_es_context = await function(context, update, chat_history_with_system_message)
-                        
+
                         action_triggered = True
-                        # chat_history_with_es_context = integrate_data_into_context(data, chat_history_with_system_message)
                         break  # Stop checking after the first match to avoid multiple actions
 
                 # If no action token was found, just add the Elasticsearch context to the chat history
@@ -409,6 +422,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if bot_reply:
                             # escaped_reply = markdown_to_html(bot_reply)
                             escaped_reply = bot_reply
+
+                            # Log the bot's response
+                            bot.log_message(
+                                message_type='Bot',
+                                message=bot_reply,
+                                source='Calculator Module'
+                            )
+
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             # If no content to send, log and add a system message
@@ -506,7 +527,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                         # Log the bot's response
-                        bot.log_message('Bot', bot.telegram_bot_token, bot_reply)
+                        bot.log_message(
+                            message_type='Bot',
+                            message=bot_reply,
+                            source='Weather API'
+                        )
 
                         await context.bot.send_message(
                             chat_id=chat_id,
@@ -575,6 +600,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             # Sanitize the HTML to remove any unsupported tags
                             escaped_reply = sanitize_html(escaped_reply)
 
+                            # Log the bot's response from DuckDuckGo Search
+                            bot.log_message(
+                                message_type='Bot',
+                                message=bot_reply,
+                                source='DuckDuckGo Search'
+                            )
+
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
@@ -639,6 +671,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                             # Sanitize the HTML to remove any unsupported tags
                             escaped_reply = sanitize_html(escaped_reply)
+
+                            # Log the bot's response from DuckDuckGo Search
+                            bot.log_message(
+                                message_type='Bot',
+                                message=bot_reply,
+                                source='Website Dump'
+                            )
 
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
@@ -718,7 +757,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                         # Log the bot's response
-                        bot.log_message('Bot', bot.telegram_bot_token, bot_reply)
+                        bot.log_message(
+                            message_type='Bot',
+                            message=bot_reply,
+                            source='Alpha Vantage / Yahoo! Finance'
+                        )                        
 
                         await context.bot.send_message(
                             chat_id=chat_id,
@@ -755,6 +798,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                             # Send the map URL as a reply
                             reply_message = f"Here's the map you requested: {map_image_url}"
+
+                            # Log the bot's response
+                            bot.log_message(
+                                message_type='Bot',
+                                message=bot_reply,
+                                source='Map Retrieval'
+                            )                        
+
                             await context.bot.send_message(chat_id=chat_id, text=reply_message, parse_mode=ParseMode.HTML)
                             return  # Exit the loop after handling the custom function
 
@@ -792,9 +843,17 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
                         
                         logging.info("Appended directions info to chat history and sending reply.")
-                        
-                        # Send the formatted directions information as a reply
+
+                        # Log the bot's response
+                        bot.log_message(
+                            message_type='Bot',
+                            message=bot_reply,
+                            source='Get Directions'
+                        )                      
+
+                        # Send the formatted directions information as a reply                        
                         await context.bot.send_message(chat_id=chat_id, text=formatted_directions_info, parse_mode=ParseMode.HTML)
+
                         logging.info("Reply sent to user.")
                         
                         return  # Exit the loop after handling the custom function
@@ -864,7 +923,15 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
                             # escaped_reply = bot_reply
-                            escaped_reply = markdown_to_html(bot_reply)                            
+                            escaped_reply = markdown_to_html(bot_reply)
+
+                            # Log the bot's response from Perplexity API
+                            bot.log_message(
+                                message_type='Bot',
+                                message=bot_reply,
+                                source='Perplexity API'
+                            )
+
                             await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
                         else:
                             bot.logger.error("Attempted to send an empty message.")
@@ -876,178 +943,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Finalize the function call
                         context.user_data.pop('active_translation', None)
                         return True
-
-                    # elif function_name == 'query_perplexity':
-                    #     response_sent = await handle_query_perplexity(context, update, chat_id, function_call, user_message, bot, chat_history)
-                    #     if response_sent:
-                    #         return
-
-                    # old code
-                    # elif function_name == 'query_perplexity':
-                    #     arguments = json.loads(function_call.get('arguments', '{}'))
-                    #     question = arguments.get('question', '')
-
-                    #     if question:
-                    #         # Make the asynchronous API call to query Perplexity
-                    #         perplexity_response = await query_perplexity(context.bot, chat_id, question)
-
-                    #         # Log the raw Perplexity API response for debugging
-                    #         logging.info(f"Raw Perplexity API Response: {perplexity_response}")
-
-                    #         if perplexity_response == "[System message: Perplexity API is currently unavailable due to server issues. Inform the user about this issue in their language.]":
-                    #             # Handle the system message for API unavailability
-                    #             logging.error("Perplexity API is down. Informing the model to notify the user.")
-                    #             chat_history.append({"role": "system", "content": "Perplexity API is currently unavailable due to server issues. Please inform the user about this issue."})
-                    #         else:
-                    #             if perplexity_response is not None:
-                    #                 # Flag for translation in progress
-                    #                 context.user_data['active_translation'] = True
-
-                    #                 # Translate or process the response as necessary
-                    #                 bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
-
-                    #                 # After translation or processing is completed, clear the active translation flag
-                    #                 context.user_data.pop('active_translation', None)
-
-                    #                 if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
-                    #                     # Append the bot's reply to the chat history before sending it
-                    #                     chat_history.append({"role": "assistant", "content": bot_reply_formatted})
-                    #                     context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-
-                    #                     if len(bot_reply_formatted) > MAX_TELEGRAM_MESSAGE_LENGTH:
-                    #                         # Split the message into chunks if it exceeds the maximum length
-                    #                         chunks = split_message(bot_reply_formatted)
-
-                    #                         for chunk in chunks:
-                    #                             await context.bot.send_message(
-                    #                                 chat_id=update.effective_chat.id,
-                    #                                 text=chunk,
-                    #                                 parse_mode=ParseMode.HTML
-                    #                             )
-                    #                             logging.info(f"Sent chunk with length: {len(chunk)}")
-                    #                     else:
-                    #                         await context.bot.send_message(
-                    #                             chat_id=update.effective_chat.id,
-                    #                             text=bot_reply_formatted,
-                    #                             parse_mode=ParseMode.HTML
-                    #                         )
-                    #                         logging.info(f"Sent message with length: {len(bot_reply_formatted)}")
-
-                    #                     logging.info("Response sent successfully, no further actions should be triggered.")
-                    #                     response_sent = True  # Indicate that a response has been sent
-                    #                     return  # Exit the function since response has been handled
-
-                    #                 else:
-                    #                     if not response_sent:
-                    #                         # Log the error and maybe send a different message or handle the error differently
-                    #                         logging.error("Error processing or translating the Perplexity response.")
-                    #                         chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
-                    #                         context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-                    #                         return
-
-                    #             else:
-                    #                 if not response_sent:
-                    #                     logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
-                    #                     chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
-                    #                     context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-                    #                     return
-
-                    #     else:
-                    #         if not response_sent:
-                    #             logging.warning("No question was provided for the Perplexity query.")
-                    #             chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
-                    #             context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-                    #             return
-
-                    #     context.chat_data['chat_history'] = chat_history
-
-
-
-                    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    # old code; to be nuked and paved ...
-                    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-                    # # Handling the Perplexity API call with automatic translation
-                    # elif function_name == 'query_perplexity':
-                    #     arguments = json.loads(function_call.get('arguments', '{}'))
-                    #     question = arguments.get('question', '')
-
-                    #     if question:
-                    #         logging.info(f"Querying Perplexity with question: {question}")
-
-                    #         # Make the asynchronous API call to query Perplexity
-                    #         perplexity_response = await query_perplexity(context.bot, chat_id, question)
-
-                    #         # Log the raw Perplexity API response for debugging
-                    #         logging.info(f"Raw Perplexity API Response: {perplexity_response}")
-
-                    #         if perplexity_response is not None:  # Ensure there's a response
-                    #             # Flag for translation in progress
-                    #             context.user_data['active_translation'] = True
-
-                    #             # Translate or process the response as necessary
-                    #             bot_reply_formatted = await translate_response_chunked(bot, user_message, perplexity_response, context, update)
-
-                    #             # After translation or processing is completed, clear the active translation flag
-                    #             context.user_data.pop('active_translation', None)                                
-
-                    #             if bot_reply_formatted and not bot_reply_formatted.startswith("Error"):  # Check for a valid, non-error response
-
-                    #                 # Append the bot's reply to the chat history before sending it 
-                    #                 # chat_history.append({"role": "assistant", "content": f"[Fetched data from perplexity.ai API]"})
-                    #                 chat_history.append({"role": "assistant", "content": bot_reply_formatted})
-                    #                 context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-
-                    #                 await context.bot.send_message(
-                    #                     chat_id=update.effective_chat.id,
-                    #                     text=bot_reply_formatted,
-                    #                     # parse_mode=ParseMode.HTML
-                    #                     parse_mode=ParseMode.HTML
-                    #                 )
-
-                    #                 response_sent = True  # Indicate that a response has been sent
-                    #                 break  # Exit the loop since response has been handled
-
-                    #             else:
-                    #                 # Log the error and maybe send a different message or handle the error differently
-                    #                 logging.error("Error processing or translating the Perplexity response.")
-                                    
-                    #                 # Append a system message noting the fallback due to processing error
-                    #                 chat_history.append({"role": "system", "content": "Fallback to base model due to processing error in Perplexity response."})
-                        
-                    #                 # "ungraceful exit"
-                    #                 """ await context.bot.send_message(
-                    #                     chat_id=update.effective_chat.id,
-                    #                     text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                    #                 ) """
-                    #         else:
-                    #             logging.error("No valid response from Perplexity, Perplexity response was None or empty.")
-
-                    #             # Append a system message noting the fallback due to invalid response
-                    #             chat_history.append({"role": "system", "content": "Fallback to base model due to invalid Perplexity response."})
-
-                    #             # "ungraceful exit"
-                    #             """ await context.bot.send_message(
-                    #                 chat_id=update.effective_chat.id,
-                    #                 text="Sorry, I couldn't fetch an answer for that. Please try again later."
-                    #             ) """
-
-                    #     else:
-                    #         logging.warning("No question was provided for the Perplexity query.")
-                    #         """ await context.bot.send_message(
-                    #             chat_id=update.effective_chat.id,
-                    #             text="I need a question to ask. Please try again with a question."
-                    #         ) """
-
-                    #         chat_history.append({"role": "system", "content": "No question was provided for the Perplexity query. A question is needed to proceed."})
-
-
-
-                        # Update the chat history in context with the new system message
-                        # context.chat_data['chat_history'] = chat_history
-
-                        # originally we just hit a return value                            
-                        # return
 
                 # Extract the response and send it back to the user
                 # bot_reply = response_json['choices'][0]['message']['content'].strip()
@@ -1091,7 +986,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                 # Log the bot's response
-                bot.log_message('Bot', bot.telegram_bot_token, bot_reply)
+                bot.log_message(
+                    message_type='Bot',
+                    message=bot_reply,
+                )
 
                 await context.bot.send_message(
                     chat_id=chat_id,

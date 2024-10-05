@@ -10,12 +10,18 @@ import html
 
 logger = logging.getLogger('TelegramBotLogger')
 
+# Logger for general bot operations
+general_logger = logging.getLogger('TelegramBotLogger')
+
+# Logger for chat-specific operations
+chat_logger = logging.getLogger('ChatLogger')
+
 # count tokens (w/ check)
 def count_tokens(text, tokenizer):
     if text is None:
         return 0
     token_count = len(tokenizer.encode(text))
-    logger.debug(f"Counting tokens for text: '{text[:30]}...' Results in token count: {token_count}")
+    general_logger.debug(f"Counting tokens for text: '{text[:30]}...' Results in token count: {token_count}")
     return token_count
 
 # read total token usage
@@ -142,6 +148,95 @@ def markdown_to_html(text):
     except Exception as e:
         return str(e)
 
+# Check and update the global rate limit.
+def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_limit_reset_time):
+    # Bypass rate limit check if max_requests_per_minute is set to 0
+    if max_requests_per_minute == 0:
+        return False, global_request_count, rate_limit_reset_time
+
+    current_time = datetime.datetime.now()
+
+    # Reset the rate limit counter if a minute has passed
+    if current_time >= rate_limit_reset_time:
+        global_request_count = 0
+        rate_limit_reset_time = current_time + datetime.timedelta(minutes=1)
+
+    # Check if the global request count exceeds the limit
+    if global_request_count >= max_requests_per_minute:
+        return True, global_request_count, rate_limit_reset_time  # Rate limit exceeded
+
+    # Increment the request count as the rate limit has not been exceeded
+    global_request_count += 1
+    return False, global_request_count, rate_limit_reset_time
+
+# msg logging
+# Logging functionalities
+def log_message(message_type, user_id=None, message='', chat_logging_enabled=True, source=None):
+    """
+    Logs messages with an optional source to identify external API origins.
+
+    Args:
+        message_type (str): Type of the message ('User' or 'Bot').
+        user_id (int, optional): ID of the user sending the message. Defaults to None.
+        message (str, optional): The message content. Defaults to ''.
+        chat_logging_enabled (bool, optional): Flag to enable/disable logging. Defaults to True.
+        source (str, optional): Source of the message (e.g., 'Calculator Module'). Defaults to None.
+    """
+    if not chat_logging_enabled:
+        return
+
+    # Get the 'ChatLogger' instance
+    chat_logger = logging.getLogger('ChatLogger')
+
+    # Prepare the base log message
+    if message_type == 'User':
+        base_message = f"User ({user_id}): {message}"
+    elif message_type == 'Bot':
+        base_message = f"Bot: {message}"
+    else:
+        if user_id:
+            base_message = f"Unknown message type '{message_type}' from User ({user_id}): {message}"
+        else:
+            base_message = f"Unknown message type '{message_type}': {message}"
+
+    # Append source if provided
+    if source:
+        base_message = f"{base_message} [Source: {source}]"
+
+    # Log the message
+    if message_type in ['User', 'Bot']:
+        chat_logger.info(base_message)
+    else:
+        chat_logger.warning(base_message)
+
+# rotate the log file
+def rotate_log_file(log_file_path):
+    # Rename the existing log file by adding a timestamp
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    archive_log_file_path = f"{log_file_path}_{timestamp}"
+
+    # Rename the current log file to the archive file name
+    os.rename(log_file_path, archive_log_file_path)
+
+# # // old logging method
+# # logging functionalities
+# def log_message(chat_log_file, chat_log_max_size, message_type, user_id, message, chat_logging_enabled=True):
+#     if not chat_logging_enabled:
+#         return
+
+#     # Get the 'ChatLogger' instance
+#     logger = logging.getLogger('ChatLogger')
+
+#     # Check if the current log file size exceeds the maximum size (now in bytes)
+#     if os.path.exists(chat_log_file) and os.path.getsize(chat_log_file) >= chat_log_max_size:
+#         rotate_log_file(chat_log_file)
+
+#     # Now proceed with logging
+#     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+#     with open(chat_log_file, 'a', encoding='utf-8') as log_file:
+#         log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
+
+# // old markdown parsing methods
 # # markdown to html parsing (v0.737.1)
 # def markdown_to_html(text):
 #     try:
@@ -328,47 +423,3 @@ def markdown_to_html(text):
 #     # return text
 #     # Reassemble the parts into the final HTML
 #     return ''.join(parts)   
-
-# Check and update the global rate limit.
-def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_limit_reset_time):
-    # Bypass rate limit check if max_requests_per_minute is set to 0
-    if max_requests_per_minute == 0:
-        return False, global_request_count, rate_limit_reset_time
-
-    current_time = datetime.datetime.now()
-
-    # Reset the rate limit counter if a minute has passed
-    if current_time >= rate_limit_reset_time:
-        global_request_count = 0
-        rate_limit_reset_time = current_time + datetime.timedelta(minutes=1)
-
-    # Check if the global request count exceeds the limit
-    if global_request_count >= max_requests_per_minute:
-        return True, global_request_count, rate_limit_reset_time  # Rate limit exceeded
-
-    # Increment the request count as the rate limit has not been exceeded
-    global_request_count += 1
-    return False, global_request_count, rate_limit_reset_time
-
-# logging functionalities
-def log_message(chat_log_file, chat_log_max_size, message_type, user_id, message, chat_logging_enabled=True):
-    if not chat_logging_enabled:
-        return
-
-    # Check if the current log file size exceeds the maximum size (now in bytes)
-    if os.path.exists(chat_log_file) and os.path.getsize(chat_log_file) >= chat_log_max_size:
-        rotate_log_file(chat_log_file)
-
-    # Now proceed with logging
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with open(chat_log_file, 'a', encoding='utf-8') as log_file:
-        log_file.write(f"{timestamp} - {message_type}({user_id}): {message}\n")
-
-# rotate the log file
-def rotate_log_file(log_file_path):
-    # Rename the existing log file by adding a timestamp
-    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    archive_log_file_path = f"{log_file_path}_{timestamp}"
-
-    # Rename the current log file to the archive file name
-    os.rename(log_file_path, archive_log_file_path)

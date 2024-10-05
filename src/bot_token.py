@@ -52,7 +52,8 @@ def get_bot_token():
             raise BotTokenError("Missing 'DEFAULT' section in config.ini.")
 
         prefer_env = config.getboolean('DEFAULT', 'PreferEnvForBotToken', fallback=True)
-        allow_fallback = config.getboolean('DEFAULT', 'AllowFallback', fallback=True)
+        # Updated code in bot_token.py
+        allow_fallback = config.getboolean('DEFAULT', 'AllowBotTokenFallback', fallback=True)
         ask_for_token = config.getboolean('DEFAULT', 'AskForTokenIfNotFound', fallback=True)
 
         # Disable asking for token if running inside Docker

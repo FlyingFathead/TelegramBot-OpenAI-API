@@ -9,15 +9,22 @@ config/bot_token.txt
 config/api_token.txt
 api_token.txt
 bot_token.txt
+chat_history.txt
+**/chat_history.txt
 
 # Bot-specific data
 token_usage.json
 data/
+logs/
+**/logs/
 
 # Log files
+chat.log
+bot.log
 *.log
 
 # Python cache files
+**/__pycache__/
 __pycache__/
 *.pyc
 
