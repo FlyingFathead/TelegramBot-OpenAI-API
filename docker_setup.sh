@@ -49,6 +49,7 @@ read -p "Please enter your MapTiler API key (optional): " MAPTILER_API_KEY
 read -p "Please enter your Openrouteservice API key (optional): " OPENROUTESERVICE_API_KEY
 
 # Create a .env file with the required and optional keys
+hzline &&
 echo "Generating .env file..."
 cat <<EOL > .env
 OPENAI_API_KEY=$OPENAI_API_KEY
@@ -61,7 +62,8 @@ PERPLEXITY_API_KEY=$PERPLEXITY_API_KEY
 # Additional variables can be added here
 EOL
 
-echo "Environment variables saved to .env."
+echo "Environment variables saved to .env." &&
+hzline &&
 
 # Instructions for the next steps
 echo
@@ -78,8 +80,11 @@ echo
 echo "4. Stop the container with:"
 echo "   sudo docker stop <container_id>"
 echo
-echo "You're all set!"
+echo "After that, you're all set! Enjoy, and don't forget to start the repository if you like it. :-)"
+hzline &&
+echo ""
 
+# optional build & run function
 function build_and_run() {
 # Build Docker image
 sudo docker build -t telegrambot-openai-api .
