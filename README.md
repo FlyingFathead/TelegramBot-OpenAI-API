@@ -105,10 +105,10 @@
 
 First, clone the repository from GitHub:
 
-```bash
-git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API.git
-cd TelegramBot-OpenAI-API
-```
+  ```bash
+  git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API.git
+  cd TelegramBot-OpenAI-API
+  ```
 
 ### **Step 2: Run the Setup Script**
 
@@ -116,9 +116,9 @@ This project includes a setup script that will guide you through entering your A
 
 Run the script:
 
-```bash
-./docker_setup.sh
-```
+  ```bash
+  ./docker_setup.sh
+  ```
 
 Follow the instructions provided by the script. It will ask for your OpenAI API key and Telegram Bot API key, validate them, and create a `.env` file with your credentials.
 
@@ -126,11 +126,17 @@ Follow the instructions provided by the script. It will ask for your OpenAI API 
 
 Once your `.env` file has been created, you need to build the Docker image.
 
-Run the following command to build the Docker image:
+You can run the featured `docker_deploy.sh` to build the Docker image:
 
-```bash
-sudo docker build -t telegrambot-openai-api .
-```
+  ```bash
+  sudo ./docker_deploy.sh
+  ```
+
+Or, you can build it manually:
+
+  ```bash
+  sudo docker build -t telegrambot-openai-api .
+  ```
 
 This will build the image locally based on the `Dockerfile` in the repository.
 
@@ -140,9 +146,9 @@ After the image is successfully built, you can start the bot in a Docker contain
 
 Run the container with the following command:
 
-```bash
-sudo docker run --env-file .env -d telegrambot-openai-api
-```
+  ```bash
+  sudo docker run --env-file .env --name telegrambot-openai-api -d telegrambot-openai-api
+  ```
 
 - The `-d` flag runs the container in detached mode (in the background).
 - The `--env-file .env` flag injects your API keys into the container.
@@ -151,9 +157,9 @@ sudo docker run --env-file .env -d telegrambot-openai-api
 
 You can check if the container is running by using:
 
-```bash
-sudo docker ps
-```
+  ```bash
+  sudo docker ps
+  ```
 
 This will list all running containers. If your bot is running correctly, it should appear in the list.
 
@@ -161,9 +167,9 @@ This will list all running containers. If your bot is running correctly, it shou
 
 If you need to stop the bot, you can do so by running:
 
-```bash
-sudo docker stop <container_id>
-```
+  ```bash
+  sudo docker stop <container_id>
+  ```
 
 Replace `<container_id>` with the actual container ID, which you can obtain from the `docker ps` output.
 
