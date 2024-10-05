@@ -52,7 +52,9 @@ done
 
 # Prompt for optional API keys (user can leave them blank)
 hzline &&
-echo "Below are optional keys for the bot's supported API functionalities that you can add in, or just press ENTER to leave them blank." &&
+echo "::: Below are optional keys for the bot's supported API functions." &&
+echo "::: They're not required for basic functionality, but are a great enhancement." &&
+echo "::: If you don't have an API key right now, just press ENTER to leave them blank." &&
 hzline &&
 read -p "Please enter your Perplexity API key (optional): " PERPLEXITY_API_KEY
 read -p "Please enter your OpenWeatherMap API key (optional): " OPENWEATHERMAP_API_KEY
