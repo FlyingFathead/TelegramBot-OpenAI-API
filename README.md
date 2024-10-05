@@ -29,30 +29,8 @@
   - No more fumbling with AI arithmetic hallucinations!
 
 # Prerequisites
-- Tested & working on Python 3.10.12
-- Required Python packages (tested & working with these pip modules/libraries, install with `pip install -r requirements.txt` for potentially newer versions):
-
-```
-configparser>=6.0.0
-ffmpeg-python>=0.2.0
-httpx>=0.25.2
-langdetect>=1.0.9
-matplotlib>=3.8.2
-holidays>=0.49
-nltk>=3.8.1
-openai>=1.6.1
-pydub>=0.25.1
-python-telegram-bot>=20.7
-transformers>=4.36.2
-requests>=2.31.0
-pytz>=2024.1
-timezonefinder>=6.4.0
-yfinance>=0.2.41
-yt-dlp>=2024.3.10
-feedparser>=6.0.11
-tiktoken>=0.7.0
-```
-
+- Tested & working on Python `3.10.12` to `3.12.2`
+- Install required Python packages with `pip install -r requirements.txt` (tested and working with the versions listed in [requirements.txt](./requirements.txt)
 - `pydub` usually requires `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality, but if you are, suggested install (Debian/Ubuntu Linux): `sudo apt-get install ffmpeg`
 - NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install on Debian/Ubuntu Linux with: `sudo apt-get install lynx`)
 
@@ -135,9 +113,11 @@ tiktoken>=0.7.0
   - massive list of new features, such as:
     - improved logging
     - checking for Elasticsearch on startup; multi-step exception catching
+    - Elasticsearch verbosity added for clarity
+    - Elasticsearch can now be configured via `config.ini`
     - enhanced logging (chat + bot data into separate unified logging)
     - chatlogs now have a `source` for them whenever called via function calls, so that any external data pulls are now logged more clearly
-    - overall this will make the bot very much more easily deployable
+    - overall this update makes the bot very much more easily deployable
 - v0.7431 - potential handling of API keys as textfiles moved under `config/` by default
 - v0.743 - config loading changes & streamlining
   - tidying up; all configurations are now under `config/`
