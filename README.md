@@ -126,6 +126,7 @@ tiktoken>=0.7.0
   _(Remember to either remove the `/path/to/` or change it to your path)_
 
 # Changelog
+- v0.7431 - potential handling of API keys as textfiles moved under `config/` by default
 - v0.743 - config loading changes & streamlining
   - tidying up; all configurations are now under `config/`
   - imported the new logic for bot token reading from my [`whisper-transcriber-telegram-bot`](https://github.com/FlyingFathead/whisper-transcriber-telegram-bot/)

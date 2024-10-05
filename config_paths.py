@@ -9,3 +9,4 @@ from pathlib import Path
 BASE_DIR = Path(os.getcwd())  # This points to the current working directory
 CONFIG_PATH = BASE_DIR / 'config' / 'config.ini'
 TOKEN_FILE_PATH = BASE_DIR / 'config' / 'bot_token.txt'
+API_TOKEN_PATH = BASE_DIR / 'config' / 'api_token.txt'

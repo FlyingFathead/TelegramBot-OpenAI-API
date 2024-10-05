@@ -1,11 +1,13 @@
 # Ignore the cookies.txt file in config
 cookies.txt
 config/cookies.txt
-api_token.txt
 
-# Ignore all files named bot_token.txt
+# Ignore all files named bot_token.txt and api_token.txt
+**/api_token.txt
 **/bot_token.txt
 config/bot_token.txt
+config/api_token.txt
+api_token.txt
 bot_token.txt
 
 # Bot-specific data
