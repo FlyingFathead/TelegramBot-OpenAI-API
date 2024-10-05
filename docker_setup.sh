@@ -1,5 +1,9 @@
 #!/bin/bash
 
+function hzline() {
+printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' - ;
+}
+
 # Check if Docker is installed
 if ! [ -x "$(command -v docker)" ]; then
   echo 'Error: Docker is not installed. Please install Docker first: https://www.docker.com/get-started/' >&2
@@ -7,8 +11,10 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 # Welcome Message
-echo "Welcome to the TelegramBot-OpenAI-API setup."
-echo "Source code: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/"
+hzline &&
+echo "Welcome to the TelegramBot-OpenAI-API setup." &&
+echo "Source code: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/" &&
+hzline &&
 echo
 
 # Function to check for empty or invalid inputs for required keys
@@ -32,7 +38,9 @@ while true; do
 done
 
 # Prompt for optional API keys (user can leave them blank)
-echo "Below are optional keys for the bot's supported API functionalities that you can add in, or just press ENTER to leave them blank."
+hzline &&
+echo "Below are optional keys for the bot's supported API functionalities that you can add in, or just press ENTER to leave them blank." &&
+hzline &&
 read -p "Please enter your Perplexity API key (optional): " PERPLEXITY_API_KEY
 read -p "Please enter your OpenWeatherMap API key (optional): " OPENWEATHERMAP_API_KEY
 read -p "Please enter your WeatherAPI key (optional): " WEATHERAPI_KEY
