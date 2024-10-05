@@ -381,6 +381,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 # Contribute
 - All contributions appreciated! Feel free to also post any bugs and other issues on the repo's "Issues" page.
+- **Don't forget to star it if you like it. :-)**
 
 # About
 - Written by [FlyingFathead](https://github.com/FlyingFathead/)
