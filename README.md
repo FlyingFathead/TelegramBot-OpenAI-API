@@ -91,7 +91,7 @@
 
 ---
 
-## **Dockerized Install Instructions**
+# **Dockerized Install Instructions**
 
 ### **Prerequisites**
 1. **Docker** must be installed on your machine.
