@@ -39,5 +39,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || 'default_openai_key' }}
+            TELEGRAM_BOT_API_KEY=${{ secrets.TELEGRAM_BOT_API_KEY || 'default_telegram_key' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
