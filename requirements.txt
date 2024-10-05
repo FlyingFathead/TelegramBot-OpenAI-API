@@ -1,4 +1,6 @@
 configparser>=6.0.0
+elastic-transport>=8.15.0
+elasticsearch>=8.15.1
 ffmpeg-python>=0.2.0
 httpx>=0.25.2
 langdetect>=1.0.9

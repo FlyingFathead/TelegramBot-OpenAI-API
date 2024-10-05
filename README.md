@@ -109,23 +109,35 @@ tiktoken>=0.7.0
 
 7. **Run:**
 
-- Run the program with: `python main.py`
+- Run the program with: `python src/main.py`
 
 ---
 
 # Updating
 
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by saving a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. 
-- Then, just run `python configmerger.py myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
+- After that, just run `python configmerger.py myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
-***Example on how to merge and update your existing configuration:**
+---
+
+**(Example) How to merge and update your existing configuration:**
 
   ```bash
-  python3 configmerger.py /path/to/myconfig.txt
+  python3 src/configmerger.py myconfig.txt
   ```
-  _(Remember to either remove the `/path/to/` or change it to your path)_
+
+---
 
 # Changelog
+- v0.75 **Major refactoring** _(5. Oct 2024)_ 👀💦🌀
+  - entire project has been tidied up and a lot of bugs fixed while at it
+  - `python src/main.py` to start the bot from here on out
+  - massive list of new features, such as:
+    - improved logging
+    - checking for Elasticsearch on startup; multi-step exception catching
+    - enhanced logging (chat + bot data into separate unified logging)
+    - chatlogs now have a `source` for them whenever called via function calls, so that any external data pulls are now logged more clearly
+    - overall this will make the bot very much more easily deployable
 - v0.7431 - potential handling of API keys as textfiles moved under `config/` by default
 - v0.743 - config loading changes & streamlining
   - tidying up; all configurations are now under `config/`

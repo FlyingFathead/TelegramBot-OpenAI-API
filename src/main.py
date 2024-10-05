@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.7431"
+version_number = "0.75"
 
 # Add the project root directory to Python's path
 import sys
@@ -47,6 +47,12 @@ from config_paths import (
     CONFIG_PATH, TOKEN_FILE_PATH, API_TOKEN_PATH,
     LOG_FILE_PATH, CHAT_LOG_FILE_PATH, TOKEN_USAGE_FILE_PATH, CHAT_LOG_MAX_SIZE
 )
+# Elasticsearch checks
+from config_paths import (
+    ELASTICSEARCH_ENABLED, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT,
+    ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
+)
+
 from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands

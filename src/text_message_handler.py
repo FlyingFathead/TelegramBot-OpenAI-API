@@ -32,6 +32,10 @@ from modules import markdown_to_html
 
 # the tg-bot's API function calls
 from config_paths import CONFIG_PATH
+from config_paths import (
+    ELASTICSEARCH_ENABLED, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT,
+    ELASTICSEARCH_SCHEME, ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
+)
 from custom_functions import custom_functions, observe_chat
 from api_get_duckduckgo_search import get_duckduckgo_search
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
@@ -285,7 +289,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         if elasticsearch_enabled and search_es_for_context:
             logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
 
-            es_context = await search_es_for_context(user_message)
+            # es_context = await search_es_for_context(user_message)
+            es_context = await search_es_for_context(user_message, config)            
             action_triggered = False  # Flag to check if an action was triggered based on tokens
 
             if es_context and es_context.strip():

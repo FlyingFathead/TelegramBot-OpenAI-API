@@ -12,6 +12,12 @@ import json
 import httpx
 import openai
 
+# Elasticsearch checks
+from config_paths import (
+    ELASTICSEARCH_ENABLED, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT,
+    ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
+)
+
 # juhlapäivien käännösnimet
 holiday_replacements = {
     "New Year's Day": "uudenvuodenpäivä (New Year's Day)",
@@ -47,7 +53,9 @@ def hz_line(character='-'):
 def print_startup_message(version_number):
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     hz_line()
-    print(f"[{now}] Telegram bot v.{version_number} for OpenAI API starting up...", flush=True)
+    print(f"::: [{now}] Telegram bot (powered by ChatKeke) v.{version_number} starting up...", flush=True)
+    # Print Elasticsearch status
+    print(f"::: Elasticsearch enabled: {ELASTICSEARCH_ENABLED}", flush=True)
     hz_line()
 
 # remove html tags

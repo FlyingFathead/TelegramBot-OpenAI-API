@@ -2,9 +2,11 @@
 cookies.txt
 config/cookies.txt
 
-# Ignore all files named bot_token.txt and api_token.txt
+# Ignore all token files
+# i.e. files named bot_token.txt and api_token.txt, etc.
 **/api_token.txt
 **/bot_token.txt
+config/*.txt
 config/bot_token.txt
 config/api_token.txt
 api_token.txt
@@ -14,11 +16,12 @@ chat_history.txt
 
 # Bot-specific data
 token_usage.json
+**/data/
 data/
-logs/
-**/logs/
 
 # Log files
+logs/
+**/logs/
 chat.log
 bot.log
 *.log
@@ -30,17 +33,20 @@ __pycache__/
 
 # audio messages directory
 audio_messages/
+**/audio_messages/
 
 # yt-dlp cache directory
 .cache/
+**/.cache/
 
+# (alt
 # transcriptions directory
 transcriptions/
-
 # audio files directory
 audio/
 
 # ignore potential transcribed files
+*.ogg
 *.mp3
 *.wav
 *.aiff
@@ -50,5 +56,6 @@ audio/
 *.srt
 *.part
 
-# virtual environments
+# Ignore virtual environments
 venv/
+env/

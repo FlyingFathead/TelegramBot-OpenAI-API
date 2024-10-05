@@ -35,7 +35,6 @@ def update_config(main_config_file, custom_config_file):
     else:
         print("No parameters were updated.")
 
-
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: configmerger.py <custom_config_file>")
