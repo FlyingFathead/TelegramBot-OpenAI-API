@@ -67,20 +67,20 @@ tiktoken>=0.7.0
 
 # Installing
 
-1. Clone the repository with:
+1. **Clone the repository with:**
 
   ```bash
-  git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API/
+  git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API/ &&
   cd TelegramBot-OpenAI-API/
   ```
 
-2. Install the required packages:
+2. **Install the required packages:**
 
   ```bash
   pip install -r requirements.txt
   ```
 
-3. (Recommended) install the optional packages
+3. **(Recommended) install the optional packages:**
 
   - On Ubuntu/Debian tree Linux systems:
 
@@ -88,26 +88,26 @@ tiktoken>=0.7.0
   sudo apt-get install -y ffmpeg lynx
   ```
 
-3. Set up your Telegram bot token:
+3. **Set up your Telegram bot token:**
 
   - Either set your Telegram Bot API token as `TELEGRAM_BOT_TOKEN` environment variable, or put it into a text file named `bot_token.txt` inside the `config/` directory (= `config/bot_token.txt`)
 
-4. Set up your OpenAI API token:
+4. **Set up your OpenAI API token:**
 
   - Either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
 
-5. Other modules:
+5. **Other modules:**
 
   - If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
   - Additional weather info (moon phases, weather warnings etc) are fetched from [WeatherAPI](https://weatherapi.com), set the `WEATHERAPI_KEY` environment variable to use it.
   - If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
   - If you wish to use Perplexity API's supplementary fact-checking with their online models, register at [Perplexity.ai](https://perplexity.ai), buy some API credits and set your Perplexity API key to environment variable: `PERPLEXITY_API_KEY`
 
-6. Further adjustments
+6. **Further adjustments:**
 
   - Adjust your configuration and settings by editing `config/config.ini` to your liking
 
-7. Run
+7. **Run:**
 
 - Run the program with: `python main.py`
 
