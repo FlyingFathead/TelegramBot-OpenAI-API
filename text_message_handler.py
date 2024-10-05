@@ -31,6 +31,7 @@ from telegram.error import TimedOut
 from modules import markdown_to_html
 
 # the tg-bot's API function calls
+from config_paths import CONFIG_PATH
 from custom_functions import custom_functions, observe_chat
 from api_get_duckduckgo_search import get_duckduckgo_search
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
@@ -56,7 +57,7 @@ from url_handler import process_url_message
 
 # Load the configuration file
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(CONFIG_PATH)
 
 # Read the holiday notification flag
 enable_holiday_notification = config.getboolean('HolidaySettings', 'EnableHolidayNotification', fallback=False)

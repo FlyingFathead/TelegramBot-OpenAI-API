@@ -1,5 +1,44 @@
-__pycache__/
-chat.log
-bot.log
+# Ignore the cookies.txt file in config
+cookies.txt
+config/cookies.txt
+
+# Ignore all files named bot_token.txt
+**/bot_token.txt
+config/bot_token.txt
+bot_token.txt
+
+# Bot-specific data
 token_usage.json
 data/
+
+# Log files
+*.log
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# audio messages directory
+audio_messages/
+
+# yt-dlp cache directory
+.cache/
+
+# transcriptions directory
+transcriptions/
+
+# audio files directory
+audio/
+
+# ignore potential transcribed files
+*.mp3
+*.wav
+*.aiff
+*.aac
+*.mp4
+*.vtt
+*.srt
+*.part
+
+# virtual environments
+venv/

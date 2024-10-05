@@ -12,6 +12,7 @@ import datetime
 import logging
 
 # bot's modules
+from config_paths import CONFIG_PATH
 from token_usage_visualization import generate_usage_chart
 from modules import reset_token_usage_at_midnight 
 
@@ -195,7 +196,7 @@ async def view_config_command(update: Update, context: CallbackContext, bot_owne
     if str(user_id) == bot_owner_id:
         try:
             config_contents = "<pre>"
-            with open('config.ini', 'r') as file:
+            with open(CONFIG_PATH, 'r') as file:
                 for line in file:
                     if not line.strip() or line.strip().startswith('#'):
                         continue

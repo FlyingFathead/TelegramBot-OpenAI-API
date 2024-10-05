@@ -11,10 +11,11 @@ import os
 import asyncio
 import configparser
 import random
+from config_paths import CONFIG_PATH
 
 # Load the configuration file
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(CONFIG_PATH)
 
 DEFAULT_PERPLEXITY_MODEL = "llama-3-sonar-large-32k-online"
 DEFAULT_PERPLEXITY_MAX_TOKENS = 1024

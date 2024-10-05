@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.742"
+version_number = "0.743"
 
 # experimental modules
 import requests
@@ -37,6 +37,7 @@ from telegram.helpers import escape_markdown
 from functools import partial
 
 # tg-bot modules
+from config_paths import CONFIG_PATH, TOKEN_FILE_PATH
 from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands
@@ -103,7 +104,8 @@ class TelegramBot:
 
     def load_config(self):
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        # config.read('config.ini')
+        config.read(CONFIG_PATH)  # Use CONFIG_PATH instead of hardcoded 'config.ini'        
         self.config = config['DEFAULT']
         self.model = self.config.get('Model', 'gpt-4o-mini')
         self.temperature = self.config.getfloat('Temperature', 0.7)

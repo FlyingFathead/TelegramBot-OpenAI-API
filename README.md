@@ -30,10 +30,11 @@
 
 # Prerequisites
 - Tested & working on Python 3.10.12
-- Required Python packages (tested & working with these, install with `pip install -r requirements.txt` for potentially newer versions):
+- Required Python packages (tested & working with these pip modules/libraries, install with `pip install -r requirements.txt` for potentially newer versions):
+
 ```
 configparser>=6.0.0
-feedparser>=6.0.11
+ffmpeg-python>=0.2.0
 httpx>=0.25.2
 langdetect>=1.0.9
 matplotlib>=3.8.2
@@ -45,35 +46,94 @@ python-telegram-bot>=20.7
 transformers>=4.36.2
 requests>=2.31.0
 pytz>=2024.1
-tiktoken>=0.7.0
 timezonefinder>=6.4.0
 yfinance>=0.2.41
 yt-dlp>=2024.3.10
+feedparser>=6.0.11
+tiktoken>=0.7.0
 ```
-- (In some instances, `pydub` might require `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality.)
-- NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install in Debian/Ubuntu linuxes with: `sudo apt-get install lynx`)
+
+- `pydub` usually requires `ffmpeg` to be installed separately. Note that neither `pydub` nor `ffmpeg` are practically not required if you are *not* utilizing the voice message/WhisperAPI functionality, but if you are, suggested install (Debian/Ubuntu Linux): `sudo apt-get install ffmpeg`
+- NOTE: DuckDuckGo searches require `lynx` to be installed on your system; it needs to be run as a subprocess. (Install on Debian/Ubuntu Linux with: `sudo apt-get install lynx`)
 
 ## Other requirements:
+
 - Telegram API bot token 
   - use the `@BotFather` bot on Telegram (set up a bot and get a bot token)
 - OpenAI API token
   - from: https://platform.openai.com/
 
+---
+
 # Installing
-- Install the required packages either from the list above or with: `pip install -r requirements.txt`
-- Set up your Telegram bot token either as `TELEGRAM_BOT_TOKEN` environment variable or put it into a text file named `bot_token.txt` inside the main program directory
-- Set up your OpenAI API token either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
-- If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
-- Additional weather info (moon phases, weather warnings etc) are fetched from [WeatherAPI](https://weatherapi.com), set the `WEATHERAPI_KEY` environment variable to use it.
-- If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
-- If you wish to use Perplexity API's supplementary fact-checking with their online models, register at [Perplexity.ai](https://perplexity.ai), buy some API credits and set your Perplexity API key to environment variable: `PERPLEXITY_API_KEY`
-- Adjust your configuration and settings in `config.ini` to your liking
-- Run with: `python main.py`
+
+1. Clone the repository with:
+
+  ```bash
+  git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API/
+  cd TelegramBot-OpenAI-API/
+  ```
+
+2. Install the required packages:
+
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+3. (Recommended) install the optional packages
+
+  - On Ubuntu/Debian tree Linux systems:
+
+  ```bash
+  sudo apt-get install -y ffmpeg lynx
+  ```
+
+3. Set up your Telegram bot token:
+
+  - Either set your Telegram Bot API token as `TELEGRAM_BOT_TOKEN` environment variable, or put it into a text file named `bot_token.txt` inside the `config/` directory (= `config/bot_token.txt`)
+
+4. Set up your OpenAI API token:
+
+  - Either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
+
+5. Other modules:
+
+  - If you wish to use the OpenWeatherMap API and the MapTiler API for i.e. localized weather data retrieval, set the `OPENWEATHERMAP_API_KEY` and the `MAPTILER_API_KEY` environment variables accordingly. You can get the API keys from [OpenWeather](https://openweathermap.org/) and [MapTiler](https://www.maptiler.com/)
+  - Additional weather info (moon phases, weather warnings etc) are fetched from [WeatherAPI](https://weatherapi.com), set the `WEATHERAPI_KEY` environment variable to use it.
+  - If you wish to use the Openrouteservice API for driving instructions, set the `OPENROUTESERVICE_API_KEY` environment variable from [Openrouteservice](https://openrouteservice.org/)
+  - If you wish to use Perplexity API's supplementary fact-checking with their online models, register at [Perplexity.ai](https://perplexity.ai), buy some API credits and set your Perplexity API key to environment variable: `PERPLEXITY_API_KEY`
+
+6. Further adjustments
+
+  - Adjust your configuration and settings by editing `config/config.ini` to your liking
+
+7. Run
+
+- Run the program with: `python main.py`
+
+---
 
 # Updating
-- Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by creating a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. Then, just run `python configmerger.py config.ini myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
+
+- Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by saving a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. 
+- Then, just run `python configmerger.py myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
+
+***Example on how to merge and update your existing configuration:**
+
+  ```bash
+  python3 configmerger.py /path/to/myconfig.txt
+  ```
+  _(Remember to either remove the `/path/to/` or change it to your path)_
 
 # Changelog
+- v0.743 - config loading changes & streamlining
+  - tidying up; all configurations are now under `config/`
+  - imported the new logic for bot token reading from my [`whisper-transcriber-telegram-bot`](https://github.com/FlyingFathead/whisper-transcriber-telegram-bot/)
+  - `bot_token.py` changed and updated accordingly
+  - `config_paths.py` now has the project-wide configuration for configuration file paths (`config.ini`, etc...)
+  - move any existing `bot_token.txt` (if used) to `config/`
+  - use `configmerger.py` to update with your custom configs
+  - (more WIP on project restructuring front)
 - v0.742 - Finnish name day RAG step fetch
 - v0.741 - changed to most current Perplexity API model (`llama-3.1-sonar-small-128k-online`) due to deprecations and updates in their models
 - v0.74 - sub-agentic browsing with DuckDuckGo search engine searches is here! 

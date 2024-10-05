@@ -9,13 +9,14 @@ import datetime
 import re
 import openai  # Add the OpenAI module to make the API request
 import configparser  # Add configparser to read from config.ini
+from config_paths import CONFIG_PATH
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Load the configuration
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(CONFIG_PATH)
 
 # Retrieve values from config.ini
 model_name = config.get('DEFAULT', 'Model', fallback='gpt-4')

@@ -5,6 +5,7 @@ import os
 import sys
 import configparser
 import logging
+from config_paths import CONFIG_PATH  # Import the centralized CONFIG_PATH
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,7 +25,7 @@ def read_env_api_key():
         logging.info("OpenAI API key loaded from environment variable.")
     return api_key
 
-def get_api_key(config_path='config.ini', token_file='api_token.txt'):
+def get_api_key(config_path=CONFIG_PATH, token_file='api_token.txt'):
     """
     Retrieves the OpenAI API key, prioritizing the method as per the config file or defaults.
 
