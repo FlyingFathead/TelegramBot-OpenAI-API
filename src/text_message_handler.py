@@ -1012,11 +1012,17 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     message=bot_reply,
                 )
 
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=escaped_reply,
-                    parse_mode=ParseMode.HTML
-                )
+                # # send the response
+                # await context.bot.send_message(
+                #     chat_id=chat_id,
+                #     text=escaped_reply,
+                #     parse_mode=ParseMode.HTML
+                # )
+
+                message_parts = split_message(escaped_reply)
+
+                for part in message_parts:
+                    await context.bot.send_message(chat_id=chat_id, text=part, parse_mode=ParseMode.HTML)                
 
                 stop_typing_event.set()
                 context.user_data.pop('active_translation', None)
@@ -1241,6 +1247,38 @@ async def make_api_request(bot, chat_history, timeout=30):
         except Exception as e:
             bot.logger.error(f"An error occurred while making the API request: {str(e)}")
             raise e
+
+# split long messages
+def split_message(message, max_length=4000):
+    """
+    Split a long message into multiple smaller messages.
+    Args:
+        message (str): The message to split.
+        max_length (int): Maximum length of each part.
+    Returns:
+        list: A list containing message parts.
+    """
+    # List to store split messages
+    message_parts = []
+
+    # While there is still text to split
+    while len(message) > max_length:
+        # Split at the nearest period or line break before the max_length
+        split_index = message.rfind('\n', 0, max_length)
+        if split_index == -1:
+            split_index = message.rfind('. ', 0, max_length)
+            if split_index == -1:
+                split_index = max_length  # Split at max length if no better point is found
+        # Add the message part
+        message_parts.append(message[:split_index].strip())
+        # Update the remaining message
+        message = message[split_index:].strip()
+
+    # Add the last part
+    if message:
+        message_parts.append(message)
+
+    return message_parts
 
 # # // (old request type)
 # async def make_api_request(bot, chat_history, timeout=30):
