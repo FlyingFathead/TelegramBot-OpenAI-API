@@ -225,7 +225,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by saving a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. 
 
-- After that, just run `python configmerger.py myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
+- After that, just run i.e. `python src/configmerger.py myconfig.txt` and all your existing config lines will be migrated to the new one. Works in most cases, but remember to be careful and double-check any migration issues with i.e. `diff`!
 
 **(Example) How to merge and update your existing configuration:**
 
