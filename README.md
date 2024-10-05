@@ -43,7 +43,7 @@
 
 ---
 
-# Installing
+# Installing (No Docker)
 
 1. **Clone the repository with:**
 
@@ -91,6 +91,126 @@
 
 ---
 
+## **Dockerized Install Instructions**
+
+### **Prerequisites**
+1. **Docker** must be installed on your machine.
+   - If not installed, you can download and install it from [Docker's official site](https://www.docker.com/get-started).
+
+2. **Telegram Bot API Key** and **OpenAI API Key**:
+   - You will need a valid Telegram Bot API key. You can get one by creating a bot with [BotFather](https://core.telegram.org/bots#botfather).
+   - You will also need an OpenAI API key. If you don't have one, you can generate it from the [OpenAI API page](https://beta.openai.com/signup/).
+
+### **Step 1: Clone the Repository**
+
+First, clone the repository from GitHub:
+
+```bash
+git clone https://github.com/FlyingFathead/TelegramBot-OpenAI-API.git
+cd TelegramBot-OpenAI-API
+```
+
+### **Step 2: Run the Setup Script**
+
+This project includes a setup script that will guide you through entering your API keys and generating a `.env` file.
+
+Run the script:
+
+```bash
+./docker_setup.sh
+```
+
+Follow the instructions provided by the script. It will ask for your OpenAI API key and Telegram Bot API key, validate them, and create a `.env` file with your credentials.
+
+### **Step 3: Build the Docker Image**
+
+Once your `.env` file has been created, you need to build the Docker image.
+
+Run the following command to build the Docker image:
+
+```bash
+sudo docker build -t telegrambot-openai-api .
+```
+
+This will build the image locally based on the `Dockerfile` in the repository.
+
+### **Step 4: Run the Docker Container**
+
+After the image is successfully built, you can start the bot in a Docker container.
+
+Run the container with the following command:
+
+```bash
+sudo docker run --env-file .env -d telegrambot-openai-api
+```
+
+- The `-d` flag runs the container in detached mode (in the background).
+- The `--env-file .env` flag injects your API keys into the container.
+
+### **Step 5: Check the Running Container**
+
+You can check if the container is running by using:
+
+```bash
+sudo docker ps
+```
+
+This will list all running containers. If your bot is running correctly, it should appear in the list.
+
+### **Step 6: Stopping the Container**
+
+If you need to stop the bot, you can do so by running:
+
+```bash
+sudo docker stop <container_id>
+```
+
+Replace `<container_id>` with the actual container ID, which you can obtain from the `docker ps` output.
+
+### **Additional Steps (Optional)**
+
+- **Logs**: If you need to view the bot’s logs to troubleshoot any issues, you can use:
+
+  ```bash
+  sudo docker logs <container_id>
+  ```
+
+- **Restart the Container**: If you stop the container and want to start it again, you can either run the `docker run` command again or restart the existing container with:
+
+  ```bash
+  sudo docker start <container_id>
+  ```
+
+### **Updating the Bot**
+
+If the repository receives updates and you want to apply them, follow these steps:
+
+1. Pull the latest changes from GitHub:
+   ```bash
+   git pull origin main
+   ```
+
+2. Rebuild the Docker image:
+   ```bash
+   sudo docker build -t telegrambot-openai-api .
+   ```
+
+3. Stop the currently running container:
+   ```bash
+   sudo docker stop <container_id>
+   ```
+
+4. Start a new container using the updated image:
+   ```bash
+   sudo docker run --env-file .env -d telegrambot-openai-api
+   ```
+
+You should now have the TelegramBot-OpenAI-API running in a Docker container, fully connected to both Telegram and OpenAI. Enjoy your bot!
+
+If you run into any issues, consult the logs or reach out on the repository's [Issues page](https://github.com/FlyingFathead/TelegramBot-OpenAI-API/issues).
+
+---
+
 # Updating
 
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by saving a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. 
@@ -106,6 +226,7 @@
 ---
 
 # Changelog
+- v0.7502 - added `docker_setup.sh` for easier Docker-based deployment
 - v0.7501 - `Dockerfile` and better error catching when receiving `401 Unauthorized`
 - v0.75 **Major refactoring** _(5. Oct 2024)_ 👀💦🌀
   - entire project has been tidied up and a lot of bugs fixed while at it

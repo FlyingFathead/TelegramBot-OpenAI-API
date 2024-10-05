@@ -11,7 +11,7 @@ echo "Welcome to the TelegramBot-OpenAI-API setup."
 echo "Source code: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/"
 echo
 
-# Function to check for empty or invalid inputs
+# Function to check for empty or invalid inputs for required keys
 validate_input() {
   if [[ -z "$1" || ${#1} -lt 10 ]]; then
     echo "Error: Input cannot be blank or too short (must be at least 10 characters). Please try again."
@@ -20,33 +20,38 @@ validate_input() {
   return 0
 }
 
-# Prompt for OpenAI API Key with validation
+# Prompt for required API keys (OpenAI and Telegram)
 while true; do
-  read -p "Please enter your OpenAI API key: " OPENAI_API_KEY
+  read -p "Please enter your OpenAI API key (required): " OPENAI_API_KEY
   validate_input "$OPENAI_API_KEY" && break
 done
 
-# Prompt for Telegram Bot API Key with validation
 while true; do
-  read -p "Please enter your Telegram Bot API key: " TELEGRAM_BOT_API_KEY
+  read -p "Please enter your Telegram Bot API key (required): " TELEGRAM_BOT_API_KEY
   validate_input "$TELEGRAM_BOT_API_KEY" && break
 done
 
-# Create a .env file with the collected keys
+# Prompt for optional API keys (user can leave them blank)
+echo "Below are optional keys for the bot's supported API functionalities that you can add in, or just press ENTER to leave them blank."
+read -p "Please enter your Perplexity API key (optional): " PERPLEXITY_API_KEY
+read -p "Please enter your OpenWeatherMap API key (optional): " OPENWEATHERMAP_API_KEY
+read -p "Please enter your WeatherAPI key (optional): " WEATHERAPI_KEY
+read -p "Please enter your MapTiler API key (optional): " MAPTILER_API_KEY
+read -p "Please enter your Openrouteservice API key (optional): " OPENROUTESERVICE_API_KEY
+
+# Create a .env file with the required and optional keys
 echo "Generating .env file..."
 cat <<EOL > .env
 OPENAI_API_KEY=$OPENAI_API_KEY
 TELEGRAM_BOT_API_KEY=$TELEGRAM_BOT_API_KEY
+OPENWEATHERMAP_API_KEY=$OPENWEATHERMAP_API_KEY
+WEATHERAPI_KEY=$WEATHERAPI_KEY
+MAPTILER_API_KEY=$MAPTILER_API_KEY
+OPENROUTESERVICE_API_KEY=$OPENROUTESERVICE_API_KEY
+PERPLEXITY_API_KEY=$PERPLEXITY_API_KEY
 # Additional variables can be added here
 EOL
 
-# Optionally, check for Docker Compose if it's needed later
-# if ! [ -x "$(command -v docker-compose)" ]; then
-#   echo 'Warning: Docker Compose is not installed. Consider installing it if needed.' >&2
-# fi
-
-
-# Inform the user the setup is complete
 echo "Environment variables saved to .env."
 
 # Instructions for the next steps
@@ -58,13 +63,28 @@ echo
 echo "2. After building the image, start the bot container using:"
 echo "   sudo docker run --env-file .env -d telegrambot-openai-api"
 echo
-echo "   This will start the bot in detached mode (-d) using the environment variables from the .env file."
-echo
-echo "3. Optionally, check if the container is running using:"
+echo "3. Check the container status with:"
 echo "   sudo docker ps"
 echo
-echo "4. To stop the container, you can run:"
+echo "4. Stop the container with:"
 echo "   sudo docker stop <container_id>"
 echo
-echo "You're all set! The bot should now be running and connected to Telegram and OpenAI."
+echo "You're all set!"
 
+function build_and_run() {
+# Build Docker image
+sudo docker build -t telegrambot-openai-api .
+if [[ $? -ne 0 ]]; then
+  echo "Error: Docker image build failed."
+  exit 1
+fi
+
+# Run Docker container
+sudo docker run --env-file .env -d telegrambot-openai-api
+if [[ $? -ne 0 ]]; then
+  echo "Error: Failed to run the Docker container."
+  exit 1
+fi
+}
+
+# build_and_run
