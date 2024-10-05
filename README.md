@@ -27,6 +27,8 @@
   - With optional domain/IP allow/disallow lists for safety
 - **🧮 Calculator function call module for precise calculations**
   - No more fumbling with AI arithmetic hallucinations!
+- **🐳 Dockerized for safety and ease of deplyoment**
+  - For those who love their Dockers, ready to roll within minutes!
 
 # Prerequisites
 - Tested & working on Python `3.10.12` to `3.12.2`
