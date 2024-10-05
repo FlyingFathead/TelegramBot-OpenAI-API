@@ -349,6 +349,11 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot.logger.error("Received 401 Unauthorized: Invalid OpenAI API key.")
                         await context.bot.send_message(
                             chat_id=chat_id,
+                            text="😐",  # First message with just the emoji
+                            parse_mode=ParseMode.HTML
+                        )
+                        await context.bot.send_message(
+                            chat_id=chat_id,
                             text="Error: Invalid OpenAI API key. Please contact the administrator to resolve this issue.",
                             parse_mode=ParseMode.HTML
                         )
