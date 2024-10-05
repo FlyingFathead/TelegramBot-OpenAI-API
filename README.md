@@ -208,8 +208,10 @@ If the repository receives updates and you want to apply them, follow these step
 
 4. Start a new container using the updated image:
    ```bash
-   sudo docker run --env-file .env -d telegrambot-openai-api
+   sudo docker run --env-file .env --name telegrambot-openai-api -d telegrambot-openai-api
    ```
+
+There is also a `docker_deploy.sh` script included that aims to make the rebuilding and deploying less of a hassle.
 
 You should now have the TelegramBot-OpenAI-API running in a Docker container, fully connected to both Telegram and OpenAI. Enjoy your bot!
 
@@ -217,7 +219,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 ---
 
-# Updating
+# Updating your `config.ini`
 
 - Use the `configmerger.py` to update old configuration files into a newer version's `config.ini`. You can do this by saving a copy of your existing config to i.e. a file named `myconfig.txt` and including in it the lines you want to keep for the newer version. 
 
