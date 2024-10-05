@@ -86,12 +86,15 @@ echo "1. Build the Docker image by running the following command:"
 echo "   sudo docker build -t telegrambot-openai-api ."
 echo
 echo "2. After building the image, start the bot container using:"
-echo "   sudo docker run --env-file .env -d telegrambot-openai-api"
+echo "   sudo docker run --env-file .env --name telegrambot-openai-api -d telegrambot-openai-api"
 echo
 echo "3. Check the container status with:"
 echo "   sudo docker ps"
 echo
-echo "4. Stop the container with:"
+echo "4. Check the logs with:"
+echo "  sudo docker logs telegrambot-openai-api"
+echo 
+echo "5. Stop the container with:"
 echo "   sudo docker stop <container_id>"
 echo
 echo "After that, you're all set! Enjoy, and don't forget to start the repository if you like it. :-)"
