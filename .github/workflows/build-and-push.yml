@@ -42,9 +42,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Stop and remove any existing container
+        run: |
+          docker stop telegrambot-openai-api || true
+          docker rm telegrambot-openai-api || true
+
       - name: Run Docker container with environment variables
         run: |
           docker run \
+          --name telegrambot-openai-api \
           --env OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
           --env TELEGRAM_BOT_API_KEY=${{ secrets.TELEGRAM_BOT_API_KEY }} \
           -d ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
