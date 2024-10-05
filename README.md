@@ -106,6 +106,7 @@
 ---
 
 # Changelog
+- v0.7501 - `Dockerfile` and better error catching when receiving `401 Unauthorized`
 - v0.75 **Major refactoring** _(5. Oct 2024)_ 👀💦🌀
   - entire project has been tidied up and a lot of bugs fixed while at it
   - `python src/main.py` to start the bot from here on out

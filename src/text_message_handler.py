@@ -343,14 +343,25 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                                 data=json.dumps(payload),
                                                 headers=headers,
                                                 timeout=bot.timeout)
+
+                    # Check if response status is 401 (Unauthorized)
+                    if response.status_code == 401:
+                        bot.logger.error("Received 401 Unauthorized: Invalid OpenAI API key.")
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text="Error: Invalid OpenAI API key. Please contact the administrator to resolve this issue.",
+                            parse_mode=ParseMode.HTML
+                        )
+                        return  # Stop further execution in case of 401 error
+
                     response_json = response.json()
 
                 # Log the API request payload
                 bot.logger.info(f"API Request Payload: {payload}")
 
-                #
+                # ~~~~~~~~~~~~~~~~~~
                 # > function calling
-                #
+                # ~~~~~~~~~~~~~~~~~~
 
                 # Check for a 'function_call' in the response
                 if 'function_call' in response_json['choices'][0]['message']:
@@ -1201,13 +1212,54 @@ async def make_api_request(bot, chat_history, timeout=30):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {openai.api_key}"
     }
+
     async with httpx.AsyncClient() as client:
-        response = await client.post("https://api.openai.com/v1/chat/completions",
-                                    data=json.dumps(payload),
-                                    headers=headers,
-                                    timeout=timeout)
-        response_json = response.json()
-    return response_json
+        try:
+            response = await client.post("https://api.openai.com/v1/chat/completions",
+                                         data=json.dumps(payload),
+                                         headers=headers,
+                                         timeout=timeout)
+
+            # Check for 401 Unauthorized error
+            if response.status_code == 401:
+                bot.logger.error("Received 401 Unauthorized: Invalid OpenAI API key. Please check your OpenAI API key validity!")
+                raise Exception("Unauthorized - Invalid OpenAI API key. Please check your environment variables or API key configuration.")
+            
+            response.raise_for_status()  # Raises HTTPError for bad responses (4xx, 5xx)
+            response_json = response.json()
+            return response_json
+
+        except httpx.HTTPStatusError as e:
+            bot.logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+            raise e  # Optionally re-raise the exception or handle it gracefully
+
+        except Exception as e:
+            bot.logger.error(f"An error occurred while making the API request: {str(e)}")
+            raise e
+
+# # // (old request type)
+# async def make_api_request(bot, chat_history, timeout=30):
+#     # Prepare the payload for the API request with updated chat history
+#     payload = {
+#         "model": bot.model,
+#         "messages": chat_history,
+#         "temperature": bot.temperature,
+#         "functions": custom_functions,
+#         "function_call": 'auto'  # Allows the model to dynamically choose the function
+#     }
+
+#     # Make the API request
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {openai.api_key}"
+#     }
+#     async with httpx.AsyncClient() as client:
+#         response = await client.post("https://api.openai.com/v1/chat/completions",
+#                                     data=json.dumps(payload),
+#                                     headers=headers,
+#                                     timeout=timeout)
+#         response_json = response.json()
+#     return response_json
 
 # # retry function
 # async def retry_async(function, retries=3, delay=2, *args, **kwargs):
