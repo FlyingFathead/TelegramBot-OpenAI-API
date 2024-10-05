@@ -50,7 +50,7 @@ jobs:
       - name: Run Docker container with environment variables
         run: |
           docker run \
-          --name telegrambot-openai-api \
-          --env OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-          --env TELEGRAM_BOT_API_KEY=${{ secrets.TELEGRAM_BOT_API_KEY }} \
-          -d ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            --name telegrambot-openai-api \
+            --env OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            --env TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }} \
+            -d ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

@@ -46,8 +46,8 @@ while true; do
 done
 
 while true; do
-  read -p "Please enter your Telegram Bot API key (required): " TELEGRAM_BOT_API_KEY
-  validate_input "$TELEGRAM_BOT_API_KEY" && break
+  read -p "Please enter your Telegram Bot API Token (required): " TELEGRAM_BOT_TOKEN
+  validate_input "$TELEGRAM_BOT_TOKEN" && break
 done
 
 # Prompt for optional API keys (user can leave them blank)
