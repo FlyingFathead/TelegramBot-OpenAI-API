@@ -11,9 +11,10 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 # Welcome Message
+echo "" &&
 hzline &&
-echo "Welcome to the TelegramBot-OpenAI-API setup." &&
-echo "Source code: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/" &&
+echo "::: Welcome to the TelegramBot-OpenAI-API setup." &&
+echo "::: Source code & repo: https://github.com/FlyingFathead/TelegramBot-OpenAI-API/" &&
 hzline &&
 echo
 
