@@ -236,6 +236,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7504 - fixed usage logs and charts directory mapping
 - v0.7503 - improved message formatting & error catching
 - v0.7502 - added `docker_setup.sh` for easier Docker-based deployment
 - v0.7501 - `Dockerfile` and better error catching when receiving `401 Unauthorized`

@@ -5,7 +5,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 #
 # version of this program
-version_number = "0.7503"
+version_number = "0.7504"
 
 # Add the project root directory to Python's path
 import sys
@@ -147,8 +147,34 @@ class TelegramBot:
         self.enable_whisper = self.config.getboolean('EnableWhisper', True)
         self.max_voice_message_length = self.config.getint('MaxDurationMinutes', 5)
 
-        self.data_directory = self.config.get('DataDirectory', 'data')  # Default to 'data' if not set
+        self.data_directory = self.config.get('DataDirectory', 'data')  # Default to 'data' if not set        
         self.max_storage_mb = self.config.getint('MaxStorageMB', 100) # Default to 100 MB if not set
+
+        # set directories
+        # Get the project root
+        project_root = Path(__file__).resolve().parents[1]
+
+        # Combine project root with the relative data directory from config
+        self.data_directory = str(project_root / self.config.get('DataDirectory', 'data'))
+
+        # Ensure the data directory exists or handle creation failure
+        try:
+            if not os.path.exists(self.data_directory):
+                os.makedirs(self.data_directory, exist_ok=True)
+                self.logger.info(f"Created data directory at {self.data_directory}")
+        except OSError as e:
+            self.logger.error(f"Failed to create data directory {self.data_directory}: {e} -- Some commands might be disabled due to this.")
+
+        # set the logs directory
+        self.logs_directory = str(project_root / self.config.get('LogsDirectory', 'logs'))
+        
+        # Ensure the logs directory exists or handle creation failure
+        try:
+            if not os.path.exists(self.logs_directory):
+                os.makedirs(self.logs_directory, exist_ok=True)
+                self.logger.info(f"Created logs directory at {self.logs_directory}")
+        except OSError as e:
+            self.logger.error(f"Failed to create logs directory {self.logs_directory}: {e} -- Some commands might be disabled due to this.")
 
         self.logfile_enabled = self.config.getboolean('LogFileEnabled', True)
         self.logfile_file = self.config.get('LogFile', 'bot.log')
@@ -304,7 +330,11 @@ class TelegramBot:
     def run(self):
         application = Application.builder().token(self.telegram_bot_token).build()
         application.get_updates_read_timeout = self.timeout
-        
+
+        # Store bot_instance in bot_data for access in handlers
+        application.bot_data['bot_instance'] = self
+        self.logger.info("Stored bot_instance in context.bot_data")
+
         # Text handler
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
         
@@ -325,9 +355,12 @@ class TelegramBot:
         # application.add_handler(CommandHandler("restart", partial(bot_commands.restart_command, bot_owner_id=self.bot_owner_id)))        
         # application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_owner_id=self.bot_owner_id, total_token_usage=self.total_token_usage, max_tokens_config=self.max_tokens_config)))
         # application.add_handler(CommandHandler("updateconfig", partial(bot_commands.update_config_command, bot_owner_id=self.bot_owner_id)))        
-        application.add_handler(CommandHandler("usagechart", partial(bot_commands.usage_chart_command, bot_instance=self, token_usage_file='token_usage.json')))
-        application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_instance=self)))
-        
+        # application.add_handler(CommandHandler("usagechart", partial(bot_commands.usage_chart_command, bot_instance=self, token_usage_file='token_usage.json')))
+        # application.add_handler(CommandHandler("usage", partial(bot_commands.usage_command, bot_instance=self)))
+
+        application.add_handler(CommandHandler("usagechart", bot_commands.usage_chart_command))
+        application.add_handler(CommandHandler("usage", bot_commands.usage_command))
+
         # Register the /reset command
         application.add_handler(CommandHandler("reset", partial(bot_commands.reset_command, 
                                                         bot_owner_id=self.bot_owner_id, 

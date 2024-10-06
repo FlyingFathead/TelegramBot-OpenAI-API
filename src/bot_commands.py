@@ -107,59 +107,132 @@ async def set_system_message_command(update: Update, context: CallbackContext, b
         logging.info(f"User {user_id} attempted to set system message but provided no new message.")
         await update.message.reply_text("Please provide the new system message in the command line, i.e.: /setsystemmessage My new system message to the AI on what it is, where it is, etc.")
 
+
 # /usage (admin command)
-async def usage_command(update: Update, context: CallbackContext, bot_instance):
+# bot_commands.py
+async def usage_command(update: Update, context: CallbackContext):
+    bot_instance = context.bot_data.get('bot_instance')  # Retrieve the bot instance from context
+    
+    if not bot_instance:
+        await update.message.reply_text("Internal error: Bot instance not found.")
+        logging.error("Bot instance not found in context.bot_data")
+        return
+
+    logging.info(f"User {update.message.from_user.id} invoked /usage command")
+
     if bot_instance.bot_owner_id == '0':
         await update.message.reply_text("The `/usage` command is disabled.")
+        logging.info("Usage command is disabled until a bot owner is defined in `config.ini`.")
         return
 
     if str(update.message.from_user.id) != bot_instance.bot_owner_id:
         await update.message.reply_text("You don't have permission to use this command.")
+        logging.info(f"User {update.message.from_user.id} does not have permission to use /usage")
         return
 
-    # Define current_date before entering the try block
+    # Correct path to token_usage.json inside logs/ directory
+    # token_usage_file = os.path.join(bot_instance.data_directory, 'logs', 'token_usage.json')
+    token_usage_file = os.path.join(bot_instance.logs_directory, 'token_usage.json')
+
+    logging.info(f"Looking for token usage file at: {token_usage_file}")
     current_date = datetime.datetime.utcnow()
 
     try:
-        if os.path.exists(bot_instance.token_usage_file):
-            with open(bot_instance.token_usage_file, 'r') as file:
+        if os.path.exists(token_usage_file):
+            with open(token_usage_file, 'r') as file:
                 token_usage_history = json.load(file)
-
-            # Prune token usage history based on the previously defined current_date
+            logging.info("Loaded token usage history successfully")
+            
+            # Prune token usage history
             cutoff_date = current_date - datetime.timedelta(days=bot_instance.max_history_days)
-            token_usage_history = {date: usage for date, usage in token_usage_history.items() if datetime.datetime.strptime(date, '%Y-%m-%d') >= cutoff_date}
+            token_usage_history = {
+                date: usage for date, usage in token_usage_history.items()
+                if datetime.datetime.strptime(date, '%Y-%m-%d') >= cutoff_date
+            }
+            logging.info("Pruned token usage history based on cutoff date")
         else:
             token_usage_history = {}
+            logging.warning(f"Token usage file does not exist at: {token_usage_file}")
     except json.JSONDecodeError:
         await update.message.reply_text("Error reading token usage history.")
+        logging.error("JSONDecodeError while reading token_usage.json")
+        return
+    except Exception as e:
+        await update.message.reply_text(f"An unexpected error occurred: {e}")
+        logging.error(f"Unexpected error in usage_command: {e}")
         return
 
-    # Since current_date is now defined outside the try block, it will always be available here
     today_usage = token_usage_history.get(current_date.strftime('%Y-%m-%d'), 0)
-    token_cap_info = f"Today's usage: {today_usage} tokens\n" \
-                     f"Daily token cap: {'No cap' if bot_instance.max_tokens_config == 0 else f'{bot_instance.max_tokens_config} tokens'}\n\n" \
-                     "Token Usage History:\n"
+    token_cap_info = (
+        f"Today's usage: {today_usage} tokens\n"
+        f"Daily token cap: {'No cap' if bot_instance.max_tokens_config == 0 else f'{bot_instance.max_tokens_config} tokens'}\n\n"
+        "Token Usage History:\n"
+    )
 
     for date, usage in sorted(token_usage_history.items()):
         token_cap_info += f"{date}: {usage} tokens\n"
 
     await update.message.reply_text(token_cap_info)
+    logging.info("Sent usage information to user")
+
+# /usagechart (admin command)
+async def usage_chart_command(update: Update, context: CallbackContext):
+    bot_instance = context.bot_data.get('bot_instance')  # Retrieve the bot instance from context
     
-# /usagechart (admin command, to get chart type usage statistics)
-async def usage_chart_command(update: Update, context: CallbackContext, bot_instance, token_usage_file):
+    if not bot_instance:
+        await update.message.reply_text("Internal error: Bot instance not found.")
+        logging.error("Bot instance not found in context.bot_data")
+        return
+
+    logging.info(f"User {update.message.from_user.id} invoked /usagechart command")
+
     if bot_instance.bot_owner_id == '0':
         await update.message.reply_text("The `/usagechart` command is disabled.")
+        logging.info("Usagechart command is disabled")
         return
 
     if str(update.message.from_user.id) != bot_instance.bot_owner_id:
         await update.message.reply_text("You don't have permission to use this command.")
+        logging.info(f"User {update.message.from_user.id} does not have permission to use /usagechart")
         return
-    
-    output_image_file = 'token_usage_chart.png'
-    generate_usage_chart(token_usage_file, output_image_file)
-    
-    with open(output_image_file, 'rb') as file:
-        await context.bot.send_photo(chat_id=update.message.chat_id, photo=file)
+
+    # Define paths
+    token_usage_file = os.path.join(bot_instance.logs_directory, 'token_usage.json')
+    output_image_file = os.path.join(bot_instance.data_directory, 'token_usage_chart.png')
+
+    logging.info(f"Looking for token usage file at: {token_usage_file}")
+    logging.info(f"Output image file will be at: {output_image_file}")
+
+    # Ensure the data directory exists
+    try:
+        if not os.path.exists(bot_instance.data_directory):
+            os.makedirs(bot_instance.data_directory, exist_ok=True)
+            bot_instance.logger.info(f"Created data directory at {bot_instance.data_directory}")
+    except OSError as e:
+        bot_instance.logger.error(f"Failed to create data directory {bot_instance.data_directory}: {e}")
+        await update.message.reply_text(f"Failed to create the data directory for the chart. Please check the bot's permissions.")
+        return
+
+    # Generate the usage chart
+    try:
+        generate_usage_chart(token_usage_file, output_image_file)
+        bot_instance.logger.info(f"Generated usage chart at {output_image_file}")
+    except Exception as e:
+        bot_instance.logger.error(f"Failed to generate usage chart: {e}")
+        await update.message.reply_text("Failed to generate usage chart.")
+        return
+
+    # Try to open and send the generated chart image
+    try:
+        with open(output_image_file, 'rb') as file:
+            await context.bot.send_photo(chat_id=update.message.chat_id, photo=file)
+        bot_instance.logger.info(f"Sent usage chart to chat_id {update.message.chat_id}")
+    except FileNotFoundError:
+        await update.message.reply_text("Token usage chart not found. Please ensure it's being generated correctly.")
+        bot_instance.logger.error("Token usage chart file not found: %s", output_image_file)
+    except Exception as e:
+        await update.message.reply_text("Failed to send the usage chart.")
+        bot_instance.logger.error(f"Error sending usage chart: {e}")
 
 # /reset
 async def reset_command(update: Update, context: CallbackContext, bot_owner_id, reset_enabled, admin_only_reset):
