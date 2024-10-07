@@ -82,6 +82,7 @@ async def get_nws_forecast(lat, lon, retries=NWS_RETRIES, delay=NWS_RETRY_DELAY)
         
     return None
 
+# get alerts via NWS (weather.gov)
 async def get_nws_alerts(lat, lon):
     """
     Fetches active alerts from the NWS API for the given latitude and longitude.
@@ -91,7 +92,7 @@ async def get_nws_alerts(lat, lon):
         lon (float): Longitude in decimal degrees.
     
     Returns:
-        list: A list of active alerts or an empty list if none are found.
+        list: A list of active alerts with detailed information or an empty list if none are found.
     """
 
     if not FETCH_NWS_ALERTS:
@@ -106,8 +107,26 @@ async def get_nws_alerts(lat, lon):
             response.raise_for_status()
             alerts_data = response.json()
             
-            # Extract alerts from GeoJSON
-            alerts = alerts_data.get('features', [])
+            # Extracting the detailed alerts
+            alerts = []
+            for feature in alerts_data.get('features', []):
+                properties = feature.get('properties', {})
+                alert = {
+                    'headline': properties.get('headline'),
+                    'description': properties.get('description'),
+                    'instruction': properties.get('instruction'),
+                    'severity': properties.get('severity'),
+                    'event': properties.get('event'),
+                    'areaDesc': properties.get('areaDesc'),
+                    'certainty': properties.get('certainty'),
+                    'urgency': properties.get('urgency'),
+                    'effective': properties.get('effective'),
+                    'expires': properties.get('expires'),
+                    'senderName': properties.get('senderName'),
+                    'response': properties.get('response'),
+                    # Add more fields if needed
+                }
+                alerts.append(alert)
             return alerts
         
         except httpx.HTTPStatusError as e:
@@ -116,3 +135,40 @@ async def get_nws_alerts(lat, lon):
             logging.error(f"Error fetching NWS alerts: {e}")
     
     return []
+
+# # // (old method)
+# # get alerts via NWS (weather.gov)
+# async def get_nws_alerts(lat, lon):
+#     """
+#     Fetches active alerts from the NWS API for the given latitude and longitude.
+    
+#     Args:
+#         lat (float): Latitude in decimal degrees.
+#         lon (float): Longitude in decimal degrees.
+    
+#     Returns:
+#         list: A list of active alerts or an empty list if none are found.
+#     """
+
+#     if not FETCH_NWS_ALERTS:
+#         logging.info("Fetching NWS alerts is disabled in the config.")
+#         return []
+
+#     alerts_url = f"{NWS_BASE_URL}/alerts/active?point={lat},{lon}"
+    
+#     async with httpx.AsyncClient() as client:
+#         try:
+#             response = await client.get(alerts_url, headers={'User-Agent': NWS_USER_AGENT})
+#             response.raise_for_status()
+#             alerts_data = response.json()
+            
+#             # Extract alerts from GeoJSON
+#             alerts = alerts_data.get('features', [])
+#             return alerts
+        
+#         except httpx.HTTPStatusError as e:
+#             logging.error(f"NWS Alerts API HTTP error: {e.response.status_code} - {e.response.text}")
+#         except Exception as e:
+#             logging.error(f"Error fetching NWS alerts: {e}")
+    
+#     return []

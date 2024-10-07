@@ -236,6 +236,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.75052 - include the details from U.S. National Weather Service on alerts
 - v0.75051 - updated `config.ini` for configuring NWS weather forecasts & alerts
   - suggested method is to supplement via NWS the additional weather data you need
   - leaving U.S. NWS's weather alerts on in `config.ini` is highly recommended, even if you have other fetching methods enabled (i.e. OpenWeatherMap), rather be safe than sorry

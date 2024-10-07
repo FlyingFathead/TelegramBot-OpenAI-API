@@ -14,6 +14,7 @@
 
 # Import the NWS data fetching function
 from api_get_nws_weather import get_nws_forecast, get_nws_alerts
+from config_paths import NWS_USER_AGENT, NWS_RETRIES, NWS_RETRY_DELAY, FETCH_NWS_FORECAST, FETCH_NWS_ALERTS
 
 # date & time utils
 import datetime as dt
@@ -404,7 +405,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
         lon_rounded = round(lon, 4)
         alerts_url = f"https://api.weather.gov/alerts/active?point={lat_rounded},{lon_rounded}"
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            alerts_response = await client.get(alerts_url, headers={'User-Agent': 'YourAppName (youremail@example.com)'})
+            alerts_response = await client.get(alerts_url, headers={'User-Agent': NWS_USER_AGENT})
             alerts_response.raise_for_status()
             alerts_data = alerts_response.json()
     except httpx.HTTPStatusError as e:
@@ -422,6 +423,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
             
             event = properties.get('event', 'EVENT').upper()
             headline = properties.get('headline', 'HEADLINE')
+            description = properties.get('description', 'No further details available')  # Fetching the detailed description            
             instruction = properties.get('instruction', 'INSTRUCTION')
             severity = properties.get('severity', 'Unknown').capitalize()
             certainty = properties.get('certainty', 'Unknown').capitalize()
@@ -433,6 +435,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
             alerts_info += (
                 f"{idx}. ⚠️ <b>{event}</b>\n"
                 f"<b>Vaara:</b> {headline}\n"
+                f"<b>Kuvaus:</b> {description}\n"  # Adding the detailed description                
                 f"<b>Ohjeet:</b> {instruction}\n"
                 f"<b>Alue:</b> {area_desc}\n"
                 f"<b>Vakavuus:</b> {severity}\n"
