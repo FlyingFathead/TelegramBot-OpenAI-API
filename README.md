@@ -236,6 +236,9 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7505 - U.S. NWS (National Weather Service, [weather.gov](https://weather.gov)) added as a weather data source
+  - for additional information; **especially weather alerts**
+  - all data will be combined from OpenWeatherMap and U.S. NWS sources by default
 - v0.7504 - fixed usage logs and charts directory mapping
 - v0.7503 - improved message formatting & error catching
 - v0.7502 - added `docker_setup.sh` for easier Docker-based deployment

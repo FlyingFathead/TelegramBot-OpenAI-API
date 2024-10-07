@@ -12,6 +12,9 @@
 # export OPENWEATHERMAP_API_KEY="<your API key>"
 # export MAPTILER_API_KEY="<your API key>"
 
+# Import the NWS data fetching function
+from api_get_nws_weather import get_nws_forecast, get_nws_alerts
+
 # date & time utils
 import datetime as dt
 from dateutil import parser
@@ -74,8 +77,38 @@ async def get_weather(city_name, country, exclude='', units='metric', lang='fi')
                 additional_data = await get_additional_data_dump()
                 logging.info(f"Additional data fetched: {additional_data}")
 
-            combined_data = await combine_weather_data(city_name, resolved_country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data)
-            return combined_data
+            # // (old method)
+            # combined_data = await combine_weather_data(city_name, resolved_country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data)
+            # return combined_data
+
+            # Fetch NWS data
+            logging.info("Fetching NWS data.")
+            nws_data = await get_nws_forecast(lat, lon)
+            if nws_data:
+                logging.info("NWS data fetched successfully.")
+                nws_forecast = nws_data.get('nws_forecast')
+                nws_forecast_hourly = nws_data.get('nws_forecast_hourly')
+            else:
+                logging.warning("Failed to fetch NWS data.")
+                nws_forecast = None
+                nws_forecast_hourly = None
+
+            # Fetch NWS alerts data
+            logging.info("Fetching NWS alerts data.")
+            nws_alerts = await get_nws_alerts(lat, lon)
+            if nws_alerts:
+                logging.info(f"Fetched {len(nws_alerts)} active NWS alerts.")
+            else:
+                logging.info("No active NWS alerts found.")
+
+            combined_data = await combine_weather_data(
+                city_name, resolved_country, lat, lon,
+                current_weather_data, forecast_data, moon_phase_data,
+                daily_forecast_data, current_weather_data_from_weatherapi,
+                astronomy_data, additional_data, nws_forecast, nws_forecast_hourly
+            )
+            return combined_data        
+
         else:
             logging.error(f"Failed to fetch weather data: {current_weather_response.text} / {forecast_response.text}")
             return "[Inform the user that data fetching the weather data failed, current information could not be fetched. Reply in the user's language.]"
@@ -172,7 +205,9 @@ def convert_to_24_hour(time_str, timezone_str):
         return "Invalid time"
 
 # combined weather data
-async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data):
+# async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data):
+# Define the combine_weather_data function with NWS integration
+async def combine_weather_data(city_name, country, lat, lon, current_weather_data, forecast_data, moon_phase_data, daily_forecast_data, current_weather_data_from_weatherapi, astronomy_data, additional_data, nws_forecast, nws_forecast_hourly):
     tf = TimezoneFinder()
     timezone_str = tf.timezone_at(lat=lat, lng=lon)
     local_timezone = pytz.timezone(timezone_str)
@@ -285,7 +320,7 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
             "\n".join(
                 [f"Alert: {alert['headline']}\nDescription: {alert['desc']}\nInstructions: {alert['instruction']}\n"
                  for alert in alerts['alert']]
-            ) if 'alert' in alerts and alerts['alert'] else "No weather alerts."
+            ) if 'alert' in alerts and alerts['alert'] else "No weather alerts according to OpenWeatherMap. NOTE: Please see other sources (i.e. NWS) to be sure."
         )
 
         detailed_weather_info += f"\n{air_quality_info}\n{alerts_info}"
@@ -323,6 +358,113 @@ async def combine_weather_data(city_name, country, lat, lon, current_weather_dat
     )
 
     combined_info = f"{detailed_weather_info}\n\n{final_forecast}"
+
+
+    # Append NWS data (Forecasts)
+    if nws_forecast:
+        nws_forecast_info = ""
+        nws_periods = nws_forecast.get('properties', {}).get('periods', [])
+        if nws_periods:
+            nws_forecast_info += "🌦️ <b>NWS Forecast (weather.gov):</b>\n"
+            for period in nws_periods[:3]:  # Limit to next 3 periods
+                name = period.get('name', 'N/A')
+                temperature = period.get('temperature', 'N/A')
+                temperature_unit = period.get('temperatureUnit', 'N/A')
+                wind_speed = period.get('windSpeed', 'N/A')
+                wind_direction = period.get('windDirection', 'N/A')
+                short_forecast = period.get('shortForecast', 'N/A')
+                nws_forecast_info += f"{name}: {short_forecast}, {temperature}°{temperature_unit}, Wind: {wind_speed} {wind_direction}\n"
+        else:
+            nws_forecast_info += "🌦️ <b>NWS Forecast (weather.gov):</b> Ei saatavilla.\n"
+
+        if nws_forecast_hourly:
+            nws_hourly_forecast_info = ""
+            nws_hourly_periods = nws_forecast_hourly.get('properties', {}).get('periods', [])
+            if nws_hourly_periods:
+                nws_hourly_forecast_info += "⏰ <b>NWS Hourly Forecast:</b>\n"
+                for period in nws_hourly_periods[:3]:  # Limit to next 3 hourly forecasts
+                    start_time = period.get('startTime', 'N/A')
+                    temperature = period.get('temperature', 'N/A')
+                    temperature_unit = period.get('temperatureUnit', 'N/A')
+                    wind_speed = period.get('windSpeed', 'N/A')
+                    wind_direction = period.get('windDirection', 'N/A')
+                    short_forecast = period.get('shortForecast', 'N/A')
+                    nws_hourly_forecast_info += f"{start_time}: {short_forecast}, {temperature}°{temperature_unit}, Wind: {wind_speed} {wind_direction}\n"
+            else:
+                nws_hourly_forecast_info += "⏰ <b>NWS Hourly Forecast:</b> Ei saatavilla.\n"
+        else:
+            nws_hourly_forecast_info = "⏰ <b>NWS Hourly Forecast:</b> Ei saatavilla.\n"
+
+        combined_info += f"\n{nws_forecast_info}\n{nws_hourly_forecast_info}"
+
+    # Fetch and append NWS Alerts
+    try:
+        # Round coordinates to 4 decimal places to comply with NWS API
+        lat_rounded = round(lat, 4)
+        lon_rounded = round(lon, 4)
+        alerts_url = f"https://api.weather.gov/alerts/active?point={lat_rounded},{lon_rounded}"
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            alerts_response = await client.get(alerts_url, headers={'User-Agent': 'YourAppName (youremail@example.com)'})
+            alerts_response.raise_for_status()
+            alerts_data = alerts_response.json()
+    except httpx.HTTPStatusError as e:
+        logging.error(f"NWS Alerts HTTP error: {e.response.status_code} - {e.response.text}")
+        alerts_data = None
+    except Exception as e:
+        logging.error(f"Error fetching NWS alerts: {e}")
+        alerts_data = None
+
+    alerts_info = ""
+    if alerts_data and 'features' in alerts_data and alerts_data['features']:
+        alerts_info += "[HUOM! HUOMIOI NÄMÄ! TAKE THESE INTO ACCOUNT!!! MENTION THESE TO THE USER IF THERE ARE WEATHER ALERTS -- INCLUDE ALL THE DETAILS. WHAT, WHEN, WHERE, WHAT SEVERITY, ETC.]\n🚨 <b>ONGOING ALERTS FROM THE U.S. NWS (weather.gov):</b>\n"
+        for idx, alert in enumerate(alerts_data['features'], start=1):
+            properties = alert.get('properties', {})
+            
+            event = properties.get('event', 'EVENT').upper()
+            headline = properties.get('headline', 'HEADLINE')
+            instruction = properties.get('instruction', 'INSTRUCTION')
+            severity = properties.get('severity', 'Unknown').capitalize()
+            certainty = properties.get('certainty', 'Unknown').capitalize()
+            urgency = properties.get('urgency', 'Unknown').capitalize()
+            area_desc = properties.get('areaDesc', 'N/A')
+            effective = properties.get('effective', 'N/A')
+            expires = properties.get('expires', 'N/A')
+            
+            alerts_info += (
+                f"{idx}. ⚠️ <b>{event}</b>\n"
+                f"<b>Vaara:</b> {headline}\n"
+                f"<b>Ohjeet:</b> {instruction}\n"
+                f"<b>Alue:</b> {area_desc}\n"
+                f"<b>Vakavuus:</b> {severity}\n"
+                f"<b>Varmuus:</b> {certainty}\n"
+                f"<b>Kiireellisyys:</b> {urgency}\n"
+                f"<b>Voimassa alkaen:</b> {effective}\n"
+                f"<b>Päättyy:</b> {expires}\n\n"
+            )
+    else:
+        alerts_info += "\n🚨 Ei aktiivisia varoituksia U.S. NWS:n (weather.gov) mukaan.\n"
+
+    # if alerts_data and 'features' in alerts_data and alerts_data['features']:
+    #     alerts_info += "\n🚨 <b>NWS ALERTS:</b>\n"
+    #     for alert in alerts_data['features']:
+    #         event = alert.get('properties', {}).get('event', 'EVENT').upper()
+    #         severity = alert.get('properties', {}).get('severity', 'SEVERITY').upper()
+    #         headline = alert.get('properties', {}).get('headline', 'HEADLINE')
+    #         instruction = alert.get('properties', {}).get('instruction', 'INSTRUCTION')
+
+    #         # Highlight severe alerts
+    #         if 'HURRICANE' in event or severity in ['WATCH', 'WARNING', 'EMERGENCY']:
+    #             alerts_info += f"🔥 <b>{event}</b>\n<b>Vaara:</b> {headline}\n<b>Ohjeet:</b> {instruction}\n\n"
+    #         else:
+    #             # Include less severe alerts if needed
+    #             alerts_info += f"<b>{event}</b>\n{headline}\n{instruction}\n\n"
+    # else:
+    #     alerts_info += "\n🚨 <b>NWS ALERTS:</b> Ei aktiivisia varoituksia.\n"
+
+    combined_info += alerts_info
+
+    # Combine all information
+    combined_info += f"\n{detailed_weather_info}\n\n{final_forecast}"
 
     # Append additional data for Finland if available
     if additional_data:
