@@ -84,6 +84,8 @@ if CONFIG_PATH.exists():
             NWS_RETRY_DELAY = config['NWS'].getint('NWSRetryDelay', fallback=2)
             FETCH_NWS_FORECAST = config['NWS'].getboolean('FetchNWSForecast', fallback=True)
             FETCH_NWS_ALERTS = config['NWS'].getboolean('FetchNWSAlerts', fallback=True)
+            NWS_ONLY_ELIGIBLE_COUNTRIES = config['NWS'].getboolean('NwsOnlyEligibleCountries', fallback=True)
+            NWS_ELIGIBLE_COUNTRIES = config['NWS'].get('NwsEligibleCountries', fallback='US, PR, GU, AS, VI, MP').split(', ')            
             logger.info(f"NWS Config: User-Agent={NWS_USER_AGENT}, Retries={NWS_RETRIES}, Retry Delay={NWS_RETRY_DELAY}, Fetch Forecast={FETCH_NWS_FORECAST}, Fetch Alerts={FETCH_NWS_ALERTS}")
         else:
             logger.warning("NWS section not found in config.ini. Using default NWS settings.")

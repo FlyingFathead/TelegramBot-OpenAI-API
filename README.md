@@ -236,6 +236,8 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.75053 - only include eligible territories in U.S. NWS queries
+  - list of queried / eligible territories can be set in `config.ini` under the `NWS` section
 - v0.75052 - include the details from U.S. National Weather Service on alerts
 - v0.75051 - updated `config.ini` for configuring NWS weather forecasts & alerts
   - suggested method is to supplement via NWS the additional weather data you need
