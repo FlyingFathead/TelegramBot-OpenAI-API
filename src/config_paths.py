@@ -29,6 +29,11 @@ ELASTICSEARCH_PORT = 9200
 ELASTICSEARCH_USERNAME = ''
 ELASTICSEARCH_PASSWORD = ''
 
+# Default NWS settings
+NWS_USER_AGENT = 'ChatKekeWeather/1.0 (flyingfathead@protonmail.com)'
+NWS_RETRIES = 0
+NWS_RETRY_DELAY = 2
+
 # Attempt to read the configuration file
 if CONFIG_PATH.exists():
     try:
@@ -71,6 +76,18 @@ if CONFIG_PATH.exists():
             ELASTICSEARCH_USERNAME = ''
             ELASTICSEARCH_PASSWORD = ''
             logger.warning("Elasticsearch section missing in config.ini. Using default Elasticsearch settings.")
+        
+        # NWS Configuration
+        if 'NWS' in config:
+            NWS_USER_AGENT = config['NWS'].get('NWSUserAgent', fallback='ChatKekeWeather/1.0 (flyingfathead@protonmail.com)')
+            NWS_RETRIES = config['NWS'].getint('NWSRetries', fallback=0)
+            NWS_RETRY_DELAY = config['NWS'].getint('NWSRetryDelay', fallback=2)
+            FETCH_NWS_FORECAST = config['NWS'].getboolean('FetchNWSForecast', fallback=True)
+            FETCH_NWS_ALERTS = config['NWS'].getboolean('FetchNWSAlerts', fallback=True)
+            logger.info(f"NWS Config: User-Agent={NWS_USER_AGENT}, Retries={NWS_RETRIES}, Retry Delay={NWS_RETRY_DELAY}, Fetch Forecast={FETCH_NWS_FORECAST}, Fetch Alerts={FETCH_NWS_ALERTS}")
+        else:
+            logger.warning("NWS section not found in config.ini. Using default NWS settings.")
+
     except Exception as e:
         # Handle exceptions during config parsing
         logger.error(f"Error reading configuration file: {e}")

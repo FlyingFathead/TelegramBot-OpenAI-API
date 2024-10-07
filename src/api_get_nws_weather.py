@@ -9,17 +9,12 @@
 import asyncio
 import httpx
 import logging
+from config_paths import NWS_USER_AGENT, NWS_RETRIES, NWS_RETRY_DELAY, FETCH_NWS_FORECAST, FETCH_NWS_ALERTS
 
 # Base URL for NWS API
 NWS_BASE_URL = 'https://api.weather.gov'
 
-# Custom User-Agent as per NWS API requirements
-USER_AGENT = 'ChatKekeWeather/1.0 (flyingfathead@protonmail.com)'
-
-# Default number of retries if not specified
-RETRIES = 0
-
-async def get_nws_forecast(lat, lon, retries=RETRIES, delay=2):
+async def get_nws_forecast(lat, lon, retries=NWS_RETRIES, delay=NWS_RETRY_DELAY):
     """
     Fetches the forecast from the NWS API for the given latitude and longitude.
     
@@ -32,6 +27,11 @@ async def get_nws_forecast(lat, lon, retries=RETRIES, delay=2):
     Returns:
         dict: Combined forecast data or None if fetching fails.
     """
+
+    if not FETCH_NWS_FORECAST:
+        logging.info("Fetching NWS forecast is disabled in the config.")
+        return None
+
     # Round coordinates to 4 decimal places
     lat = round(lat, 4)
     lon = round(lon, 4)
@@ -41,7 +41,7 @@ async def get_nws_forecast(lat, lon, retries=RETRIES, delay=2):
         for attempt in range(retries + 1):  # Ensure at least one attempt is made
             try:
                 # Step 1: Retrieve metadata for the location
-                response = await client.get(points_url, headers={'User-Agent': USER_AGENT})
+                response = await client.get(points_url, headers={'User-Agent': NWS_USER_AGENT})
                 response.raise_for_status()
                 points_data = response.json()
                 
@@ -50,7 +50,7 @@ async def get_nws_forecast(lat, lon, retries=RETRIES, delay=2):
                 forecast_hourly_url = points_data['properties'].get('forecastHourly')
                 
                 # Step 2: Retrieve forecast data
-                forecast_response = await client.get(forecast_url, headers={'User-Agent': USER_AGENT})
+                forecast_response = await client.get(forecast_url, headers={'User-Agent': NWS_USER_AGENT})
                 forecast_response.raise_for_status()
                 forecast_data = forecast_response.json()
                 
@@ -58,7 +58,7 @@ async def get_nws_forecast(lat, lon, retries=RETRIES, delay=2):
                 forecast_hourly_data = None
                 if forecast_hourly_url:
                     try:
-                        forecast_hourly_response = await client.get(forecast_hourly_url, headers={'User-Agent': USER_AGENT})
+                        forecast_hourly_response = await client.get(forecast_hourly_url, headers={'User-Agent': NWS_USER_AGENT})
                         forecast_hourly_response.raise_for_status()
                         forecast_hourly_data = forecast_hourly_response.json()
                     except httpx.HTTPStatusError as e:
@@ -93,11 +93,16 @@ async def get_nws_alerts(lat, lon):
     Returns:
         list: A list of active alerts or an empty list if none are found.
     """
+
+    if not FETCH_NWS_ALERTS:
+        logging.info("Fetching NWS alerts is disabled in the config.")
+        return []
+
     alerts_url = f"{NWS_BASE_URL}/alerts/active?point={lat},{lon}"
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(alerts_url, headers={'User-Agent': USER_AGENT})
+            response = await client.get(alerts_url, headers={'User-Agent': NWS_USER_AGENT})
             response.raise_for_status()
             alerts_data = response.json()
             
