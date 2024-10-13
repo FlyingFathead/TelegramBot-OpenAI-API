@@ -39,7 +39,7 @@
 
 ---
 
-# Installing without Docker on Linux
+# 🐧 Installing without Docker on Linux
 
 ## Prerequisites
 - Tested & working on Python `3.10.12` to `3.12.2`
@@ -93,7 +93,7 @@
 
 ---
 
-# **Installing Dockerized**
+# 🐳 **Installing Dockerized**
 
 ### **Prerequisites**
 1. **Docker** must be installed on your machine.
