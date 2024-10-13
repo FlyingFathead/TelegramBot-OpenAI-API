@@ -4,11 +4,13 @@ FROM python:slim-bookworm
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     lynx \
-    gcc \    
+    gcc \
     git \
+    rustc \
+    cargo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
+    
 WORKDIR /app
 
 # Copy the requirements file first to leverage Docker cache
