@@ -1,8 +1,15 @@
 # calc_module.py
+#
+# From:
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# https://github.com/FlyingFathead/TelegramBot-OpenAI-API
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# (updated Oct 13, 2024)
 
 import ast
 import operator
 import logging
+import re
 
 # Initialize the logger
 logger = logging.getLogger(__name__)
@@ -12,8 +19,21 @@ logger = logging.getLogger(__name__)
 MAX_OUTPUT_LENGTH = 500  # Adjust as necessary
 MAX_MAGNITUDE = 1e100    # Example maximum magnitude
 
-def safe_eval(expression):
+def preprocess_expression(expression: str) -> str:
+    """
+    Preprocess the input expression to handle natural language constructs like 'of' and percentages.
+    For example, convert '0.1% of 200000000' to '0.1 / 100 * 200000000'.
+    """
+    # Handle 'of' by replacing it with '*'
+    expression = re.sub(r'\bof\b', '*', expression, flags=re.IGNORECASE)
+    
+    # Handle percentages: convert 'X%' to '(X/100)'
+    expression = re.sub(r'(\d+(\.\d+)?)\s*%', r'(\1/100)', expression)
+    
+    logger.debug(f"Preprocessed expression: {expression}")
+    return expression
 
+def safe_eval(expression: str):
     # Replace '^' with '**' for exponentiation
     expression = expression.replace('^', '**')
 
@@ -53,6 +73,12 @@ def safe_eval(expression):
             return node.n
         elif isinstance(node, ast.Expression):
             return _eval(node.body)
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            operand = _eval(node.operand)
+            if isinstance(node.op, ast.UAdd):
+                return +operand
+            elif isinstance(node.op, ast.USub):
+                return -operand
         else:
             error_msg = f"Unsupported type: {type(node).__name__}"
             logger.error(error_msg)
@@ -69,7 +95,10 @@ def safe_eval(expression):
 async def calculate_expression(expression: str):
     logger.info(f"Calculating expression: {expression}")
     try:
-        result = safe_eval(expression)
+        # Preprocess the expression to handle 'of' and '%'
+        processed_expression = preprocess_expression(expression)
+        
+        result = safe_eval(processed_expression)
         
         # Check if the result length is within limits
         result_str = str(result)
@@ -79,7 +108,7 @@ async def calculate_expression(expression: str):
             return error_message
 
         # Construct the success message
-        result_message = f"[NOTE: If using i.e. Finnish, you can word it i.e. with: 'Tulos laskutoimitukselle:'] The result of {expression} is {result}."
+        result_message = f"The result of {expression} is {result}."
         logger.info(f"Calculation successful: {result_message}")
         return result_message
     except ValueError as ve:
@@ -92,4 +121,3 @@ async def calculate_expression(expression: str):
         error_message = f"An unexpected error occurred while evaluating `{expression}`: {str(e)}"
         logger.error(error_message)
         return error_message
-    

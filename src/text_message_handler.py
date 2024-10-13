@@ -394,12 +394,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 else:
                                     # Proper result was returned, log and format it
                                     # calc_result = f"`{calc_result}`"  # Wrap the result in backticks for code formatting in Markdown.
-                                    calc_result = f"<code>{calc_result}</code>"  # Wrap the result in <code> tags for HTML formatting.
+                                    calc_result = f"{calc_result}"  # Wrap the result in <code> tags for HTML formatting.
                                     system_message = (
                                         f"[Calculator result, explain to the user in their language if needed. "
                                         "IMPORTANT: Do not translate or simplify the mathematical expressions themselves. "
-                                        "NOTE: Telegram doesn't support LaTeX. Use simple HTML formatting, note that <pre> or <br> are NOT allowed HTML tags. If the user explicitly asks for LaTeX or mentions LaTeX, use LaTeX formatting; "
-                                        "otherwise, use plain text or Unicode with simple HTML.]:\n{calc_result}\n\n"
+                                        "NOTE: Telegram doesn't support LaTeX. Use simple HTML formatting, i.e. <code></code> if need be, note that <pre> or <br> are NOT allowed HTML tags. If the user explicitly asks for LaTeX or mentions LaTeX, use LaTeX formatting; "
+                                        f"otherwise, use plain text or Unicode with simple HTML.] Result:\n{calc_result}\n\n"
                                         "[NOTE: format your response appropriately, possibly incorporating additional context or user intent, TRANSLATE it to the user's language if needed.]"
                                     ).format(calc_result=calc_result)  # This ensures the result is inserted correctly
 
