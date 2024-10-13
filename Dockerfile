@@ -1,16 +1,21 @@
-FROM python:slim-bookworm
+FROM python:3.11-slim-bookworm
 
-# Install dependencies & clean up to reduce Docker image size
+# Install dependencies & Rust
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     lynx \
     gcc \
     git \
-    rustc \
-    cargo \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-    
+
+# Install Rust using rustup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Add Rust to PATH
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 WORKDIR /app
 
 # Copy the requirements file first to leverage Docker cache
@@ -18,6 +23,10 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Remove build dependencies to reduce image size
+RUN apt-get update && apt-get remove -y curl gcc git && apt-get autoremove -y && \
+    rm -rf /root/.cargo /root/.rustup /var/lib/apt/lists/*
 
 # Copy the entire project into the container
 COPY . .
