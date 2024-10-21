@@ -19,6 +19,7 @@ import utils
 from utils import holiday_replacements
 import holidays
 import pytz
+from bs4 import BeautifulSoup
 
 from telegram import Update
 from telegram.ext import CallbackContext
@@ -607,13 +608,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
                             # Function to clean unsupported tags
-                            def sanitize_html(content):
-                                # Remove unsupported HTML tags
-                                for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
-                                    content = content.replace(tag, '')
-                                # Optionally: Replace line breaks with "\n" to preserve formatting
-                                content = content.replace('<br>', '\n').replace('<br/>', '\n')
-                                return content
+                            # # // old method
+                            # def sanitize_html(content):
+                            #     # Remove unsupported HTML tags
+                            #     for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
+                            #         content = content.replace(tag, '')
+                            #     # Optionally: Replace line breaks with "\n" to preserve formatting
+                            #     content = content.replace('<br>', '\n').replace('<br/>', '\n')
+                            #     return content
 
                             # Convert markdown to HTML
                             escaped_reply = markdown_to_html(bot_reply)
@@ -679,13 +681,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
                             # Function to clean unsupported tags
-                            def sanitize_html(content):
-                                # Remove unsupported HTML tags
-                                for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
-                                    content = content.replace(tag, '')
-                                # Optionally: Replace line breaks with "\n" to preserve formatting
-                                content = content.replace('<br>', '\n').replace('<br/>', '\n')
-                                return content
+                            # def sanitize_html(content):
+                            #     # Remove unsupported HTML tags
+                            #     for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
+                            #         content = content.replace(tag, '')
+                            #     # Optionally: Replace line breaks with "\n" to preserve formatting
+                            #     content = content.replace('<br>', '\n').replace('<br/>', '\n')
+                            #     return content
 
                             # Convert markdown to HTML
                             escaped_reply = markdown_to_html(bot_reply)
@@ -1019,6 +1021,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 #     parse_mode=ParseMode.HTML
                 # )
 
+                escaped_reply = sanitize_html(escaped_reply)
+
                 message_parts = split_message(escaped_reply)
 
                 for part in message_parts:
@@ -1279,6 +1283,19 @@ def split_message(message, max_length=4000):
         message_parts.append(message)
 
     return message_parts
+
+# sanitize html
+def sanitize_html(content):
+    soup = BeautifulSoup(content, 'html.parser')
+
+    # Remove unsupported tags
+    for tag in soup.find_all():
+        if tag.name not in ['b', 'i', 'u', 's', 'a', 'code', 'pre']:
+            tag.unwrap()
+
+    # Fix improperly nested tags
+    content = str(soup)
+    return content
 
 # # // (old request type)
 # async def make_api_request(bot, chat_history, timeout=30):
