@@ -236,7 +236,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
-- v0.75055 - fixes to the html sanitizer (for Telegram's API; better handling of malformed html), using BeautifulSoup4 for parsing now
+- v0.75055 - fixes to the html sanitizer (for Telegram's API; better handling of malformed html), using BeautifulSoup4+lxml for parsing now
 - v0.75054 - small fixes and more error catching in `calc_module.py`
 - v0.75053 - only include eligible territories in U.S. NWS queries
   - list of queried / eligible territories can be set in `config.ini` under the `NWS` section
