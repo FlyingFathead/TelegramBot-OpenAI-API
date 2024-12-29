@@ -19,7 +19,6 @@ config.read(CONFIG_PATH)
 
 # Perplexity API model to use -- NOTE: the models keep on changing; latest list is at: https://docs.perplexity.ai/guides/model-cards
 # As of December 2024/January 2025, the latest model is in the llama-3.1 family, i.e.: "llama-3.1-sonar-large-128k-online" (can be small/large/huge)
-# DEFAULT_PERPLEXITY_MODEL = "llama-3-sonar-large-32k-online"
 DEFAULT_PERPLEXITY_MODEL = "llama-3.1-sonar-large-128k-online"
 DEFAULT_PERPLEXITY_MAX_TOKENS = 1024
 DEFAULT_PERPLEXITY_TEMPERATURE = 0.0
