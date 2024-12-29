@@ -236,6 +236,8 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- 0.75056 - switched to newer Perplexity API models due to new models / old model depreciation
+  - see [Perplexity API guide for supported models](https://docs.perplexity.ai/guides/model-cards)
 - v0.75055 - fixes to the html sanitizer (for Telegram's API; better handling of malformed html), using BeautifulSoup4+lxml for parsing now
 - v0.75054 - small fixes and more error catching in `calc_module.py`
 - v0.75053 - only include eligible territories in U.S. NWS queries
