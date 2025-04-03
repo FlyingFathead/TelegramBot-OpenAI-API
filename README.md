@@ -27,6 +27,8 @@
   - With optional domain/IP allow/disallow lists for safety
 - **🧮 Calculator function call module for precise calculations**
   - No more fumbling with AI arithmetic hallucinations!
+- **🔄 Automated "premium vs. fallback" model switching**
+  - Seamlessly switches between your “premium” and “mini” model when daily token limits are reached, letting you reduce costs without manually reconfiguring
 - **🐳 Dockerized for safety and ease of deplyoment**
   - For those who love their Dockers, ready to roll within minutes!
 
