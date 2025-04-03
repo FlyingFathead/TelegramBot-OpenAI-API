@@ -270,7 +270,7 @@ class TelegramBot:
         asyncio.run(self.schedule_daily_reset())
 
     # logging functionality
-    def log_message(self, message_type, user_id=None, message='', source=None):
+    def log_message(self, message_type, user_id=None, message='', source=None, model_info=None):
         """
         Wrapper for the modules.log_message function to include source.
 
@@ -285,7 +285,8 @@ class TelegramBot:
             user_id=user_id,
             message=message,
             chat_logging_enabled=self.chat_logging_enabled,
-            source=source
+            source=source,
+            model_info=model_info
         )
 
     # trim the chat history to meet up with max token limits

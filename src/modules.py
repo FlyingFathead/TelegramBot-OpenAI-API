@@ -171,7 +171,14 @@ def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_
 
 # msg logging
 # Logging functionalities
-def log_message(message_type, user_id=None, message='', chat_logging_enabled=True, source=None):
+def log_message(
+    message_type,
+    user_id=None,
+    message='',
+    chat_logging_enabled=True,
+    source=None,
+    model_info=None
+):
     """
     Logs messages with an optional source to identify external API origins.
 
@@ -181,29 +188,42 @@ def log_message(message_type, user_id=None, message='', chat_logging_enabled=Tru
         message (str, optional): The message content. Defaults to ''.
         chat_logging_enabled (bool, optional): Flag to enable/disable logging. Defaults to True.
         source (str, optional): Source of the message (e.g., 'Calculator Module'). Defaults to None.
+        model_info (str, optional): Additional info about the model/tier/usage to log with 'Bot' messages.
     """
     if not chat_logging_enabled:
         return
 
-    # Get the 'ChatLogger' instance
     chat_logger = logging.getLogger('ChatLogger')
 
-    # Prepare the base log message
     if message_type == 'User':
         base_message = f"User ({user_id}): {message}"
+
     elif message_type == 'Bot':
-        base_message = f"Bot: {message}"
+        # Construct the line for a 'Bot' message
+        # Example: "Bot [to <user_id>, <model_info>] : <message>"
+        if user_id is not None:
+            if model_info:
+                base_message = f"Bot [to {user_id}, {model_info}] : {message}"
+            else:
+                base_message = f"Bot [to {user_id}] : {message}"
+        else:
+            # If user_id is missing, just do "Bot: <message>"
+            if model_info:
+                base_message = f"Bot [{model_info}]: {message}"
+            else:
+                base_message = f"Bot: {message}"
+
     else:
+        # If neither 'User' nor 'Bot', just log a fallback line
         if user_id:
             base_message = f"Unknown message type '{message_type}' from User ({user_id}): {message}"
         else:
             base_message = f"Unknown message type '{message_type}': {message}"
 
-    # Append source if provided
     if source:
         base_message = f"{base_message} [Source: {source}]"
 
-    # Log the message
+    # Actually write it to the chat logger
     if message_type in ['User', 'Bot']:
         chat_logger.info(base_message)
     else:

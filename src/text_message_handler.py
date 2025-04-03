@@ -107,6 +107,18 @@ except ImportError:
     DB_INITIALIZED_SUCCESSFULLY = False
 # --- End Import ---
 
+# get today's usage regarding OpenAI API's responses (for auto-switching)
+def get_today_usage():
+    """
+    Return (premium_used, mini_used) for today if DB is ready,
+    or None if DB not ready or usage could not be retrieved.
+    """
+    if not DB_INITIALIZED_SUCCESSFULLY or not DB_PATH:
+        return None  # Not ready
+    usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    daily_usage = _get_daily_usage_sync(DB_PATH, usage_date)
+    return daily_usage  # daily_usage is (premium_tokens, mini_tokens) or None
+
 # model picker auto-switch
 def pick_model_auto_switch(bot):
     if not config_auto.has_section('ModelAutoSwitch'):
@@ -1128,18 +1140,67 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # escaped_reply = bot_reply
                 logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
-                # Log the bot's response
+                # new detailed logging in v0.76
+                try:
+                    # 1) Attempt to read daily usage from DB:
+                    usage_tuple = get_today_usage()  # returns (premium_used, mini_used) or None
+                    if usage_tuple:
+                        premium_used, mini_used = usage_tuple
+                    else:
+                        premium_used, mini_used = None, None
+
+                    # 2) read from config.ini for limits & model
+                    premium_model = config_auto["ModelAutoSwitch"].get("PremiumModel", "")
+                    fallback_model = config_auto["ModelAutoSwitch"].get("FallbackModel", "")
+                    premium_limit = config_auto["ModelAutoSwitch"].getint("PremiumTokenLimit", 0)
+                    fallback_limit = config_auto["ModelAutoSwitch"].getint("MiniTokenLimit", 0)
+
+                    # 3) figure out if current model is 'premium' or 'mini'
+                    if bot.model == premium_model and premium_model:
+                        tier_str = "premium"
+                        used_so_far = premium_used if premium_used is not None else "N/A"
+                        limit_str = premium_limit if premium_limit else "N/A"
+                    elif bot.model == fallback_model and fallback_model:
+                        tier_str = "mini"
+                        used_so_far = mini_used if mini_used is not None else "N/A"
+                        limit_str = fallback_limit if fallback_limit else "N/A"
+                    else:
+                        tier_str = "?"
+                        used_so_far = "N/A"
+                        limit_str = "N/A"
+
+                    if used_so_far == "N/A" or limit_str == "N/A":
+                        usage_str = "N/A"
+                    else:
+                        usage_str = f"{used_so_far}/{limit_str}"
+
+                    model_info = f"model={bot.model}, tier={tier_str}, usage={usage_str}"
+
+                except Exception as e:
+                    bot.logger.warning(f"Could not build model_info: {e}")
+                    # Fallback if something went wrong 
+                    model_info = "model=N/A, usage=N/A"
+
+                # pass the bot log with more info
                 bot.log_message(
                     message_type='Bot',
+                    user_id=update.message.from_user.id,
                     message=bot_reply,
+                    model_info=model_info
                 )
 
-                # # send the response
-                # await context.bot.send_message(
-                #     chat_id=chat_id,
-                #     text=escaped_reply,
-                #     parse_mode=ParseMode.HTML
+                # # Log the bot's response
+                # bot.log_message(
+                #     message_type='Bot',
+                #     message=bot_reply,
                 # )
+
+                # # # send the response
+                # # await context.bot.send_message(
+                # #     chat_id=chat_id,
+                # #     text=escaped_reply,
+                # #     parse_mode=ParseMode.HTML
+                # # )
 
                 escaped_reply = sanitize_html(escaped_reply)
 
