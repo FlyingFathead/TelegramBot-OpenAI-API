@@ -1,0 +1,10 @@
+# to include in `catgit` (see https://github.com/FlyingFathead/catgit for more)
+src/db_utils.py
+src/bot_token.py
+src/config_paths.py
+src/custom_functions.py
+src/main.py
+src/modules.py
+src/text_message_handler.py
+src/utils.py
+config/config.ini

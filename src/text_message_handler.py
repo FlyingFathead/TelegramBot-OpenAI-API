@@ -62,6 +62,9 @@ logger = logging.getLogger('ChatLogger')
 # Load the configuration file
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
+# automatic model picker
+config_auto = configparser.ConfigParser()
+config_auto.read(CONFIG_PATH)
 
 # Read the holiday notification flag
 enable_holiday_notification = config.getboolean('HolidaySettings', 'EnableHolidayNotification', fallback=False)
@@ -92,8 +95,101 @@ MAX_TELEGRAM_MESSAGE_LENGTH = 4000
 # Add extra wait time if we're in the middle of i.e. a translation process
 extra_wait_time = 30  # Additional seconds to wait when in translation mode
 
+# --- NEW: Import SQLite utilities ---
+try:
+    # Assuming db_utils.py is in the same src/ directory
+    from db_utils import _get_daily_usage_sync, _update_daily_usage_sync, DB_PATH, DB_INITIALIZED_SUCCESSFULLY
+except ImportError:
+    logging.critical("Failed to import from db_utils.py! SQLite usage tracking will be disabled.")
+    _get_daily_usage_sync = None
+    _update_daily_usage_sync = None
+    DB_PATH = None
+    DB_INITIALIZED_SUCCESSFULLY = False
+# --- End Import ---
+
+# model picker auto-switch
+def pick_model_auto_switch(bot):
+    """
+    Reads today's usage from SQLite, checks config.ini [ModelAutoSwitch] 
+    and sets `bot.model` to either the premium or fallback model as needed.
+    Returns True if we successfully picked a model,
+    Returns False if usage is so high that we must deny further requests.
+    """
+
+    logging.info(f"Daily premium tokens = {daily_premium_tokens}, daily fallback tokens = {daily_fallback_tokens}")
+    logging.info(f"Premium limit = {premium_limit}, Fallback limit = {fallback_limit}, fallback_action = {fallback_action}")
+
+    if not config_auto.has_section('ModelAutoSwitch'):
+        # Failsafe; no auto-switch config => just keep the existing bot.model
+        logging.info("Auto-switch is not configured. Using default model: %s", bot.model)
+        return True
+
+    if not config_auto['ModelAutoSwitch'].getboolean('Enabled', fallback=False):
+        # Auto-switch disabled => do nothing
+        logging.info("ModelAutoSwitch.Enabled = False => skipping auto-switch, using %s", bot.model)
+        return True
+
+    # Pull from [ModelAutoSwitch]
+    premium_model = config_auto['ModelAutoSwitch'].get('PremiumModel', 'gpt-4')
+    fallback_model = config_auto['ModelAutoSwitch'].get('FallbackModel', 'gpt-3.5-turbo')
+    premium_limit = config_auto['ModelAutoSwitch'].getint('PremiumTokenLimit', 500000)
+    fallback_limit = config_auto['ModelAutoSwitch'].getint('MiniTokenLimit', 10000000)
+    fallback_action = config_auto['ModelAutoSwitch'].get('FallbackLimitAction', 'Deny')
+
+    # Attempt to read today's usage from DB
+    if not DB_INITIALIZED_SUCCESSFULLY or not DB_PATH:
+        logging.warning("DB not initialized or path missing — can't auto-switch, fallback to default model.")
+        return True
+
+    usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    daily_usage = _get_daily_usage_sync(DB_PATH, usage_date)
+    if not daily_usage:
+        # Possibly no row yet => usage is (0,0)
+        daily_premium_tokens, daily_fallback_tokens = (0, 0)
+    else:
+        daily_premium_tokens, daily_fallback_tokens = daily_usage
+
+    # Decide if we can still use the premium model
+    if daily_premium_tokens < premium_limit:
+        bot.model = premium_model
+        logging.info("Using premium model: %s, daily usage = %d", bot.model, daily_premium_tokens)
+        return True
+    else:
+        # Premium limit exceeded => check fallback usage
+        if daily_fallback_tokens < fallback_limit:
+            bot.model = fallback_model
+            logging.info("Premium limit reached; using fallback model: %s, fallback usage = %d", 
+                         bot.model, daily_fallback_tokens)
+            return True
+        else:
+            # Fallback usage also exceeded => check action
+            if fallback_action.lower() == 'deny':
+                logging.warning("Fallback limit also reached => Deny further usage.")
+                return False
+            elif fallback_action.lower() == 'warn':
+                logging.warning("Fallback limit reached but ignoring => 'Warn' => proceed with fallback anyway.")
+                bot.model = fallback_model
+                return True
+            else:
+                # 'Proceed' => silently continue using fallback
+                logging.info("Fallback limit reached => 'Proceed' => continuing anyway with fallback.")
+                bot.model = fallback_model
+                return True
+
 # text message handling logic
 async def handle_message(bot, update: Update, context: CallbackContext, logger) -> None:
+
+    # 1) Auto-switch first if applicable
+    can_proceed = pick_model_auto_switch(bot)
+    if not can_proceed:
+        bot.logger.warning("Denied request because daily usage limits are exceeded for both premium & fallback.")        
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Sorry, we've hit today's usage limit — cannot proceed. ☹️ Please try again tomorrow!"
+        )
+        return
+    else:
+        bot.logger.info(f"Proceeding with the request using model '{bot.model}'.")
 
     # Extract chat_id as soon as possible from the update object
     chat_id = update.effective_chat.id
@@ -170,7 +266,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         day_of_week = now_utc.strftime("%A")
         user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
 
-        # Add the user's tokens to the total usage
+        # Add the user's tokens to the total usage (JSON style)
         bot.total_token_usage += user_token_count
 
         # Log the incoming user message
@@ -347,7 +443,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                     # Check if response status is 401 (Unauthorized)
                     if response.status_code == 401:
-                        bot.logger.error("Received 401 Unauthorized: Invalid OpenAI API key.")
+                        bot.logger.error("Received 401 Unauthorized: Invalid OpenAI API key. Please set up your API key correctly.")
                         await context.bot.send_message(
                             chat_id=chat_id,
                             text="😐",  # First message with just the emoji
@@ -361,6 +457,42 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         return  # Stop further execution in case of 401 error
 
                     response_json = response.json()
+                    bot.logger.info("OpenAI API call succeeded, status code = %d", response.status_code)
+
+                # ~~~~~ read the usage once we have the `response_json` ~~~~~
+                if "usage" in response_json:
+                    usage_obj = response_json["usage"]
+                    # Log everything we got
+                    bot.logger.info(f"OpenAI usage field => {usage_obj}")
+
+                    # They typically have 'prompt_tokens', 'completion_tokens', and 'total_tokens'
+                    prompt_used = usage_obj.get("prompt_tokens", 0)
+                    completion_used = usage_obj.get("completion_tokens", 0)
+                    total_used = usage_obj.get("total_tokens", 0)
+
+                    bot.logger.info(f"Used {prompt_used} prompt tokens + {completion_used} completion tokens = {total_used} total tokens in this request.")
+
+                    # Figure out if we're “premium” or “mini”
+                    # (If your config has multiple fallback possibilities, do it your own way.
+                    #  For simplicity, we just compare the current `bot.model` to the PremiumModel from config.)
+
+                    premium_model_name = config_auto["ModelAutoSwitch"].get("PremiumModel", "gpt-4")
+                    if bot.model == premium_model_name:
+                        tier = "premium"
+                        bot.logger.info(f"We're using the premium model => usage credited to 'premium_tokens'.")
+                    else:
+                        tier = "mini"
+                        bot.logger.info(f"We're using the fallback model => usage credited to 'mini_tokens'.")
+
+                    # Now actually log it to SQLite
+                    if DB_INITIALIZED_SUCCESSFULLY and DB_PATH:
+                        usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+                        bot.logger.info(f"Updating DB with {total_used} tokens on {usage_date} for tier='{tier}'.")
+                        _update_daily_usage_sync(DB_PATH, usage_date, tier, total_used)
+                    else:
+                        bot.logger.warning("DB not initialized => can't store usage info in daily_usage table.")
+                else:
+                    bot.logger.warning("No 'usage' field found in the API response. Could not update daily usage stats.")
 
                 # Log the API request payload
                 bot.logger.info(f"API Request Payload: {payload}")

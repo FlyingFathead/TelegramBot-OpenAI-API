@@ -301,6 +301,7 @@ async def start(update: Update, context: CallbackContext, start_command_response
 # /about
 async def about_command(update: Update, context: CallbackContext, version_number):
     about_text = f"""
+    🤖 TelegramBot-OpenAI-API ⚡️ Powered by ChatKeke 🚀
     This is an OpenAI-powered Telegram chatbot created by FlyingFathead.
     Version: v{version_number}
     For more information, visit: https://github.com/FlyingFathead/TelegramBot-OpenAI-API
