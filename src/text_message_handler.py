@@ -109,34 +109,20 @@ except ImportError:
 
 # model picker auto-switch
 def pick_model_auto_switch(bot):
-    """
-    Reads today's usage from SQLite, checks config.ini [ModelAutoSwitch] 
-    and sets `bot.model` to either the premium or fallback model as needed.
-    Returns True if we successfully picked a model,
-    Returns False if usage is so high that we must deny further requests.
-    """
-
-    logging.info(f"Daily premium tokens = {daily_premium_tokens}, daily fallback tokens = {daily_fallback_tokens}")
-    logging.info(f"Premium limit = {premium_limit}, Fallback limit = {fallback_limit}, fallback_action = {fallback_action}")
-
     if not config_auto.has_section('ModelAutoSwitch'):
-        # Failsafe; no auto-switch config => just keep the existing bot.model
         logging.info("Auto-switch is not configured. Using default model: %s", bot.model)
         return True
 
     if not config_auto['ModelAutoSwitch'].getboolean('Enabled', fallback=False):
-        # Auto-switch disabled => do nothing
         logging.info("ModelAutoSwitch.Enabled = False => skipping auto-switch, using %s", bot.model)
         return True
 
-    # Pull from [ModelAutoSwitch]
     premium_model = config_auto['ModelAutoSwitch'].get('PremiumModel', 'gpt-4')
     fallback_model = config_auto['ModelAutoSwitch'].get('FallbackModel', 'gpt-3.5-turbo')
     premium_limit = config_auto['ModelAutoSwitch'].getint('PremiumTokenLimit', 500000)
     fallback_limit = config_auto['ModelAutoSwitch'].getint('MiniTokenLimit', 10000000)
     fallback_action = config_auto['ModelAutoSwitch'].get('FallbackLimitAction', 'Deny')
 
-    # Attempt to read today's usage from DB
     if not DB_INITIALIZED_SUCCESSFULLY or not DB_PATH:
         logging.warning("DB not initialized or path missing — can't auto-switch, fallback to default model.")
         return True
@@ -144,10 +130,13 @@ def pick_model_auto_switch(bot):
     usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
     daily_usage = _get_daily_usage_sync(DB_PATH, usage_date)
     if not daily_usage:
-        # Possibly no row yet => usage is (0,0)
         daily_premium_tokens, daily_fallback_tokens = (0, 0)
     else:
         daily_premium_tokens, daily_fallback_tokens = daily_usage
+
+    # --> NOW WE CAN SAFELY LOG THE USAGE & LIMITS <--
+    logging.info(f"Daily premium tokens = {daily_premium_tokens}, daily fallback tokens = {daily_fallback_tokens}")
+    logging.info(f"Premium limit = {premium_limit}, Fallback limit = {fallback_limit}, fallback_action = {fallback_action}")
 
     # Decide if we can still use the premium model
     if daily_premium_tokens < premium_limit:
@@ -171,7 +160,6 @@ def pick_model_auto_switch(bot):
                 bot.model = fallback_model
                 return True
             else:
-                # 'Proceed' => silently continue using fallback
                 logging.info("Fallback limit reached => 'Proceed' => continuing anyway with fallback.")
                 bot.model = fallback_model
                 return True
