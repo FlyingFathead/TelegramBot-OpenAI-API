@@ -236,6 +236,12 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.76 – **Premium mode auto-switching** + usage DB synergy
+  - Added daily usage-based auto-switch logic between “premium” vs. “mini” models (see `[ModelAutoSwitch]` in `config.ini`).
+  - Once you exceed the `PremiumTokenLimit`, the bot seamlessly switches to the fallback model.
+  - If that fallback also goes past `MiniTokenLimit`, the bot can either deny usage or proceed, according to `FallbackLimitAction`.
+  - New param `model_info` for logging function calls, so the “Bot” lines in your chat log can show which model/tier is used (i.e. `model=gpt-4, tier=premium, usage=12345/500000`).
+  - Some small bugfixes for the SQLite usage DB, ensuring we properly update `premium_tokens` or `mini_tokens` after each request based on the `usage` field in OpenAI’s response.
 - 0.75056 - switched to newer Perplexity API models due to new models / old model depreciation
   - see [Perplexity API guide for supported models](https://docs.perplexity.ai/guides/model-cards)
 - v0.75055 - fixes to the html sanitizer (for Telegram's API; better handling of malformed html), using BeautifulSoup4+lxml for parsing now
