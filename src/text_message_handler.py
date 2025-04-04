@@ -1102,6 +1102,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.user_data.pop('active_translation', None)
                         return True
 
+
                     # ~~~~~~~~~~~~~~
                     # User reminders
                     # ~~~~~~~~~~~~~~
@@ -1121,7 +1122,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             system_message = "Reminders are disabled in config. Sorry!"
                             chat_history.append({"role": "system", "content": system_message})
                             context.chat_data['chat_history'] = chat_history
-                            # Optionally re-invoke GPT or just send final text
                             break  # or return
 
                         user_id = update.effective_user.id
@@ -1134,47 +1134,68 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             elif not reminder_text:
                                 result_msg = "No reminder_text provided for adding a reminder."
                             else:
-                                result_msg = await handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc)
+                                result_msg = await handle_add_reminder(
+                                    user_id, chat_id, reminder_text, due_time_utc
+                                )
+
+                            # If it looks like success, have GPT make a nice user-facing confirmation
+                            if "has been set" in result_msg:
+                                # The snippet below is the new approach:
+                                short_system_msg = (
+                                    f"A new reminder was successfully created for <{due_time_utc}> "
+                                    f"with text: '{reminder_text}'. "
+                                    "Please give the user a concise, friendly confirmation message in their language, "
+                                    "mentioning the date/time but NOT quoting the text verbatim unless it's appropriate."
+                                )
+                                chat_history.append({"role": "system", "content": short_system_msg})
+                            else:
+                                # Probably an error or partial success
+                                chat_history.append({"role": "system", "content": result_msg})
 
                         elif action == 'view':
-                            # call handle_view_reminders
                             result_msg = await handle_view_reminders(user_id)
+                            chat_history.append({"role": "system", "content": result_msg})
 
                         elif action == 'delete':
                             if not reminder_id:
                                 result_msg = "No reminder_id was provided for delete."
                             else:
                                 result_msg = await handle_delete_reminder(user_id, reminder_id)
+                            chat_history.append({"role": "system", "content": result_msg})
 
                         elif action == 'edit':
-                            # you'll want handle_edit_reminder
-                            # parse new_text vs. existing
-                            # if user gave none, we keep old
-                            # if user gave due_time_utc, we override
-                            # etc.
                             from reminder_handler import handle_edit_reminder
                             if not reminder_id:
                                 result_msg = "No reminder_id was provided for edit."
                             else:
-                                # pass new_due_time_utc, new_text to the function
-                                result_msg = await handle_edit_reminder(user_id, reminder_id, due_time_utc, reminder_text)
+                                result_msg = await handle_edit_reminder(
+                                    user_id, reminder_id, due_time_utc, reminder_text
+                                )
+                            chat_history.append({"role": "system", "content": result_msg})
+
                         else:
                             # unknown action
                             result_msg = f"Unknown 'action' for manage_reminder: {action}"
+                            chat_history.append({"role": "system", "content": result_msg})
 
-                        # (D) put result_msg in system => re-call GPT or send direct
-                        chat_history.append({"role": "system", "content": result_msg})
+                        # (D) Re-invoke GPT to produce final user-facing text
                         context.chat_data['chat_history'] = chat_history
-
-                        # Optionally re-invoke GPT to produce final user-facing text
-                        # or just send it
                         response_json = await make_api_request(bot, chat_history, bot.timeout)
+
                         final_reply_content = response_json['choices'][0]['message'].get('content', '')
                         final_reply = final_reply_content.strip() if final_reply_content else ""
 
                         # log & send
-                        bot.log_message(message_type='Bot', message=final_reply, source='manage_reminder')
-                        await context.bot.send_message(chat_id=chat_id, text=final_reply, parse_mode=ParseMode.HTML)
+                        bot.log_message(
+                            message_type='Bot',
+                            message=final_reply,
+                            source='manage_reminder'
+                        )
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=final_reply,
+                            parse_mode=ParseMode.HTML
+                        )
 
                         stop_typing_event.set()
                         return
