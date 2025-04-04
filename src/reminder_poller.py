@@ -33,6 +33,23 @@ except ValueError:
     POLLING_INTERVAL = 60
     REMINDERS_ENABLED = config.getboolean('Reminders', 'EnableReminders', fallback=False) # Still try to read enable flag
 
+# split to fit to telegram's msg length
+MAX_TG_MSG_LENGTH = 4096
+
+def split_long_message(message, max_length=MAX_TG_MSG_LENGTH):
+    """
+    Splits a message into multiple parts, each up to max_length characters,
+    and returns a list of parts.
+    """
+    parts = []
+    start_index = 0
+    while start_index < len(message):
+        # Slice out a chunk of up to 'max_length' characters
+        part = message[start_index:start_index + max_length]
+        parts.append(part)
+        start_index += max_length
+    return parts
+
 # --- Corrected Function Signature ---
 async def reminder_poller(application: Application):
     """Periodically checks for due reminders and sends notifications."""
@@ -63,19 +80,24 @@ async def reminder_poller(application: Application):
                     reminder_id = r['reminder_id']
                     user_id = r['user_id']
                     chat_id = r['chat_id']
-                    text = r['reminder_text']
-                    msg = f"🔔 {text}" # Use a bell emoji
+                    raw_text = r['reminder_text']
 
-                    # Attempt to send the reminder
+                    # The text you'd like to send (with an optional emoji, etc.)
+                    msg = f"🔔 {raw_text}"
+
+                    # 1) Split into multiple parts if over 4k
+                    msg_parts = split_long_message(msg)
+
                     try:
-                        # --- Use application.bot to send ---
-                        await application.bot.send_message(
-                            chat_id=chat_id,
-                            text=msg,
-                            parse_mode=ParseMode.HTML                            
-                            # Consider adding parse_mode=ParseMode.HTML if needed later
-                        )
-                        # --- Update status using correct function and DB path ---
+                        # 2) Send each part in a separate message
+                        for part in msg_parts:
+                            await application.bot.send_message(
+                                chat_id=chat_id,
+                                text=part,
+                                parse_mode=ParseMode.HTML
+                            )
+
+                        # 3) Mark the reminder as sent
                         db_utils.update_reminder_status(REMINDERS_DB_PATH, reminder_id, 'sent')
                         logger.info(f"Sent reminder {reminder_id} to chat {chat_id} for user {user_id}.")
 
