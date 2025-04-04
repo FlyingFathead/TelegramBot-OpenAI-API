@@ -443,8 +443,12 @@ class TelegramBot:
 
         # Register command handlers from bot_commands module
         application.add_handler(
-            CommandHandler("about", partial(bot_commands.about_command, version_number=self.version_number))
+            CommandHandler(
+                ["about", "info"],          # <--- list of commands
+                partial(bot_commands.about_command, version_number=self.version_number)
+            )
         )
+        
         application.add_handler(
             CommandHandler(
                 "help",

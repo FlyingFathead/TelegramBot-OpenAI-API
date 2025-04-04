@@ -48,7 +48,9 @@ async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str)
 
     # 3) Check user's current reminder count
     current_count = db_utils.count_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
-    if current_count >= MAX_ALERTS_PER_USER:
+
+    # Only enforce the limit if it's > 0
+    if MAX_ALERTS_PER_USER > 0 and current_count >= MAX_ALERTS_PER_USER:
         logger.info(f"User {user_id} has {current_count} reminders; reached max of {MAX_ALERTS_PER_USER}.")
         return f"You already have {current_count} pending reminders. The maximum is {MAX_ALERTS_PER_USER}."
 
