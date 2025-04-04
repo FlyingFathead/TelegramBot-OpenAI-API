@@ -2,7 +2,7 @@
 
 ## 🤖 _Powered by ChatKeke_ 🚀
 
-- A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API
+- **A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API & Perplexity API**
 - **🎙 Transcribed voice messages over Whisper API**
   - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
 - **☁️ Real-time weather info, weather alerts, and geolocation data via [OpenWeatherMap](https://openweathermap.org/), [WeatherAPI](https://www.weatherapi.com/) and U.S. NWS ([weather.gov](https://weather.gov))**
