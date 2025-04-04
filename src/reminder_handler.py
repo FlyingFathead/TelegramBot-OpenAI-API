@@ -3,7 +3,7 @@
 import logging
 import configparser
 from datetime import datetime, timezone
-from config_paths import CONFIG_PATH, DB_PATH
+from config_paths import CONFIG_PATH, REMINDERS_DB_PATH
 import db_utils
 
 # Load config to get MaxAlertsPerUser
@@ -43,13 +43,13 @@ async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str)
         )
 
     # 3) Check user's current reminder count
-    current_count = db_utils.count_pending_reminders_for_user(DB_PATH, user_id)
+    current_count = db_utils.count_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
     if current_count >= MAX_ALERTS_PER_USER:
         logger.info(f"User {user_id} has {current_count} reminders; reached max of {MAX_ALERTS_PER_USER}.")
         return f"You already have {current_count} pending reminders. The maximum is {MAX_ALERTS_PER_USER}."
 
     # 4) Add to DB
-    reminder_id = db_utils.add_reminder_to_db(DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
+    reminder_id = db_utils.add_reminder_to_db(REMINDERS_DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
     if reminder_id:
         logger.info(
             f"User {user_id} created reminder #{reminder_id}: "
@@ -72,7 +72,7 @@ async def handle_view_reminders(user_id):
         logger.error("Attempt to view reminders but DB not available!")
         return "Error: DB not available. Cannot view reminders."
 
-    reminders = db_utils.get_pending_reminders_for_user(DB_PATH, user_id)
+    reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
     if not reminders:
         logger.info(f"User {user_id} has no pending reminders.")
         return "You currently have no pending reminders."
@@ -95,7 +95,7 @@ async def handle_delete_reminder(user_id, reminder_id):
         logger.error("Attempt to delete reminder but DB not available!")
         return "Error: DB not available. Cannot delete reminders."
 
-    success = db_utils.delete_reminder_from_db(DB_PATH, reminder_id, user_id)
+    success = db_utils.delete_reminder_from_db(REMINDERS_DB_PATH, reminder_id, user_id)
     if success:
         logger.info(f"User {user_id} deleted reminder #{reminder_id}.")
         return f"Reminder #{reminder_id} has been deleted."
@@ -116,7 +116,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
         return "Error: DB not available. Cannot edit reminders."
 
     # 1) Fetch existing to ensure user owns it
-    reminder = db_utils.get_reminder_by_id(DB_PATH, reminder_id)
+    reminder = db_utils.get_reminder_by_id(REMINDERS_DB_PATH, reminder_id)
     if not reminder:
         logger.warning(f"User {user_id} tried to edit reminder #{reminder_id} which doesn't exist.")
         return f"No such reminder #{reminder_id} found."
@@ -141,7 +141,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
         new_text = reminder['reminder_text']
 
     # 4) Update in DB
-    updated_ok = db_utils.update_reminder(DB_PATH, reminder_id, new_due_time_utc, new_text)
+    updated_ok = db_utils.update_reminder(REMINDERS_DB_PATH, reminder_id, new_due_time_utc, new_text)
     if updated_ok:
         logger.info(
             f"User {user_id} edited reminder #{reminder_id} -> new time: "
@@ -163,7 +163,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 # import logging
 # from datetime import datetime, timezone
 # import configparser
-# from config_paths import CONFIG_PATH, DB_PATH
+# from config_paths import CONFIG_PATH, REMINDERS_DB_PATH
 # import db_utils
 
 # config = configparser.ConfigParser()
@@ -191,12 +191,12 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 #         return "Error: Invalid or unsupported time format. Use e.g. 2025-01-02T13:00:00Z"
 
 #     # Check user's limit
-#     current_count = db_utils.count_pending_reminders_for_user(DB_PATH, user_id)
+#     current_count = db_utils.count_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
 #     if current_count >= MAX_ALERTS_PER_USER:
 #         return f"You already have {current_count} pending reminders; max is {MAX_ALERTS_PER_USER}."
 
 #     # Add it
-#     reminder_id = db_utils.add_reminder_to_db(DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
+#     reminder_id = db_utils.add_reminder_to_db(REMINDERS_DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
 #     if reminder_id:
 #         return f"Reminder #{reminder_id} set for {due_time_utc_str} (UTC)."
 #     else:
@@ -206,7 +206,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 #     if not db_utils.DB_INITIALIZED_SUCCESSFULLY:
 #         return "Error: DB not available."
 
-#     reminders = db_utils.get_pending_reminders_for_user(DB_PATH, user_id)
+#     reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
 #     if not reminders:
 #         return "You have no pending reminders."
     
@@ -219,7 +219,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 #     if not db_utils.DB_INITIALIZED_SUCCESSFULLY:
 #         return "Error: DB not available."
 
-#     success = db_utils.delete_reminder_from_db(DB_PATH, reminder_id, user_id)
+#     success = db_utils.delete_reminder_from_db(REMINDERS_DB_PATH, reminder_id, user_id)
 #     if success:
 #         return f"Reminder #{reminder_id} deleted."
 #     else:
@@ -230,7 +230,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 # # from datetime import datetime, timezone
 # # import db_utils # Assuming db_utils functions are implemented
 # # import configparser
-# # from config_paths import CONFIG_PATH, DB_PATH # Import necessary paths
+# # from config_paths import CONFIG_PATH, REMINDERS_DB_PATH # Import necessary paths
 
 # # # Load config to get MaxAlertsPerUser
 # # config = configparser.ConfigParser()
@@ -252,12 +252,12 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 # #         datetime.strptime(due_time_utc_str, '%Y-%m-%dT%H:%M:%SZ') # Or use a more robust parser if needed
 
 # #         # Check user's current reminder count
-# #         current_count = db_utils.count_pending_reminders_for_user(DB_PATH, user_id)
+# #         current_count = db_utils.count_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
 # #         if current_count >= MAX_ALERTS_PER_USER:
 # #             return f"Sorry, you've reached the maximum limit of {MAX_ALERTS_PER_USER} pending reminders."
 
 # #         # Add to DB
-# #         reminder_id = db_utils.add_reminder_to_db(DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
+# #         reminder_id = db_utils.add_reminder_to_db(REMINDERS_DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
 
 # #         if reminder_id:
 # #             # Convert UTC time string to datetime object for formatting
@@ -281,7 +281,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 # #         return "Error: Reminder database is not available."
 
 # #     try:
-# #         reminders = db_utils.get_pending_reminders_for_user(DB_PATH, user_id)
+# #         reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
 # #         if not reminders:
 # #             return "You have no pending reminders."
 
@@ -305,7 +305,7 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
 # #         return "Error: Reminder database is not available."
 
 # #     try:
-# #         success = db_utils.delete_reminder_from_db(DB_PATH, reminder_id, user_id)
+# #         success = db_utils.delete_reminder_from_db(REMINDERS_DB_PATH, reminder_id, user_id)
 # #         if success:
 # #             return f"Reminder #{reminder_id} has been deleted."
 # #         else:

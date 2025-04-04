@@ -6,11 +6,10 @@ import configparser
 from datetime import datetime, timezone # Import timezone
 
 # --- Corrected Imports ---
-from config_paths import CONFIG_PATH, REMINDERS_DB_PATH # Use specific reminder DB path
+from config_paths import CONFIG_PATH, REMINDERS_DB_PATH
 import db_utils
-from telegram.ext import Application # Import Application type hint
-from telegram.error import Forbidden, BadRequest # Import specific Telegram errors
-# --- End Corrected Imports ---
+from telegram.ext import Application
+from telegram.error import Forbidden, BadRequest
 
 # Get logger instance
 logger = logging.getLogger(__name__) # Use standard logger naming
@@ -31,7 +30,6 @@ except ValueError:
     logger.error("Invalid non-integer value for PollingIntervalSeconds in config.ini. Using default 60s.")
     POLLING_INTERVAL = 60
     REMINDERS_ENABLED = config.getboolean('Reminders', 'EnableReminders', fallback=False) # Still try to read enable flag
-
 
 # --- Corrected Function Signature ---
 async def reminder_poller(application: Application):

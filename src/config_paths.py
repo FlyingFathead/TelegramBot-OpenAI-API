@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import configparser
 import logging
+from datetime import timedelta # Import timedelta here if needed for MaxHistoryDays calculation
 
 # Initialize the logger for this module
 logger = logging.getLogger('TelegramBotLogger')  # Ensure that 'TelegramBotLogger' is initialized in main.py
@@ -17,11 +18,20 @@ CONFIG_PATH = BASE_DIR / 'config' / 'config.ini'
 # Initialize the ConfigParser
 config = configparser.ConfigParser()
 
+# --- Initialize variables with DEFAULT values first ---
+DEFAULT_LOGS_DIR_NAME = 'logs'
+DEFAULT_DATA_DIR_NAME = 'data'
+LOGS_DIR = BASE_DIR / DEFAULT_LOGS_DIR_NAME
+DATA_DIR = BASE_DIR / DEFAULT_DATA_DIR_NAME
+
 # Initialize variables with default values
 logs_directory = 'logs'
 LOG_FILE_PATH = BASE_DIR / logs_directory / 'bot.log'
 CHAT_LOG_FILE_PATH = BASE_DIR / logs_directory / 'chat.log'
 TOKEN_USAGE_FILE_PATH = BASE_DIR / logs_directory / 'token_usage.json'
+USAGE_DB_PATH = LOGS_DIR / 'usage_tracker.db'         # Default Usage DB path
+REMINDERS_DB_PATH = LOGS_DIR / 'reminders.db'       # Default Reminders DB path
+
 CHAT_LOG_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 ELASTICSEARCH_ENABLED = False
 ELASTICSEARCH_HOST = 'localhost'
@@ -39,7 +49,26 @@ if CONFIG_PATH.exists():
     try:
         config.read(CONFIG_PATH)
         logger.info(f"Configuration file found and loaded from {CONFIG_PATH}.")
-        
+
+        # --- Override directories ---
+        logs_directory_name = config['DEFAULT'].get('LogsDirectory', DEFAULT_LOGS_DIR_NAME)
+        data_directory_name = config['DEFAULT'].get('DataDirectory', DEFAULT_DATA_DIR_NAME)
+        LOGS_DIR = BASE_DIR / logs_directory_name # Override LOGS_DIR path
+        DATA_DIR = BASE_DIR / data_directory_name # Override DATA_DIR path
+
+        # Ensure directories exist *after* potentially overriding them
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Ensured logs directory exists at {LOGS_DIR}")
+        logger.info(f"Ensured data directory exists at {DATA_DIR}")
+
+        # --- Override file paths based on potentially updated LOGS_DIR ---
+        LOG_FILE_PATH = LOGS_DIR / config['DEFAULT'].get('LogFile', 'bot.log')
+        CHAT_LOG_FILE_PATH = LOGS_DIR / config['DEFAULT'].get('ChatLogFile', 'chat.log')
+        TOKEN_USAGE_FILE_PATH = LOGS_DIR / 'token_usage.json' # Filename likely constant
+        USAGE_DB_PATH = LOGS_DIR / 'usage_tracker.db'         # Usage DB path
+        REMINDERS_DB_PATH = LOGS_DIR / 'reminders.db'       # Reminders DB path
+
         # Read logs directory
         logs_directory = config['DEFAULT'].get('LogsDirectory', 'logs')
         
