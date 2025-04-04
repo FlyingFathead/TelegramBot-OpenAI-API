@@ -5,10 +5,25 @@
 # you can add your own custom bot functionalities via OpenAI's API function calls with this.
 
 import logging
+import configparser
+from config_paths import CONFIG_PATH
 
 # from api_get_openrouteservice import get_route, get_directions_from_addresses
 # from elasticsearch_handler import search_es  # Import the Elasticsearch search function
 
+# load and use logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Read the config for enabled/disabled function calls
+config = configparser.ConfigParser()
+config.read(CONFIG_PATH)
+try: # Use try-except for safety
+    enable_reminders = config.getboolean('Reminders', 'EnableReminders', fallback=False)
+except (configparser.NoSectionError, configparser.NoOptionError):
+    enable_reminders = False
+
+# silently observe the chat
 async def observe_chat():
     # Log observation or perform any silent monitoring if needed
     logging.info("Bot is currently observing the chat.")
@@ -148,6 +163,149 @@ custom_functions.append({
         'required': ['symbol', 'search']  # Specify that at least one of symbol or search is required
     }
 })
+
+# ~~~~~~~~~~~~~~~~~~~~~~
+# reminders (if enabled)
+# ~~~~~~~~~~~~~~~~~~~~~~
+
+if enable_reminders:
+    manage_reminder_function = {
+        'name': 'manage_reminder',
+        'description': """Manages user reminders (alerts). Specify the action: 'add' to create, 'view' to list pending, 'delete' to remove by ID, or 'edit' to modify by ID.
+- For 'add': requires 'reminder_text' and exact 'due_time_utc' (ISO 8601 format, e.g., '2025-04-04T10:00:00Z'). Calculate UTC from user input based on current system UTC time.
+- For 'view': no other parameters needed.
+- For 'delete': requires 'reminder_id'.
+- For 'edit': requires 'reminder_id' and at least one of 'reminder_text' or 'due_time_utc'.""",
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'action': {
+                    'type': 'string',
+                    'enum': ['add', 'view', 'delete', 'edit'],
+                    'description': "The operation: 'add', 'view', 'delete', or 'edit'."
+                },
+                'reminder_text': {
+                    'type': 'string',
+                    'description': "Text of the reminder. Required for 'add', optional for 'edit'."
+                },
+                'due_time_utc': {
+                    'type': 'string',
+                    'description': "Due time in UTC ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ). Required for 'add', optional for 'edit'."
+                },
+                'reminder_id': {
+                    'type': 'integer',
+                    'description': "ID of the reminder. Required for 'delete' and 'edit'."
+                }
+            },
+            'required': ['action']
+        }
+    }
+    custom_functions.append(manage_reminder_function) # Directly append if enabled
+    logger.info("Reminder function 'manage_reminder' appended to custom_functions list.")
+else:
+    logger.info("Reminders disabled in config.ini => 'manage_reminder' function not added.")
+
+# # original reminder method (tryout)
+# if enable_reminders:
+#     # 1) Add a reminder
+#     custom_functions.append({
+#         'name': 'add_reminder',
+#         'description': (
+#             "[Use if the user wants to set a reminder for a future time.] "
+#             "Accept user text and a date/time in UTC (YYYY-MM-DDTHH:MM:SSZ). "
+#             "If user says 'in 5 minutes', parse that to a UTC time. "
+#             "Return success/failure, and the ID of the reminder if successful."
+#         ),
+#         'parameters': {
+#             'type': 'object',
+#             'properties': {
+#                 'due_time_utc': {
+#                     'type': 'string',
+#                     'description': (
+#                         "The date/time in UTC, e.g. 2025-01-02T13:00:00Z. "
+#                         "If user says something like 'in 5 minutes', parse into UTC. "
+#                         "If date/time is missing, ask user for clarification."
+#                     )
+#                 },
+#                 'reminder_text': {
+#                     'type': 'string',
+#                     'description': (
+#                         "What does the user want to be reminded of? E.g. 'Take out the trash'."
+#                     )
+#                 }
+#             },
+#             'required': ['due_time_utc', 'reminder_text']
+#         }
+#     })
+
+#     # 2) View all pending reminders
+#     custom_functions.append({
+#         'name': 'view_reminders',
+#         'description': (
+#             "[Use if the user wants to see their current/pending reminders.] "
+#             "No arguments needed."
+#         ),
+#         'parameters': {
+#             'type': 'object',
+#             'properties': {},
+#             'required': []
+#         }
+#     })
+
+#     # 3) Delete a reminder
+#     custom_functions.append({
+#         'name': 'delete_reminder',
+#         'description': (
+#             "[Use if the user wants to delete/cancel an existing reminder by ID.] "
+#             "Reminders are typically identified by an integer ID."
+#         ),
+#         'parameters': {
+#             'type': 'object',
+#             'properties': {
+#                 'reminder_id': {
+#                     'type': 'integer',
+#                     'description': (
+#                         "The ID number of the reminder to delete. "
+#                         "If user doesn't know the ID, prompt them to /viewreminders first or if they ask for you to show them their reminders."
+#                     )
+#                 }
+#             },
+#             'required': ['reminder_id']
+#         }
+#     })
+
+#     # 4) Edit a reminder (optional)
+#     custom_functions.append({
+#         'name': 'edit_reminder',
+#         'description': (
+#             "[Use if user wants to update an existing reminder. Provide the ID plus new text/time.] "
+#             "Either 'due_time_utc' or 'reminder_text' or both can be changed."
+#         ),
+#         'parameters': {
+#             'type': 'object',
+#             'properties': {
+#                 'reminder_id': {
+#                     'type': 'integer',
+#                     'description': "The ID of the reminder to edit."
+#                 },
+#                 'due_time_utc': {
+#                     'type': 'string',
+#                     'description': (
+#                         "The new date/time in UTC, e.g. 2025-01-02T13:00:00Z. "
+#                         "If user says 'tomorrow 10am', parse that into a UTC string."
+#                     )
+#                 },
+#                 'reminder_text': {
+#                     'type': 'string',
+#                     'description': "The updated reminder text."
+#                 }
+#             },
+#             'required': ['reminder_id']
+#         }
+#     })
+
+# else:
+#     logging.info("Reminders are disabled in config.ini => not adding reminder functions.")
 
 # # jul 26 / 2024
 # custom_functions.append({

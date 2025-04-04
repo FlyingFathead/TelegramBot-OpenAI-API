@@ -34,6 +34,10 @@ NWS_USER_AGENT = 'ChatKekeWeather/1.0 (flyingfathead@protonmail.com)'
 NWS_RETRIES = 0
 NWS_RETRY_DELAY = 2
 
+# read the reminders db
+data_directory_name = 'data' # Default name for data directory
+REMINDERS_DB_FILENAME = 'reminders.db' # Default name for the reminders DB file
+
 # Attempt to read the configuration file
 if CONFIG_PATH.exists():
     try:
@@ -48,7 +52,10 @@ if CONFIG_PATH.exists():
         
         # Ensure the logs directory exists
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        
+
+        # Read data directory name from config
+        data_directory_name = config['DEFAULT'].get('DataDirectory', 'data')
+
         # Update log file paths
         LOG_FILE_PATH = LOGS_DIR / config['DEFAULT'].get('LogFile', 'bot.log')
         CHAT_LOG_FILE_PATH = LOGS_DIR / config['DEFAULT'].get('ChatLogFile', 'chat.log')
@@ -105,6 +112,18 @@ else:
     TOKEN_USAGE_FILE_PATH = LOGS_DIR / 'token_usage.json'
     # CHAT_LOG_MAX_SIZE already set to 10 MB
     # Elasticsearch settings already set to defaults
+
+# Define the Data Directory path
+DATA_DIR = BASE_DIR / data_directory_name
+# Ensure the data directory exists
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except OSError as e:
+    logger.error(f"Could not create data directory {DATA_DIR}: {e}")
+
+# Path for the reminders database
+REMINDERS_DB_PATH = DATA_DIR / REMINDERS_DB_FILENAME
+logger.info(f"Reminders database path set to: {REMINDERS_DB_PATH}")
 
 # Define paths for token files
 TOKEN_FILE_PATH = BASE_DIR / 'config' / 'bot_token.txt'
