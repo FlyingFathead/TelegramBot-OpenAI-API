@@ -171,8 +171,9 @@ custom_functions.append({
 if enable_reminders:
     manage_reminder_function = {
         'name': 'manage_reminder',
-        'description': """Manages user reminders (alerts); use if the user requests alerts, a timed notification, etc (hälytys, muistutus..) Specify the action: 'add' to create, 'view' to list pending, 'delete' to remove by ID, or 'edit' to modify by ID.
-- For 'add': requires 'reminder_text' and exact 'due_time_utc' (ISO 8601 format, e.g., '2025-04-04T10:00:00Z'). Calculate UTC from user input based on current system UTC time.
+        'description': """Manages user reminders (alerts); use if the user requests alerts, a timed notification, etc (hälytys, muistutus, ajastettu viesti..) Specify the action: 'add' to create, 'view' to list pending, 'delete' to remove by ID, or 'edit' to modify by ID. 
+        If you're unsure of the user's time zone, ask it first, and set the UTC alert accordingly. For instance, Finland is UTC+2 in winter and UTC+3 during summertime. Add the reminder in the user's own language! Suomeksi, jos käyttäjä puhuu suomea! Always ask the user's timezone if unsure.
+- For 'add': requires 'reminder_text' and exact 'due_time_utc' (ISO 8601 format, e.g., '2025-04-04T10:00:00Z'). Calculate UTC from user input based on current system UTC time. Notifications can be up to around 4000 characters or more.
 - For 'view': no other parameters needed.
 - For 'delete': requires 'reminder_id'.
 - For 'edit': requires 'reminder_id' and at least one of 'reminder_text' or 'due_time_utc'.""",

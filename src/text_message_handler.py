@@ -1144,8 +1144,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 short_system_msg = (
                                     f"A new reminder was successfully created for <{due_time_utc}> "
                                     f"with text: '{reminder_text}'. "
-                                    "Please give the user a concise, friendly confirmation message in their language, "
-                                    "mentioning the date/time but NOT quoting the text verbatim unless it's appropriate."
+                                    "Please give the user a concise, friendly confirmation message in the user's own language, "
+                                    "mentioning the date/time but NOT quoting the text verbatim unless it's appropriate to do so. Notice also the time zone. "
+                                    "i.e. Finland observes Eastern European Time (UTC+2) in winter and Eastern European Summer Time (UTC+3) during daylight savings. "
                                 )
                                 chat_history.append({"role": "system", "content": short_system_msg})
                             else:
