@@ -8,7 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # version of this program
-version_number = "0.7611"
+version_number = "0.7612"
 
 # Add the project root directory to Python's path
 import sys

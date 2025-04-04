@@ -1210,11 +1210,21 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             message=final_reply,
                             source='manage_reminder'
                         )
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=final_reply,
-                            parse_mode=ParseMode.HTML
-                        )
+
+                        message_parts = split_message(final_reply, max_length=4000)
+
+                        for part in message_parts:
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=part,
+                                parse_mode=ParseMode.HTML
+                            )
+
+                        # await context.bot.send_message(
+                        #     chat_id=chat_id,
+                        #     text=final_reply,
+                        #     parse_mode=ParseMode.HTML
+                        # )
 
                         stop_typing_event.set()
                         return
