@@ -11,8 +11,9 @@ from config_paths import CONFIG_PATH
 # from api_get_openrouteservice import get_route, get_directions_from_addresses
 # from elasticsearch_handler import search_es  # Import the Elasticsearch search function
 
-# init logger
+# load and use logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Read the config for enabled/disabled function calls
 config = configparser.ConfigParser()

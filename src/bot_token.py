@@ -8,7 +8,8 @@ import sys
 from config_paths import CONFIG_PATH, TOKEN_FILE_PATH
 
 # Set up basic logging configuration
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler(sys.stdout)])
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class BotTokenError(Exception):
     """Custom exception for bot token retrieval failures."""

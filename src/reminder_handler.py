@@ -15,7 +15,9 @@ try:
 except configparser.NoSectionError:
     MAX_ALERTS_PER_USER = 30
 
+# load and use logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str):
     """

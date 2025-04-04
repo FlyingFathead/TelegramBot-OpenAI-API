@@ -11,8 +11,9 @@ import db_utils
 from telegram.ext import Application
 from telegram.error import Forbidden, BadRequest
 
-# Get logger instance
-logger = logging.getLogger(__name__) # Use standard logger naming
+# load and use logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Load configuration
 config = configparser.ConfigParser()

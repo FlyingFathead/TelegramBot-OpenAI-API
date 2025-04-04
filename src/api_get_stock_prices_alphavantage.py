@@ -15,7 +15,8 @@ import asyncio
 from datetime import datetime
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Utility function to get API key
 def get_api_key():
