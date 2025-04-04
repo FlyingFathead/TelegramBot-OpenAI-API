@@ -15,9 +15,11 @@ try:
 except configparser.NoSectionError:
     MAX_ALERTS_PER_USER = 30
 
-# load and use logger
+# Get a logger for this module
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# Ensure logs bubble up to the root logger (which has the timestamp format)
+logger.propagate = True
+# DO NOT setLevel or add handlers here; rely on main.py or root config for formatting
 
 async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str):
     """
@@ -51,7 +53,9 @@ async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str)
         return f"You already have {current_count} pending reminders. The maximum is {MAX_ALERTS_PER_USER}."
 
     # 4) Add to DB
-    reminder_id = db_utils.add_reminder_to_db(REMINDERS_DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str)
+    reminder_id = db_utils.add_reminder_to_db(
+        REMINDERS_DB_PATH, user_id, chat_id, reminder_text, due_time_utc_str
+    )
     if reminder_id:
         logger.info(
             f"User {user_id} created reminder #{reminder_id}: "
@@ -64,6 +68,7 @@ async def handle_add_reminder(user_id, chat_id, reminder_text, due_time_utc_str)
     else:
         logger.error(f"Failed to add reminder to DB for user {user_id}. Possibly DB error.")
         return "Failed to add your reminder due to a database error. Sorry!"
+
 
 async def handle_view_reminders(user_id):
     """
@@ -88,6 +93,7 @@ async def handle_view_reminders(user_id):
         lines.append(f"• Reminder #{rid}: due {due_utc}, text: '{text}'")
     return "\n".join(lines)
 
+
 async def handle_delete_reminder(user_id, reminder_id):
     """
     Delete a reminder by ID. Only deletes if it belongs to 'user_id'.
@@ -102,8 +108,12 @@ async def handle_delete_reminder(user_id, reminder_id):
         logger.info(f"User {user_id} deleted reminder #{reminder_id}.")
         return f"Reminder #{reminder_id} has been deleted."
     else:
-        logger.warning(f"User {user_id} tried to delete reminder #{reminder_id}, which didn't exist or didn't belong to them.")
+        logger.warning(
+            f"User {user_id} tried to delete reminder #{reminder_id}, "
+            "which didn't exist or didn't belong to them."
+        )
         return f"No reminder #{reminder_id} was found (or it's not yours)."
+
 
 async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_text=None):
     """
@@ -154,5 +164,8 @@ async def handle_edit_reminder(user_id, reminder_id, new_due_time_utc=None, new_
             f"New time: {new_due_time_utc}\nNew text: '{new_text}'"
         )
     else:
-        logger.error(f"User {user_id} tried to edit reminder #{reminder_id}, but update_reminder DB call failed.")
+        logger.error(
+            f"User {user_id} tried to edit reminder #{reminder_id}, "
+            "but update_reminder DB call failed."
+        )
         return "Failed to update your reminder due to a database error."

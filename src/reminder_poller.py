@@ -42,9 +42,9 @@ async def reminder_poller(application: Application):
         return # Stop the poller task if disabled
 
     # Check if the database was initialized successfully
-    if not db_utils.REMINDERS_DB_INITIALIZED_SUCCESSFULLY:
-         logger.error("Reminder Poller exiting: Reminders database was not initialized successfully.")
-         return # Stop if DB is not ready
+    if not db_utils.DB_INITIALIZED_SUCCESSFULLY:
+        logger.error("Reminder Poller exiting: DB was not initialized successfully.")
+        return
 
     logger.info(f"Reminder poller started. Checking every {POLLING_INTERVAL} seconds.")
 
