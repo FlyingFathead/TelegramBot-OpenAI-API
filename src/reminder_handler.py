@@ -5,10 +5,12 @@ import configparser
 from datetime import datetime, timezone
 from config_paths import CONFIG_PATH, REMINDERS_DB_PATH
 import db_utils
+from db_utils import get_past_reminders_for_user
 
 # Load config to get MaxAlertsPerUser
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
+SHOW_PAST_REMINDERS_COUNT = config.getint('Reminders', 'ShowPastRemindersCount', fallback=0)
 
 try:
     MAX_ALERTS_PER_USER = config.getint('Reminders', 'MaxAlertsPerUser', fallback=30)
@@ -81,19 +83,54 @@ async def handle_view_reminders(user_id):
         logger.error("Attempt to view reminders but DB not available!")
         return "Error: DB not available. Cannot view reminders."
 
-    reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
-    if not reminders:
-        logger.info(f"User {user_id} has no pending reminders.")
-        return "You currently have no pending reminders."
+    # 1) Get the pending
+    pending_reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
+    if pending_reminders:
+        lines = ["<b>Your current (pending) reminders:</b>"]
+        for idx, r in enumerate(pending_reminders, start=1):
+            rid = r['reminder_id']
+            text = r['reminder_text']
+            due_utc = r['due_time_utc']
+            lines.append(f"• Reminder #{idx} (ID {rid}) due <i>{due_utc}</i>\n   “{text}”")
+        pending_section = "\n".join(lines)
+    else:
+        pending_section = "You have no <b>pending</b> reminders."
 
-    logger.info(f"User {user_id} is viewing {len(reminders)} reminders.")
-    lines = ["Here are your current reminders:"]
-    for r in reminders:
-        rid = r['reminder_id']
-        text = r['reminder_text']
-        due_utc = r['due_time_utc']
-        lines.append(f"• Reminder #{rid}: due {due_utc}, text: '{text}'")
-    return "\n".join(lines)
+    # 2) Optionally get the past ones
+    if SHOW_PAST_REMINDERS_COUNT > 0:
+        past = get_past_reminders_for_user(REMINDERS_DB_PATH, user_id, SHOW_PAST_REMINDERS_COUNT)
+        if past:
+            lines = [f"<b>Up to {SHOW_PAST_REMINDERS_COUNT} most recent past reminders:</b>"]
+            for idx, r in enumerate(past, start=1):
+                rid = r['reminder_id']
+                text = r['reminder_text']
+                due_utc = r['due_time_utc']
+                status = r['status']
+                lines.append(f"• (ID {rid}) was <i>{status}</i> at {due_utc}, text: “{text}”")
+            past_section = "\n".join(lines)
+        else:
+            past_section = "(No past reminders found.)"
+    else:
+        past_section = ""  # or omit entirely
+
+    # 3) Combine them for your final message
+    full_msg = f"{pending_section}\n\n{past_section}".strip()
+    return full_msg
+
+    # // old logic; no past reminders
+    # reminders = db_utils.get_pending_reminders_for_user(REMINDERS_DB_PATH, user_id)
+    # if not reminders:
+    #     logger.info(f"User {user_id} has no pending reminders.")
+    #     return "You currently have no pending reminders."
+
+    # logger.info(f"User {user_id} is viewing {len(reminders)} reminders.")
+    # lines = ["Here are your current reminders:"]
+    # for r in reminders:
+    #     rid = r['reminder_id']
+    #     text = r['reminder_text']
+    #     due_utc = r['due_time_utc']
+    #     lines.append(f"• Reminder #{rid}: due {due_utc}, text: '{text}'")
+    # return "\n".join(lines)
 
 
 async def handle_delete_reminder(user_id, reminder_id):

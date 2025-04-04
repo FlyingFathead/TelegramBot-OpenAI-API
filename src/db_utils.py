@@ -237,6 +237,38 @@ def get_due_reminders(db_path, current_utc_time_str):
     rows = _execute_sql(db_path, sql, (current_utc_time_str,), fetch_all=True)
     return [{'reminder_id': r[0], 'user_id': r[1], 'chat_id': r[2], 'reminder_text': r[3]} for r in rows] if rows else []
 
+def get_past_reminders_for_user(db_path, user_id, limit=5):
+    """
+    Gets the most recent 'past' reminders (status != 'pending') for a user,
+    ordered by the time they were due or created. 
+    Typically we consider 'sent','failed_*','deleted' as "past."
+    """
+    if not DB_INITIALIZED_SUCCESSFULLY:
+        logging.error("DB not initialized. Cannot get past reminders.")
+        return []
+
+    sql = f"""
+        SELECT reminder_id, reminder_text, due_time_utc, status 
+        FROM {REMINDERS_TABLE_NAME}
+        WHERE user_id = ? 
+          AND status != 'pending'
+        ORDER BY due_time_utc DESC
+        LIMIT ?
+    """
+    rows = _execute_sql(db_path, sql, (user_id, limit), fetch_all=True)
+    if not rows:
+        return []
+    # Build a list of dicts
+    reminders = []
+    for row in rows:
+        reminders.append({
+            'reminder_id': row[0],
+            'reminder_text': row[1],
+            'due_time_utc': row[2],
+            'status': row[3]
+        })
+    return reminders
+
 def update_reminder_status(db_path, reminder_id, new_status):
     """Updates the status of a reminder (e.g., to 'sent' or 'failed')."""
     if not DB_INITIALIZED_SUCCESSFULLY:

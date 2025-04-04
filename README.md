@@ -9,6 +9,8 @@
 - **🗺 Geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
 - **🧭 Navigation instructions via Openrouteservice API**  
+- **🔔 Timed reminders & notifications system**
+  - Users can schedule alerts that trigger at specific times. Configurable per-user limits and optional listing of past reminders
 - **📊 Daily token usage tracking & rate limiting for API usage / cost management**
 - **🔍 Perplexity API models alongside OpenAI models**
   - Useful for fact-checking and supplementing OpenAI's cutoff dates
@@ -238,7 +240,11 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
-- v0.76 – **Premium mode auto-switching** + usage DB synergy
+- v0.761 - **Timed notifications / user reminders**
+  - Brand-new feature: users can set timed reminders (alerts) by requesting reminders that the bot stores in an SQLite database. A separate poller picks them up as soon as they are due, and the bot automatically notifies the user on set times.
+  - The custom function calling view action can also list your recently passed or deleted reminders (configurable in `[Reminders]` -> `ShowPastRemindersCount`).
+  - The bot ensures a max limit of pending reminders per user (set with `MaxAlertsPerUser`; set to 0 for unlimited alerts).
+- v0.76 - **Premium mode auto-switching** + usage DB synergy
   - Added daily usage-based auto-switch logic between “premium” vs. “mini” models (see `[ModelAutoSwitch]` in `config.ini`).
   - Once you exceed the `PremiumTokenLimit`, the bot seamlessly switches to the fallback model.
   - If that fallback also goes past `MiniTokenLimit`, the bot can either deny usage or proceed, according to `FallbackLimitAction`.

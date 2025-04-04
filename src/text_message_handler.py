@@ -1154,8 +1154,18 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                                 chat_history.append({"role": "system", "content": result_msg})
 
                         elif action == 'view':
-                            result_msg = await handle_view_reminders(user_id)
-                            chat_history.append({"role": "system", "content": result_msg})
+                            raw_result = await handle_view_reminders(user_id)
+                            prefix = (
+                                "Here are the user's alerts. Use the user's language when replying and Telegram-compliant "
+                                "HTML tags instead of Markdown! List the reminders without their database id #'s to the user, "
+                                "since the numbers are only for database reference [i.e. to delete/edit, etc]). "
+                                "If the user wasn't asking about past reminders, don't list them. KÄYTÄ VASTAUKSESSA HTML:ÄÄ. ÄLÄ KÄYTÄ MARKDOWNIA.\n\n"
+                            )
+                            final_result = prefix + raw_result
+
+                            # Now store that prefixed message in the chat history
+                            chat_history.append({"role": "system", "content": final_result})
+                            context.chat_data['chat_history'] = chat_history
 
                         elif action == 'delete':
                             if not reminder_id:
@@ -1185,6 +1195,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         final_reply_content = response_json['choices'][0]['message'].get('content', '')
                         final_reply = final_reply_content.strip() if final_reply_content else ""
+
+                        if not final_reply:
+                            # Provide a fallback message to avoid sending an empty string
+                            final_reply = "🤔"
 
                         # log & send
                         bot.log_message(

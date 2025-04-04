@@ -59,6 +59,7 @@ from config_paths import (
     ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
 )
 
+import db_utils
 from bot_token import get_bot_token
 from api_key import get_api_key
 import bot_commands
@@ -167,10 +168,6 @@ class TelegramBot:
         # Set chat_log_file to CHAT_LOG_FILE_PATH
         from config_paths import CHAT_LOG_FILE_PATH
         self.chat_log_file = CHAT_LOG_FILE_PATH
-
-        # Read the reminder setting using the full parser and the Reminders section
-        self.reminders_enabled = self._parser.getboolean('Reminders', 'EnableReminders', fallback=False)
-        self.logger.info(f"Reminders Enabled according to config: {self.reminders_enabled}")
 
         # Attempt to get bot & API tokens
         try:
@@ -527,6 +524,10 @@ class TelegramBot:
 
         # Get the asyncio event loop
         loop = asyncio.get_event_loop()
+
+        # Force DB init
+        if not db_utils.DB_INITIALIZED_SUCCESSFULLY:
+            db_utils._create_tables_if_not_exist(db_utils.REMINDERS_DB_PATH)
 
         # If reminders are enabled in config, launch reminder poller
         if self.reminders_enabled:
