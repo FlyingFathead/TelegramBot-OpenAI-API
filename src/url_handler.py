@@ -18,7 +18,7 @@ DESCRIPTION_MAX_LINES = 30
 
 # Configure logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Helper function to format duration from seconds to H:M:S
 def format_duration(duration):

@@ -8,7 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # version of this program
-version_number = "0.76"
+version_number = "0.761"
 
 # Add the project root directory to Python's path
 import sys
@@ -71,16 +71,67 @@ from text_message_handler import handle_message
 from voice_message_handler import handle_voice_message
 from token_usage_visualization import generate_usage_chart
 
-# Call the startup message function
-utils.print_startup_message(version_number)
+# force our basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout,
+    force=True,  # <--- THIS forcibly removes existing handlers
+)
 
-# # Keep the root logger at INFO with a timestamp format
-# logging.basicConfig(
-#     format='[%(asctime)s] %(name)s - %(levelname)s - %(message)s', 
-#     level=logging.INFO
-# )
+def setup_logging(chat_logging_enabled: bool):
+    """
+    Set up all logging (console & file handlers, chat logger, etc.) exactly once.
+    """
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
 
-logger = logging.getLogger(__name__)
+    # Avoid double-adding a StreamHandler if it’s already there
+    if not any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers):
+        console_formatter = logging.Formatter('[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(console_formatter)
+        root_logger.addHandler(console_handler)
+
+    # Add a rotating file handler for the "main" bot log if desired
+    # (If you don't want a file log, remove this block.)
+    file_formatter = logging.Formatter('[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+    file_handler = RotatingFileHandler(
+        LOG_FILE_PATH,
+        maxBytes=1_048_576,  # e.g. ~1MB
+        backupCount=5
+    )
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+
+    # Optionally set up a separate "ChatLogger" if chat_logging_enabled is True
+    if chat_logging_enabled:
+        chat_logger = logging.getLogger('ChatLogger')
+        chat_logger.setLevel(logging.INFO)
+        chat_logger.propagate = False  # We do not want double logs in root if we’re writing to separate files
+
+        # Clear existing handlers to avoid duplicates on restarts
+        if chat_logger.hasHandlers():
+            chat_logger.handlers.clear()
+
+        chat_file_handler = RotatingFileHandler(
+            CHAT_LOG_FILE_PATH,
+            maxBytes=CHAT_LOG_MAX_SIZE,
+            backupCount=5
+        )
+        # You can keep a simpler format if you want:
+        chat_file_formatter = logging.Formatter('%(asctime)s - %(message)s')
+        chat_file_handler.setFormatter(chat_file_formatter)
+        chat_logger.addHandler(chat_file_handler)
+
+        # If you also want the chat logs to appear in console, attach the same console_handler or a new one:
+        # (comment out if you only want them in the file)
+        chat_console_handler = logging.StreamHandler(sys.stdout)
+        chat_console_handler.setLevel(logging.INFO)
+        chat_console_handler.setFormatter(file_formatter)  # reuse the same format
+        chat_logger.addHandler(chat_console_handler)
 
 # Initialize the tokenizer globally
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
@@ -95,10 +146,20 @@ class TelegramBot:
         self.load_config()
 
         # Initialize logging
-        self.initialize_logging()
+        # self.initialize_logging()
 
         # Initialize chat logging if enabled
-        self.initialize_chat_logging()
+        # self.initialize_chat_logging()
+
+        # REMOVED the calls to self.initialize_logging() or self.initialize_chat_logging()
+        # Because we do that in main() before constructing TelegramBot.
+
+        self.logger = logging.getLogger('TelegramBotLogger')
+        self.logger.info("Initializing TelegramBot...")
+
+        # The rest is mostly unchanged:
+        self.reminders_enabled = self._parser.getboolean('Reminders', 'EnableReminders', fallback=False)
+        self.logger.info(f"Reminders Enabled according to config: {self.reminders_enabled}")
 
         # Assign self.logger after initializing logging
         self.logger = logging.getLogger('TelegramBotLogger')
@@ -224,7 +285,7 @@ class TelegramBot:
         # TelegramBotLogger
         telegram_logger = logging.getLogger('TelegramBotLogger')
         telegram_logger.setLevel(logging.INFO)
-        telegram_logger.propagate = False # PREVENT PROPAGATION
+        telegram_logger.propagate = True # True to enable propagation, False to disable it
 
         # Clear existing handlers if any exist (safety measure)
         if telegram_logger.hasHandlers():
@@ -254,7 +315,7 @@ class TelegramBot:
             if self.chat_logging_enabled:
                 chat_logger = logging.getLogger('ChatLogger')
                 chat_logger.setLevel(logging.INFO)
-                chat_logger.propagate = False # PREVENT PROPAGATION
+                chat_logger.propagate = True # set True to keep, False to disable
 
                 # Clear existing handlers if any exist (safety measure)
                 if chat_logger.hasHandlers():
@@ -472,6 +533,21 @@ class TelegramBot:
 
         application.run_polling()
 
-if __name__ == '__main__':
+def main():
+    # 1) Read config
+    config = configparser.ConfigParser()
+    config.read(CONFIG_PATH)
+    chat_logging_enabled = config['DEFAULT'].getboolean('ChatLoggingEnabled', False)
+
+    # 2) Actually call our logging setup
+    setup_logging(chat_logging_enabled=chat_logging_enabled)
+
+    # 3) Print startup banner
+    utils.print_startup_message(version_number)
+
+    # 4) Now create & run the bot
     bot = TelegramBot()
     bot.run()
+
+if __name__ == '__main__':
+    main()

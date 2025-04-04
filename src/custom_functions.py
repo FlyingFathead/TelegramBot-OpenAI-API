@@ -186,7 +186,7 @@ if enable_reminders:
                 },
                 'reminder_text': {
                     'type': 'string',
-                    'description': "Text of the reminder. Required for 'add', optional for 'edit'."
+                    'description': "Text of the reminder, in the user's requested language. You can be a bit creative, like: 'Hey! You asked me to remind you... etc, emojis and basic Telegram HTML formatting is allowed.'. Required for 'add', optional for 'edit'."
                 },
                 'due_time_utc': {
                     'type': 'string',
