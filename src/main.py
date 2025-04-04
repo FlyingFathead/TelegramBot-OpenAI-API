@@ -38,6 +38,9 @@ import re
 # for token counting
 from transformers import GPT2Tokenizer
 
+# poller imports
+from reminder_poller import reminder_poller 
+
 # for telegram
 from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext
@@ -382,6 +385,13 @@ class TelegramBot:
 
         # Start the asyncio loop for schedule_daily_reset in a separate thread
         threading.Thread(target=self.run_asyncio_loop, daemon=True).start()
+
+        # task reminder poller
+        async def start_poller(app):
+            # This runs inside the same event loop
+            asyncio.create_task(reminder_poller(app))
+
+        application.post_init = start_poller
 
         # Start the polling loop
         application.run_polling()

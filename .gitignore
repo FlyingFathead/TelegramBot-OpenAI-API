@@ -26,6 +26,10 @@ chat.log
 bot.log
 *.log
 
+# databases
+logs/*.db
+*.db
+
 # Python cache files
 **/__pycache__/
 __pycache__/
