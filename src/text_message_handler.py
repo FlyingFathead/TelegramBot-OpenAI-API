@@ -28,6 +28,9 @@ from telegram import constants
 from telegram.constants import ChatAction
 from telegram.error import TimedOut
 
+# reminder handling
+from reminder_handler import handle_add_reminder, handle_delete_reminder, handle_edit_reminder, handle_view_reminders
+
 # tg-bot specific stuff
 from modules import markdown_to_html
 
@@ -1098,6 +1101,119 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Finalize the function call
                         context.user_data.pop('active_translation', None)
                         return True
+
+
+                    # ~~~~~~~~~~~~~~
+                    # User reminders
+                    # ~~~~~~~~~~~~~~
+                    # If enabled, the function calls to add, view, edit or delete user's set reminders
+
+                    elif function_name == 'manage_reminder':
+                        # (A) parse arguments
+                        arguments = json.loads(function_call.get('arguments', '{}'))
+                        action = arguments.get('action')        # "add", "view", "delete", or "edit"
+                        reminder_text = arguments.get('reminder_text', '')
+                        due_time_utc = arguments.get('due_time_utc', '')
+                        reminder_id = arguments.get('reminder_id', None)
+
+                        # (B) check if reminders are enabled
+                        enable_reminders = config.getboolean('Reminders', 'EnableReminders', fallback=False)
+                        if not enable_reminders:
+                            system_message = "Reminders are disabled in config. Sorry!"
+                            chat_history.append({"role": "system", "content": system_message})
+                            context.chat_data['chat_history'] = chat_history
+                            break  # or return
+
+                        user_id = update.effective_user.id
+                        chat_id = update.effective_chat.id
+
+                        # (C) Dispatch based on action
+                        if action == 'add':
+                            if not due_time_utc:
+                                result_msg = "No due_time_utc provided for adding a reminder."
+                            elif not reminder_text:
+                                result_msg = "No reminder_text provided for adding a reminder."
+                            else:
+                                result_msg = await handle_add_reminder(
+                                    user_id, chat_id, reminder_text, due_time_utc
+                                )
+
+                            # If it looks like success, have GPT make a nice user-facing confirmation
+                            if "has been set" in result_msg:
+                                # The snippet below is the new approach:
+                                short_system_msg = (
+                                    f"A new reminder was successfully created for <{due_time_utc}> "
+                                    f"with text: '{reminder_text}'. "
+                                    "Please give the user a concise, friendly confirmation message in the user's own language, "
+                                    "mentioning the date/time but NOT quoting the text verbatim unless it's appropriate to do so. Notice also the time zone. "
+                                    "i.e. Finland observes Eastern European Time (UTC+2) in winter and Eastern European Summer Time (UTC+3) during daylight savings. "
+                                )
+                                chat_history.append({"role": "system", "content": short_system_msg})
+                            else:
+                                # Probably an error or partial success
+                                chat_history.append({"role": "system", "content": result_msg})
+
+                        elif action == 'view':
+                            raw_result = await handle_view_reminders(user_id)
+                            prefix = (
+                                "Here are the user's alerts. Use the user's language when replying and Telegram-compliant "
+                                "HTML tags instead of Markdown! List the reminders without their database id #'s to the user, "
+                                "since the numbers are only for database reference [i.e. to delete/edit, etc]). "
+                                "If the user wasn't asking about past reminders, don't list them. KÄYTÄ VASTAUKSESSA HTML:ÄÄ. ÄLÄ KÄYTÄ MARKDOWNIA.\n\n"
+                            )
+                            final_result = prefix + raw_result
+
+                            # Now store that prefixed message in the chat history
+                            chat_history.append({"role": "system", "content": final_result})
+                            context.chat_data['chat_history'] = chat_history
+
+                        elif action == 'delete':
+                            if not reminder_id:
+                                result_msg = "No reminder_id was provided for delete."
+                            else:
+                                result_msg = await handle_delete_reminder(user_id, reminder_id)
+                            chat_history.append({"role": "system", "content": result_msg})
+
+                        elif action == 'edit':
+                            from reminder_handler import handle_edit_reminder
+                            if not reminder_id:
+                                result_msg = "No reminder_id was provided for edit."
+                            else:
+                                result_msg = await handle_edit_reminder(
+                                    user_id, reminder_id, due_time_utc, reminder_text
+                                )
+                            chat_history.append({"role": "system", "content": result_msg})
+
+                        else:
+                            # unknown action
+                            result_msg = f"Unknown 'action' for manage_reminder: {action}"
+                            chat_history.append({"role": "system", "content": result_msg})
+
+                        # (D) Re-invoke GPT to produce final user-facing text
+                        context.chat_data['chat_history'] = chat_history
+                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+
+                        final_reply_content = response_json['choices'][0]['message'].get('content', '')
+                        final_reply = final_reply_content.strip() if final_reply_content else ""
+
+                        if not final_reply:
+                            # Provide a fallback message to avoid sending an empty string
+                            final_reply = "🤔"
+
+                        # log & send
+                        bot.log_message(
+                            message_type='Bot',
+                            message=final_reply,
+                            source='manage_reminder'
+                        )
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=final_reply,
+                            parse_mode=ParseMode.HTML
+                        )
+
+                        stop_typing_event.set()
+                        return
 
                 # Extract the response and send it back to the user
                 # bot_reply = response_json['choices'][0]['message']['content'].strip()

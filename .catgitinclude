@@ -8,3 +8,5 @@ src/modules.py
 src/text_message_handler.py
 src/utils.py
 config/config.ini
+src/reminder_poller.py
+src/reminder_handler.py

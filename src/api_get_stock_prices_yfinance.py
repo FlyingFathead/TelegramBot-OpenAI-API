@@ -13,7 +13,7 @@ import asyncio
 from datetime import datetime
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Search for stock symbol (Using yfinance for direct data fetching)
 async def search_stock_symbol(keyword):

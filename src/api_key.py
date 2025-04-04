@@ -8,7 +8,7 @@ import logging
 from config_paths import CONFIG_PATH, API_TOKEN_PATH # Import the centralized CONFIG_PATH
 
 # Set up basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Flag to enable or disable fallback to environment variable if the key is not found in the file
 ENABLE_KEY_READING_FALLBACK = True

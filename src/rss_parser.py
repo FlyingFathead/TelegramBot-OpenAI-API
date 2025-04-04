@@ -27,7 +27,7 @@ DEFAULT_MAX_DAYS_OLD = 7
 DEFAULT_MAX_ENTRIES = 20
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+# logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 # print term width horizontal line
 def print_horizontal_line(character='-'):
