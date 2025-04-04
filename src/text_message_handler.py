@@ -3,6 +3,7 @@
 # github.com/FlyingFathead/TelegramBot-OpenAI-API/
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import re
 import configparser
 import os
 import sys
@@ -1157,7 +1158,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             raw_result = await handle_view_reminders(user_id)
                             prefix = (
                                 "Here are the user's alerts. Use the user's language when replying and Telegram-compliant "
-                                "HTML tags instead of Markdown! List the reminders without their database id #'s to the user, "
+                                "HTML tags (NOTE: do NOT use <br>!!). Use simple HTML tags (NO <br>, use regular newlines instead). Do NOT use Markdown! List the reminders without their database id #'s to the user, "
                                 "since the numbers are only for database reference [i.e. to delete/edit, etc]). "
                                 "If the user wasn't asking about past reminders, don't list them. KÄYTÄ VASTAUKSESSA HTML:ÄÄ. ÄLÄ KÄYTÄ MARKDOWNIA.\n\n"
                             )
@@ -1199,6 +1200,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         if not final_reply:
                             # Provide a fallback message to avoid sending an empty string
                             final_reply = "🤔"
+
+                        # strip <br> tags JIC
+                        final_reply = re.sub(r'<br\s*/?>', '\n', final_reply, flags=re.IGNORECASE)
 
                         # log & send
                         bot.log_message(
@@ -1584,6 +1588,10 @@ def split_message(message, max_length=4000):
 # sanitize html
 def sanitize_html(content):
     soup = BeautifulSoup(content, 'html.parser')
+
+    # # Replace <br> with newline (or just delete them if you prefer)
+    # for br in soup.find_all("br"):
+    #     br.replace_with("\n")
 
     # Remove unsupported tags
     for tag in soup.find_all():

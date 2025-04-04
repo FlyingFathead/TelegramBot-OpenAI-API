@@ -240,6 +240,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7611 - Parsing hotfix for notifications
 - v0.761 - **Timed notifications / user reminders**
   - Brand-new feature: users can set timed reminders (alerts) by requesting reminders that the bot stores in an SQLite database. A separate poller picks them up as soon as they are due, and the bot automatically notifies the user on set times.
   - The custom function calling view action can also list your recently passed or deleted reminders (configurable in `[Reminders]` -> `ShowPastRemindersCount`).
