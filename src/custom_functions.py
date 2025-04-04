@@ -171,7 +171,7 @@ custom_functions.append({
 if enable_reminders:
     manage_reminder_function = {
         'name': 'manage_reminder',
-        'description': """Manages user reminders (alerts). Specify the action: 'add' to create, 'view' to list pending, 'delete' to remove by ID, or 'edit' to modify by ID.
+        'description': """Manages user reminders (alerts); use if the user requests alerts, a timed notification, etc (hälytys, muistutus..) Specify the action: 'add' to create, 'view' to list pending, 'delete' to remove by ID, or 'edit' to modify by ID.
 - For 'add': requires 'reminder_text' and exact 'due_time_utc' (ISO 8601 format, e.g., '2025-04-04T10:00:00Z'). Calculate UTC from user input based on current system UTC time.
 - For 'view': no other parameters needed.
 - For 'delete': requires 'reminder_id'.

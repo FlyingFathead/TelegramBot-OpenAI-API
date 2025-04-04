@@ -10,6 +10,7 @@ from config_paths import CONFIG_PATH, REMINDERS_DB_PATH
 import db_utils
 from telegram.ext import Application
 from telegram.error import Forbidden, BadRequest
+from telegram.constants import ParseMode
 
 # load and use logger
 logger = logging.getLogger(__name__)
@@ -70,7 +71,8 @@ async def reminder_poller(application: Application):
                         # --- Use application.bot to send ---
                         await application.bot.send_message(
                             chat_id=chat_id,
-                            text=msg
+                            text=msg,
+                            parse_mode=ParseMode.HTML                            
                             # Consider adding parse_mode=ParseMode.HTML if needed later
                         )
                         # --- Update status using correct function and DB path ---
