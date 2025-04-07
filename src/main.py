@@ -1,14 +1,12 @@
 # Multi-API Telegram Bot (Powered by ChatKeke)
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
-#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
 # version of this program
-version_number = "0.7612"
+version_number = "0.7613"
 
 # Add the project root directory to Python's path
 import sys

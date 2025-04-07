@@ -15,6 +15,7 @@ import time
 import json
 import asyncio
 import openai
+from datetime import datetime, timezone
 
 import utils
 from utils import holiday_replacements
@@ -28,6 +29,13 @@ from telegram.constants import ParseMode
 from telegram import constants
 from telegram.constants import ChatAction
 from telegram.error import TimedOut
+
+# time & date handling
+from timedate_handler import (
+    get_ordinal_suffix,
+    get_english_timestamp_str,
+    get_finnish_timestamp_str
+)
 
 # reminder handling
 from reminder_handler import handle_add_reminder, handle_delete_reminder, handle_edit_reminder, handle_view_reminders
@@ -142,8 +150,9 @@ def pick_model_auto_switch(bot):
     if not DB_INITIALIZED_SUCCESSFULLY or not DB_PATH:
         logging.warning("DB not initialized or path missing — can't auto-switch, fallback to default model.")
         return True
-
-    usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    # // old method
+    # usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    usage_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     daily_usage = _get_daily_usage_sync(DB_PATH, usage_date)
     if not daily_usage:
         daily_premium_tokens, daily_fallback_tokens = (0, 0)
@@ -259,16 +268,31 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # Debug: Print before token limit checks
         bot.logger.info(f"[Debug] is_no_limit: {is_no_limit}, user_token_count: {user_token_count}, max_tokens_config: {max_tokens_config}")
 
-        # get date & time for timestamps
+        #  ~~~~~~~~~~~~~~~
+        #  Make timestamp
+        #  ~~~~~~~~~~~~~~~
         now_utc = datetime.datetime.utcnow()
-        current_time = now_utc
-        # utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
-        
-        # display abbreviated 
-        utc_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S %a UTC")
 
+        # We'll keep this for session timeout comparisons
+        current_time = now_utc
         day_of_week = now_utc.strftime("%A")
-        user_message_with_timestamp = f"[{utc_timestamp}] {user_message}"
+        system_timestamp = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        english_line  = get_english_timestamp_str(now_utc)
+        finnish_line  = get_finnish_timestamp_str(now_utc)
+
+        # Combine them however you like, e.g.:
+        # 
+        #   Monday, April 9th, 2025 | Time (UTC): 12:34:56
+        #   maanantai, 9. huhtikuuta 2025, klo 15:34:56 Suomen aikaa
+        #
+        current_timestamp_str = f"{english_line}\n{finnish_line}"
+
+        # We'll put that into a system message
+        timestamp_system_msg = {
+            "role": "system",
+            "content": current_timestamp_str
+        }
 
         # Add the user's tokens to the total usage (JSON style)
         bot.total_token_usage += user_token_count
@@ -316,12 +340,24 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # Initialize chat_history as an empty list if it doesn't exist
         chat_history = context.chat_data.get('chat_history', [])
 
+        #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #  Insert the new system msg
+        #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # logger info on the appended system message
+        logger.info(f"Inserting timestamp system message: {current_timestamp_str}")
+
+        chat_history.append(timestamp_system_msg)
+
         # Append the new user message to the chat history
-        chat_history.append({"role": "user", "content": user_message_with_timestamp})
+        chat_history.append({"role": "user", "content": user_message})
 
         # Prepare the conversation history to send to the OpenAI API
-        system_timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        system_message = {"role": "system", "content": f"System time+date: {system_timestamp}, {day_of_week}): {bot.system_instructions}"}
+
+        # # // old method that included the timestamp in the original system message
+        # system_timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        # system_message = {"role": "system", "content": f"System time+date: {system_timestamp}, {day_of_week}): {bot.system_instructions}"}
+
+        system_message = {"role": "system", "content": f"Instructions: {bot.system_instructions}"}
 
         chat_history_with_system_message = [system_message] + chat_history
 
