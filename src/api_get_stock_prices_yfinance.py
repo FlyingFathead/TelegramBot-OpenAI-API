@@ -8,6 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import yfinance as yf
+import requests
 import logging
 import sys
 import asyncio
@@ -20,27 +21,80 @@ import pandas as pd # Added for Timestamp checking if needed, though not strictl
 if not logging.getLogger().hasHandlers():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Search for stock symbol (Using yfinance for direct data fetching)
 async def search_stock_symbol(keyword):
     logging.info(f"Searching stock symbol for keyword: {keyword}")
-    # yfinance doesn't have a direct search function like some APIs.
-    # We often rely on Ticker() working or failing.
-    # For a more robust search, you might need another library or API,
-    # but Ticker() often works well with common names/symbols.
+    
+    # 1) First try using the exact Ticker approach:
     try:
         ticker = yf.Ticker(keyword)
-        # Attempt to access some data to validate the ticker
-        if not ticker.info:
-            # If .info is empty, try fetching history as another check
-            hist_check = ticker.history(period="1d")
-            if hist_check.empty:
-                logging.info(f"No valid data found for keyword: {keyword} using yf.Ticker.")
-                return "No matches found."
-        logging.debug(f"Ticker info potentially found for {keyword}: {ticker.info.get('symbol', 'N/A')}")
-        return ticker
+        hist_check = ticker.history(period="1d")
+        if not hist_check.empty:
+            # We have data => success
+            return ticker
+        # If hist is empty, keep going
     except Exception as e:
-        logging.error(f"Error attempting to validate ticker for keyword '{keyword}': {e}")
-        return "Error during symbol search."
+        logging.error(f"Error attempting to validate ticker for '{keyword}': {e}")
+    
+    # 2) If the direct Ticker() attempt fails or is empty, fallback to a Yahoo search
+    logging.info(f"No direct Ticker() data. Attempting fallback search for: {keyword}")
+    symbols_found = yahoo_finance_search(keyword)  # see function below
+
+    if symbols_found:
+        # If you want to automatically pick the best match (the first or so):
+        best_candidate = symbols_found[0]  # or rank them somehow
+        logging.info(f"Found possible symbol: {best_candidate}. Verifying with yf.Ticker()")
+        ticker = yf.Ticker(best_candidate)
+        hist_check = ticker.history(period="1d")
+        if not hist_check.empty:
+            return ticker
+        else:
+            logging.info(f"Fallback candidate {best_candidate} has no history.")
+    # 3) If we still don’t get a valid ticker, just bail out
+    return "No matches found."
+
+def yahoo_finance_search(query):
+    """
+    Use the (unofficial) Yahoo Finance search endpoint to find possible symbols.
+    Returns a list of symbols (strings) if any are found, empty list if not.
+    """
+    url = "https://query2.finance.yahoo.com/v1/finance/search"
+    params = {"q": query, "quotesCount": 5}  # maybe fetch top 5
+    resp = requests.get(url, params=params)
+    if resp.status_code != 200:
+        return []
+    data = resp.json()
+    if "quotes" not in data:
+        return []
+    
+    symbols = []
+    for item in data["quotes"]:
+        # each item might have "symbol", "longname", etc.
+        sym = item.get("symbol")
+        if sym:
+            symbols.append(sym)
+    return symbols
+
+# # Search for stock symbol (Using yfinance for direct data fetching)
+# async def search_stock_symbol(keyword):
+#     logging.info(f"Searching stock symbol for keyword: {keyword}")
+#     # yfinance doesn't have a direct search function like some APIs.
+#     # We often rely on Ticker() working or failing.
+#     # For a more robust search, you might need another library or API,
+#     # but Ticker() often works well with common names/symbols.
+#     try:
+#         ticker = yf.Ticker(keyword)
+#         # Attempt to access some data to validate the ticker
+#         if not ticker.info:
+#             # If .info is empty, try fetching history as another check
+#             hist_check = ticker.history(period="1d")
+#             if hist_check.empty:
+#                 logging.info(f"No valid data found for keyword: {keyword} using yf.Ticker.")
+#                 return "No matches found."
+#         logging.debug(f"Ticker info potentially found for {keyword}: {ticker.info.get('symbol', 'N/A')}")
+#         return ticker
+#     except Exception as e:
+#         logging.error(f"Error attempting to validate ticker for keyword '{keyword}': {e}")
+#         return "Error during symbol search."
 
 # format conversion (currently not in use)
 def format_float(value):
