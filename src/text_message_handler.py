@@ -15,7 +15,6 @@ import time
 import json
 import asyncio
 import openai
-from datetime import datetime, timezone
 
 import utils
 from utils import holiday_replacements
@@ -150,9 +149,8 @@ def pick_model_auto_switch(bot):
     if not DB_INITIALIZED_SUCCESSFULLY or not DB_PATH:
         logging.warning("DB not initialized or path missing — can't auto-switch, fallback to default model.")
         return True
-    # // old method
-    # usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
-    usage_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+    usage_date = datetime.datetime.utcnow().strftime('%Y-%m-%d')
     daily_usage = _get_daily_usage_sync(DB_PATH, usage_date)
     if not daily_usage:
         daily_premium_tokens, daily_fallback_tokens = (0, 0)
@@ -1354,12 +1352,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     message=bot_reply,
                     model_info=model_info
                 )
-
-                # # Log the bot's response
-                # bot.log_message(
-                #     message_type='Bot',
-                #     message=bot_reply,
-                # )
 
                 # # # send the response
                 # # await context.bot.send_message(
