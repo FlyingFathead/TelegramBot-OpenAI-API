@@ -50,7 +50,14 @@ async def search_stock_symbol(keyword):
         else:
             logging.info(f"Fallback candidate {best_candidate} has no history.")
     # 3) If we still don’t get a valid ticker, just bail out
-    return "No matches found."
+    # return "No matches found."
+
+    # 3) Or, rather, tell the user:
+    return (
+        "We were unable to find the ticker for the keyword you provided. "
+        "You can tell the user (in their language) that you can use other tools (e.g., Perplexity API or a web search) "
+        "to locate the correct ticker symbol for them."
+    )
 
 def yahoo_finance_search(query):
     """
