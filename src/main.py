@@ -1,14 +1,12 @@
 # Multi-API Telegram Bot (Powered by ChatKeke)
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # by FlyingFathead ~*~ https://github.com/FlyingFathead
 # ghostcode: ChaosWhisperer
-#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
 # version of this program
-version_number = "0.7612"
+version_number = "0.7613"
 
 # Add the project root directory to Python's path
 import sys
@@ -215,7 +213,10 @@ class TelegramBot:
             'SystemInstructions',
             'You are an OpenAI API-based chatbot on Telegram.'
         )
-        self.system_instructions = f"[Bot's current model: {self.model}] {default_system_msg}"
+
+        # # // skip current model info
+        # self.system_instructions = f"[Bot's current model: {self.model}] {default_system_msg}"
+        self.system_instructions = f"[Instructions] {default_system_msg}"
 
         self.start_command_response = self.config.get(
             'StartCommandResponse',
