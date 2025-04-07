@@ -240,6 +240,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7614 - Better stock market data fetching from Yahoo Finance using `src/api_get_stock_prices_yfinance.py`
 - v0.7613 - Improved timestamps on multiple timezones
   - Added a separate module to `src/timedate_handler.py` to assist the model
   - => Datetime stamps now in separate system messages

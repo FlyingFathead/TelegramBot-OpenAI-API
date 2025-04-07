@@ -144,10 +144,10 @@ custom_functions.append({
     }
 })
 
-# AlphaVantage stock price check
+# stock price check
 custom_functions.append({
     'name': 'get_stock_price',
-    'description': '[Use if the user asks for stock prices or financial data.] Fetches real-time stock price data from Yahoo! Finance API using either a direct stock symbol or a search keyword.',
+    'description': '[Use if the user asks for stock prices or financial data.] Fetches real-time stock price data from Yahoo! Finance API using either a direct stock symbol or a search keyword, use caret (^) as a prefix for indeces (VIX, GSPC, DJI, IXIC, FTSE, DAX...).',
     'parameters': {
         'type': 'object',
         'properties': {
@@ -191,7 +191,7 @@ if enable_reminders:
                 },
                 'reminder_text': {
                     'type': 'string',
-                    'description': "Text of the reminder, in the user's requested language. You can be a bit creative, like: 'Hey! You asked me to remind you... etc, emojis and basic Telegram HTML formatting is allowed.'. Required for 'add', optional for 'edit'."
+                    'description': "Text of the reminder, in the user's requested language. You can be a bit creative, like: 'Hey! You asked me to remind you... etc, emojis and basic Telegram HTML formatting is allowed, the reminders are auto-split if need be to fit messages, but under 4000 characters is recommended. Required for 'add', optional for 'edit'."
                 },
                 'due_time_utc': {
                     'type': 'string',
