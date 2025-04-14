@@ -106,47 +106,113 @@ def preserve_html_and_escape_text(text):
     escaped_text += html.escape(text[last_end:])
     return escaped_text
 
-# markdown to html parsing (v0.737.2)
+# v0.7615
 def markdown_to_html(text):
-    try:
-        # Handle the code blocks with optional language specification first
-        def replace_codeblock(match):
-            codeblock = match.group(2)  # Get the actual code inside the block
-            language = match.group(1)  # Get the language identifier
-            escaped_code = html.escape(codeblock.strip())
-            if language:
-                return f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
-            else:
-                return f'<pre><code>{escaped_code}</code></pre>'
+    """
+    Convert a simple subset of Markdown to HTML,
+    ensuring that code blocks are extracted first so they
+    don't get accidentally transformed by heading/bold/italic rules.
+    """
+    # 1) Extract code blocks into placeholders
+    code_blocks = []
 
-        # Replace code blocks with <pre><code> tags
-        text = re.sub(r'```(\w+)?\n([\s\S]*?)```', replace_codeblock, text)
+    def extract_codeblock(match):
+        language = match.group(1) or ""   # i.e. "python"
+        code_body = match.group(2)       # the code text
+        code_blocks.append((language, code_body))
+        placeholder_index = len(code_blocks) - 1
+        # Return a placeholder token like [CODEBLOCK_0]
+        return f"[CODEBLOCK_{placeholder_index}]"
 
-        # Now handle Markdown links and convert them to HTML
-        def replace_markdown_link(match):
-            link_text = match.group(1)  # The text to display
-            url = match.group(2)  # The URL
-            return f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
+    # Regex: triple backticks with optional language
+    # Use DOTALL ([\s\S]) so it can capture newlines
+    text = re.sub(
+        r'```(\w+)?\n([\s\S]*?)```',
+        extract_codeblock,
+        text
+    )
 
-        # Replace Markdown links [text](url) with HTML <a> tags
-        text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_markdown_link, text)
+    # 2) Now do the normal Markdown parsing on whatever’s left (outside code blocks)
 
-        # Handle inline code and other markdown elements
-        text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
-        text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
-        text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
-        text = re.sub(r'`([^`]*)`', r'<code>\1</code>', text)
-        text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
-        text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
-        text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
-        text = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', text)
-        text = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', text)
-        text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
+    # Headings: only match at the start of lines (via ^) and multiline
+    text = re.sub(r'^(######)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^(#####)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^(####)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^(###)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^(##)\s+(.*)',  r'➤ <b>\2</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^#\s+(.*)',     r'➤ <b>\1</b>', text, flags=re.MULTILINE)
 
-        return text
+    # Links of the form [text](url)
+    def replace_markdown_link(m):
+        link_text = m.group(1)
+        url = m.group(2)
+        # Escape any HTML entities in the URL or text
+        return f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_markdown_link, text)
 
-    except Exception as e:
-        return str(e)
+    # Bold
+    text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+
+    # Italics: also handle both `*text*` and `_text_`
+    text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+    text = re.sub(r'_(.*?)_',  r'<i>\1</i>', text)
+
+    # Inline code with single backticks
+    text = re.sub(r'`([^`]*)`', r'<code>\1</code>', text)
+
+    # 3) Re‐insert the code blocks
+    for i, (language, code_body) in enumerate(code_blocks):
+        escaped_code = html.escape(code_body.strip())
+        if language:
+            block_html = f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
+        else:
+            block_html = f'<pre><code>{escaped_code}</code></pre>'
+        # Replace [CODEBLOCK_i] with the final <pre><code> block
+        text = text.replace(f"[CODEBLOCK_{i}]", block_html, 1)
+
+    return text
+
+# # markdown to html parsing (v0.737.2)
+# def markdown_to_html(text):
+#     try:
+#         # Handle the code blocks with optional language specification first
+#         def replace_codeblock(match):
+#             codeblock = match.group(2)  # Get the actual code inside the block
+#             language = match.group(1)  # Get the language identifier
+#             escaped_code = html.escape(codeblock.strip())
+#             if language:
+#                 return f'<pre><code class="language-{language}">{escaped_code}</code></pre>'
+#             else:
+#                 return f'<pre><code>{escaped_code}</code></pre>'
+
+#         # Replace code blocks with <pre><code> tags
+#         text = re.sub(r'```(\w+)?\n([\s\S]*?)```', replace_codeblock, text)
+
+#         # Now handle Markdown links and convert them to HTML
+#         def replace_markdown_link(match):
+#             link_text = match.group(1)  # The text to display
+#             url = match.group(2)  # The URL
+#             return f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
+
+#         # Replace Markdown links [text](url) with HTML <a> tags
+#         text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_markdown_link, text)
+
+#         # Handle inline code and other markdown elements
+#         text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+#         text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+#         text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+#         text = re.sub(r'`([^`]*)`', r'<code>\1</code>', text)
+#         text = re.sub(r'######\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'####\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'###\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'##\s*(.*)', r'➤ <b>\1</b>', text)
+#         text = re.sub(r'#\s*(.*)', r'➤ <b>\1</b>', text)
+
+#         return text
+
+#     except Exception as e:
+#         return str(e)
 
 # Check and update the global rate limit.
 def check_global_rate_limit(max_requests_per_minute, global_request_count, rate_limit_reset_time):
