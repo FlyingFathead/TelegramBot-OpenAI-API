@@ -240,6 +240,8 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7165 - Parsing improvements
+  - Improved text formatting & escaping in complex markdown vs. html cases
 - v0.7614 - Better stock market data fetching from Yahoo Finance 
   - Changes made to `src/api_get_stock_prices_yfinance.py`
   - => More accurate ticker symbol searches, fallbacks, multi-day data etc.
