@@ -134,6 +134,15 @@ def markdown_to_html(text):
 
     # 2) Now do the normal Markdown parsing on whatever’s left (outside code blocks)
 
+    # Now handle Markdown links and convert them to HTML
+    def replace_markdown_link(match):
+        link_text = match.group(1)  # The text to display
+        url = match.group(2)  # The URL
+        return f'<a href="{html.escape(url)}">{html.escape(link_text)}</a>'
+
+    # Replace Markdown links [text](url) with HTML <a> tags
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_markdown_link, text)
+
     # Headings: only match at the start of lines (via ^) and multiline
     text = re.sub(r'^(######)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
     text = re.sub(r'^(#####)\s+(.*)', r'➤ <b>\2</b>', text, flags=re.MULTILINE)
