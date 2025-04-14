@@ -1114,8 +1114,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         system_message = (
                             f"[Perplexity.ai response]: {perplexity_response} "
                             "[Translate to the user's language if needed. "
-                            "Use only Telegram-compatible HTML; keep it simple. CONVERT MARKDOWN TO HTML."
-                            "and do NOT use <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <pre> tags. If you want to use a codeblock, use <code>]. Remember to translate to the user's language, i.e. if they're asking in Finnish instead of English, translate into Finnish!"
+                            "Use only Telegram-compatible HTML; keep it simple. CONVERT MARKDOWN TO HTML. NO <br> TAGS!"
+                            "Overall, in HTML formatting, DO NOT USE: <ul>, <li>, <br>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <pre> tags. If you want to use a codeblock, use <code>]. Remember to translate to the user's language, i.e. if they're asking in Finnish instead of English, translate into Finnish!"
                         )
                         chat_history.append({"role": "system", "content": system_message})
                         context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
@@ -1131,6 +1131,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
 
                         bot_reply = bot_reply_content.strip() if bot_reply_content else ""
+                        bot_reply = strip_disallowed_html_tags(bot_reply)
 
                         # Update usage metrics and logs
                         bot_token_count = bot.count_tokens(bot_reply)
@@ -1676,6 +1677,26 @@ def sanitize_html(content):
     # Fix improperly nested tags
     content = str(soup)
     return content
+
+# further; strip disallowed html tags
+def strip_disallowed_html_tags(text):
+    """
+    Replace disallowed HTML tags with safe equivalents or remove them entirely.
+    Telegram's HTML parser is extremely limited.
+    """
+    # Replace <br> with newline
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+
+    # Replace <li> with bullet point and newline
+    text = re.sub(r'</li>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<li>', '• ', text, flags=re.IGNORECASE)
+
+    # Remove <ul>, </ul>, <ol>, </ol>
+    text = re.sub(r'</?(ul|ol)>', '', text, flags=re.IGNORECASE)
+
+    return text
+
+## more
 
 # # // (old request type)
 # async def make_api_request(bot, chat_history, timeout=30):
