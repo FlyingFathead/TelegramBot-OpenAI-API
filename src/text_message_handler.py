@@ -4,6 +4,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import re
+import html
 import configparser
 import os
 import sys
@@ -714,7 +715,14 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # View the output (i.e. for markdown etc formatting debugging)
                         logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                        escaped_reply = markdown_to_html(bot_reply)
+                        # escaped_reply = markdown_to_html(bot_reply)
+
+                        try:
+                            escaped_reply = markdown_to_html(bot_reply)
+                        except Exception as e:
+                            bot.logger.error(f"markdown_to_html failed: {e}")
+                            escaped_reply = html.escape(bot_reply)  # Safe fallback
+
                         # escaped_reply = bot_reply
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
@@ -788,7 +796,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             #     return content
 
                             # Convert markdown to HTML
-                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = markdown_to_html(bot_reply)
+                            try:
+                                escaped_reply = markdown_to_html(bot_reply)
+                            except Exception as e:
+                                bot.logger.error(f"markdown_to_html failed: {e}")
+                                escaped_reply = html.escape(bot_reply)  # Safe fallback
 
                             # Sanitize the HTML to remove any unsupported tags
                             escaped_reply = sanitize_html(escaped_reply)
@@ -860,7 +873,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                             #     return content
 
                             # Convert markdown to HTML
-                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = markdown_to_html(bot_reply)
+
+                            try:
+                                escaped_reply = markdown_to_html(bot_reply)
+                            except Exception as e:
+                                bot.logger.error(f"markdown_to_html failed: {e}")
+                                escaped_reply = html.escape(bot_reply)  # Safe fallback
 
                             # Sanitize the HTML to remove any unsupported tags
                             escaped_reply = sanitize_html(escaped_reply)
@@ -946,7 +965,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # View the output (i.e. for markdown etc formatting debugging)
                         logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                        escaped_reply = markdown_to_html(bot_reply)
+                        # escaped_reply = markdown_to_html(bot_reply)
+                        try:
+                            escaped_reply = markdown_to_html(bot_reply)
+                        except Exception as e:
+                            bot.logger.error(f"markdown_to_html failed: {e}")
+                            escaped_reply = html.escape(bot_reply)  # Safe fallback
+
                         logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
                         # Log the bot's response
@@ -1116,7 +1141,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         # Ensure the bot has a substantive response to send
                         if bot_reply:
                             # escaped_reply = bot_reply
-                            escaped_reply = markdown_to_html(bot_reply)
+                            # escaped_reply = markdown_to_html(bot_reply)
+
+                            try:
+                                escaped_reply = markdown_to_html(bot_reply)
+                            except Exception as e:
+                                bot.logger.error(f"markdown_to_html failed: {e}")
+                                escaped_reply = html.escape(bot_reply)  # Safe fallback
 
                             # Log the bot's response from Perplexity API
                             bot.log_message(
@@ -1300,7 +1331,13 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # view the output (i.e. for markdown etc formatting debugging)
                 logger.info(f"[Debug] Reply message before escaping: {bot_reply}")
 
-                escaped_reply = markdown_to_html(bot_reply)
+                # escaped_reply = markdown_to_html(bot_reply)
+                try:
+                    escaped_reply = markdown_to_html(bot_reply)
+                except Exception as e:
+                    bot.logger.error(f"markdown_to_html failed: {e}")
+                    escaped_reply = html.escape(bot_reply)  # Safe fallback
+
                 # escaped_reply = bot_reply
                 logger.info(f"[Debug] Reply message after escaping: {escaped_reply}")
 
