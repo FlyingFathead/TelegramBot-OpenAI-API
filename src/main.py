@@ -6,7 +6,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # version of this program
-version_number = "0.7615"
+version_number = "0.7616"
 
 # Add the project root directory to Python's path
 import sys

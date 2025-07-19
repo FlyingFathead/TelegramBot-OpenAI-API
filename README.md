@@ -240,6 +240,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.7616 - Changed default Perplexity API model to `sonar` as per new model changes in the Perplexity API
 - v0.7615 - Parsing improvements
   - Improved text formatting & escaping in complex markdown vs. html cases
 - v0.7614 - Better stock market data fetching from Yahoo Finance 
