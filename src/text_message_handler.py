@@ -464,10 +464,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     #"messages": context.chat_data['chat_history'],
                     # "messages": chat_history_with_system_message,  # Updated to include system message
                     "messages": chat_history_with_es_context,
-                    "temperature": bot.temperature,  # Use the TEMPERATURE variable loaded from config.ini
                     "functions": custom_functions,
                     "function_call": 'auto'  # Allows the model to dynamically choose the function                        
                 }
+                # Only set temperature if NOT GPT-5
+                if not bot.model.startswith("gpt-5"):
+                    payload["temperature"] = bot.temperature
 
                 # Make the API request
                 headers = {
@@ -496,6 +498,20 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         return  # Stop further execution in case of 401 error
 
                     response_json = response.json()
+
+                    # new error catching // aug 2025
+                    if "error" in response_json:
+                        bot.logger.error(f"OpenAI API error: {response_json['error']}")
+                        err_msg = response_json["error"].get("message", "Unknown API error.")
+                        # Optionally notify the user (or just log, up to you)
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=f"OpenAI error: {err_msg}",
+                            parse_mode=ParseMode.HTML
+                        )
+                        stop_typing_event.set()
+                        return
+
                     bot.logger.info("OpenAI API call succeeded, status code = %d", response.status_code)
 
                 # ~~~~~ read the usage once we have the `response_json` ~~~~~
@@ -663,13 +679,15 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
 
                         # Prepare the payload for the API request with updated chat history
+                        # /// NEW, AUG 2025: Only include temperature if the model supports it (not gpt-5)
                         payload = {
                             "model": bot.model,
-                            "messages": chat_history,
-                            "temperature": bot.temperature,
+                            "messages": chat_history_with_es_context,
                             "functions": custom_functions,
-                            "function_call": 'auto'  # Allows the model to dynamically choose the function
+                            "function_call": 'auto'
                         }
+                        if not bot.model.startswith("gpt-5"):
+                            payload["temperature"] = bot.temperature
 
                         # Make the API request
                         headers = {
@@ -1525,10 +1543,12 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
         payload = {
             "model": bot.model,  # Model configured for the bot
             "messages": updated_context,  # Updated chat history including system messages
-            "temperature": bot.temperature,  # Configured response creativity
             "max_tokens": 1024,  # Adjust based on desired response length
             # Additional parameters like 'top_p', 'frequency_penalty', etc., can be included based on requirements.
         }
+        # Only set temperature if NOT GPT-5
+        if not bot.model.startswith("gpt-5"):
+            payload["temperature"] = bot.temperature
 
         # Headers for the API request, including the authorization token.
         headers = {
@@ -1594,10 +1614,12 @@ async def make_api_request(bot, chat_history, timeout=30):
     payload = {
         "model": bot.model,
         "messages": chat_history,
-        "temperature": bot.temperature,
         "functions": custom_functions,
         "function_call": 'auto'  # Allows the model to dynamically choose the function
     }
+    # Only set temperature if NOT GPT-5
+    if not bot.model.startswith("gpt-5"):
+        payload["temperature"] = bot.temperature
 
     # Make the API request
     headers = {
