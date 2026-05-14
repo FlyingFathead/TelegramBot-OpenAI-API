@@ -18,6 +18,24 @@ from config_paths import (
     ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
 )
 
+# check perplexity.ai API status
+def get_perplexity_enabled(config):
+    """
+    Read the canonical Perplexity API enabled flag.
+
+    Source of truth:
+        [Perplexity]
+        Enabled = True/False
+    """
+    if config is None:
+        return False
+
+    return config.getboolean(
+        "Perplexity",
+        "Enabled",
+        fallback=False
+    )
+
 # juhlapäivien käännösnimet
 holiday_replacements = {
     "New Year's Day": "uudenvuodenpäivä (New Year's Day)",
@@ -50,12 +68,17 @@ def hz_line(character='-'):
     sys.stdout.flush()  # Flush the output to the terminal immediately
 
 # print the startup message
-def print_startup_message(version_number):
+def print_startup_message(version_number, config=None):
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    perplexity_enabled = get_perplexity_enabled(config)
+
     hz_line()
     print(f"::: [{now}] Telegram bot (powered by ChatKeke) v.{version_number} starting up...", flush=True)
-    # Print Elasticsearch status
+
+    # Print optional module/API status
     print(f"::: Elasticsearch enabled: {ELASTICSEARCH_ENABLED}", flush=True)
+    print(f"::: Perplexity.ai API enabled: {perplexity_enabled}", flush=True)
+
     hz_line()
 
 # remove html tags

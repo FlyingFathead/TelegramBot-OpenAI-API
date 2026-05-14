@@ -6,7 +6,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # version of this program
-version_number = "0.8.0"
+version_number = "0.8.1"
 
 # Add the project root directory to Python's path
 import sys
@@ -135,6 +135,7 @@ def setup_logging(chat_logging_enabled: bool):
 # Initialize the tokenizer globally
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
+# bot class
 class TelegramBot:
     # version of this program
     version_number = version_number
@@ -543,7 +544,7 @@ def main():
     # 1) Read config
     config = configparser.ConfigParser()
     config.read(CONFIG_PATH)
-    chat_logging_enabled = config['DEFAULT'].getboolean('ChatLoggingEnabled', False)
+    chat_logging_enabled = config["DEFAULT"].getboolean("ChatLoggingEnabled", False)
 
     # 2) Actually call our logging setup
     setup_logging(chat_logging_enabled=chat_logging_enabled)

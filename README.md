@@ -240,6 +240,10 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+- v0.8.1 - Startup status banner cleanup
+  - Added Perplexity API enabled/disabled status to the startup banner.
+  - Reads Perplexity status from `[Perplexity] -> Enabled` in `config.ini`.
+  - Kept startup/config handling simple and centralized in `utils.py`.
 - v0.8.0 - OpenAI 5.x-era cleanup + Perplexity/DuckDuckGo compatibility hardening
   - Refactored `src/api_perplexity_search.py` for the current Perplexity/Sonar API workflow.
   - Kept Perplexity on the OpenAI-compatible Chat Completions endpoint by default:
