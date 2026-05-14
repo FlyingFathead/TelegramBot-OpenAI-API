@@ -6,7 +6,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # version of this program
-version_number = "0.8.1"
+version_number = "0.8.2"
 
 # Add the project root directory to Python's path
 import sys
@@ -155,7 +155,10 @@ class TelegramBot:
         # Because we do that in main() before constructing TelegramBot.
 
         self.logger = logging.getLogger('TelegramBotLogger')
-        self.logger.info("Initializing TelegramBot...")
+        self.logger.info("Initializing Telegram Bot...")
+
+        self.logger.info(f"Voice STT enabled: {self.enable_whisper}")
+        self.logger.info(f"Voice STT model: {self.stt_model}")
 
         # The rest is mostly unchanged:
         self.reminders_enabled = self._parser.getboolean('Reminders', 'EnableReminders', fallback=False)
@@ -229,6 +232,14 @@ class TelegramBot:
         self.bot_disabled_msg = self.config.get('BotDisabledMsg', 'The bot is currently disabled.')
 
         self.enable_whisper = self.config.getboolean('EnableWhisper', True)
+
+        # Speech-to-text model for voice messages.
+        # Primary source: config.ini
+        # Fallback source: OPENAI_STT_MODEL env var
+        # Final fallback: gpt-4o-transcribe
+        configured_stt_model = self.config.get('STTModel', fallback='').strip()
+        env_stt_model = os.getenv('OPENAI_STT_MODEL', '').strip()
+        self.stt_model = configured_stt_model or env_stt_model or 'gpt-4o-transcribe'
         self.max_voice_message_length = self.config.getint('MaxDurationMinutes', 5)
 
         self.data_directory = self.config.get('DataDirectory', 'data')
@@ -241,25 +252,29 @@ class TelegramBot:
         # Build paths
         project_root = Path(__file__).resolve().parents[1]
         self.data_directory = str(project_root / self.config.get('DataDirectory', 'data'))
+        self.logs_directory = str(project_root / self.config.get('LogsDirectory', 'logs'))
+
+        # self.logger is not assigned yet during load_config(), so use a local logger.
+        config_logger = logging.getLogger('TelegramBotLogger')
 
         # Create data directory if needed
         try:
             if not os.path.exists(self.data_directory):
                 os.makedirs(self.data_directory, exist_ok=True)
-                logger.info(f"Created data directory at {self.data_directory}")
+                config_logger.info(f"Created data directory at {self.data_directory}")
         except OSError as e:
-            logger.error(
+            config_logger.error(
                 f"Failed to create data directory {self.data_directory}: {e} "
                 "-- Some commands might be disabled due to this."
             )
 
-        self.logs_directory = str(project_root / self.config.get('LogsDirectory', 'logs'))
+        # Create logs directory if needed
         try:
             if not os.path.exists(self.logs_directory):
                 os.makedirs(self.logs_directory, exist_ok=True)
-                logger.info(f"Created logs directory at {self.logs_directory}")
+                config_logger.info(f"Created logs directory at {self.logs_directory}")
         except OSError as e:
-            logger.error(
+            config_logger.error(
                 f"Failed to create logs directory {self.logs_directory}: {e} "
                 "-- Some commands might be disabled due to this."
             )
@@ -405,15 +420,7 @@ class TelegramBot:
     # voice message handler - see: voice_message_handler.py
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     async def voice_message_handler(self, update: Update, context: CallbackContext) -> None:
-        await handle_voice_message(
-            self,
-            update,
-            context,
-            self.data_directory,
-            self.enable_whisper,
-            self.max_voice_message_length,
-            logger
-        )
+        await handle_voice_message(self, update, context)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # text message handler - see: text_message_handler.py
@@ -438,7 +445,7 @@ class TelegramBot:
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
         # Voice handler
-        application.add_handler(MessageHandler(filters.VOICE, partial(handle_voice_message, self)))
+        application.add_handler(MessageHandler(filters.VOICE, self.voice_message_handler))
 
         # Register command handlers from bot_commands module
         application.add_handler(

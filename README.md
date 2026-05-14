@@ -3,8 +3,8 @@
 ## 🤖 _Powered by ChatKeke_ 🚀
 
 - **A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API & Perplexity API**
-- **🎙 Transcribed voice messages over Whisper API**
-  - (auto-transcriptions, translations, and other messages to the bot over TG's voice messages)
+- **🎙 Transcribed Telegram voice messages via OpenAI speech-to-text models (Whisper and others)**
+  - Supports configurable STT models such as `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, and legacy `whisper-1`
 - **☁️ Real-time weather info, weather alerts, and geolocation data via [OpenWeatherMap](https://openweathermap.org/), [WeatherAPI](https://www.weatherapi.com/) and U.S. NWS ([weather.gov](https://weather.gov))**
 - **🗺 Geolocation and map lookups via MapTiler API**
   - (with weather forecasts around the world in all OpenAI API supported languages)
@@ -240,6 +240,44 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+
+- v0.8.2 - Configurable OpenAI speech-to-text model support for Telegram voice messages
+  - Updated Telegram voice message transcription handling for the current OpenAI audio transcription model lineup.
+  - Added configurable speech-to-text model selection through `config.ini`:
+    - `STTModel = gpt-4o-transcribe`
+    - `STTModel = gpt-4o-mini-transcribe`
+    - `STTModel = whisper-1`
+  - Kept backward compatibility with the old `EnableWhisper` config flag so existing configs do not break.
+  - Added `OPENAI_STT_MODEL` environment-variable fallback for overriding the configured STT model in Docker/systemd/shell deployments.
+  - Changed the default voice transcription model from legacy `whisper-1` to modern `gpt-4o-transcribe`.
+  - Refactored `src/voice_message_handler.py` so the STT model is read from the main `TelegramBot` config object instead of being hardcoded in the voice module.
+  - Added lazy OpenAI async client initialization for voice transcription so the client is created only after API key loading.
+  - Preserved support for legacy `whisper-1` as a fallback model.
+  - Preserved Telegram-visible voice transcription marker:
+    - `🎤📝`
+  - Improved Telegram HTML safety by escaping transcribed text before wrapping it in HTML formatting.
+  - Improved model-facing voice transcription formatting through `context.user_data["transcribed_text"]`.
+  - Fixed voice message duration checking so `MaxDurationMinutes` is correctly treated as minutes while Telegram/audio duration values are handled as seconds.
+  - Improved voice message logging with detailed metadata:
+    - Telegram user ID
+    - username
+    - first/last name
+    - chat ID
+    - chat type/title
+    - message ID
+    - Telegram voice file ID / unique ID
+    - voice duration
+    - MIME type
+    - file size
+    - local downloaded file path
+    - selected STT model
+    - final transcription text
+  - Logs detailed voice transcription events into `bot.log`.
+  - Logs transcription events into `chat.log` when `ChatLoggingEnabled = True`.
+  - Cleaned up `main.py` voice handler registration:
+    - removed the old extra-argument voice handler path
+    - now routes voice messages through `self.voice_message_handler`
+  - Fixed `load_config()` directory creation logging by replacing undefined `logger` references with a local `TelegramBotLogger`.
 - v0.8.1 - Startup status banner cleanup
   - Added Perplexity API enabled/disabled status to the startup banner.
   - Reads Perplexity status from `[Perplexity] -> Enabled` in `config.ini`.
