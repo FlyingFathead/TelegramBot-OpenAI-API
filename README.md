@@ -240,7 +240,75 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
-
+- v0.8.0 - OpenAI 5.x-era cleanup + Perplexity/DuckDuckGo compatibility hardening
+  - Refactored `src/api_perplexity_search.py` for the current Perplexity/Sonar API workflow.
+  - Kept Perplexity on the OpenAI-compatible Chat Completions endpoint by default:
+    - `https://api.perplexity.ai/chat/completions`
+  - Added configurable Perplexity endpoint support via `[Perplexity] -> Endpoint`.
+  - Kept `sonar` as the default Perplexity model.
+  - Added safer Perplexity config loading helpers:
+    - `_cfg_get()`
+    - `_cfg_getint()`
+    - `_cfg_getfloat()`
+  - Added explicit Perplexity API key validation for `PERPLEXITY_API_KEY`.
+  - Added clearer Perplexity error returns for:
+    - missing API key
+    - empty question
+    - bad/non-JSON response
+    - HTTP errors
+    - exhausted retries
+  - Hardened Perplexity retry handling:
+    - retryable HTTP status detection
+    - timeout handling
+    - request-error handling
+    - exponential backoff with jitter
+  - Added safer Perplexity response parsing through `_extract_perplexity_content()`.
+  - Preserved old public Perplexity helper names/signatures so existing imports keep working:
+    - `fact_check_with_perplexity()`
+    - `query_perplexity()`
+    - `smart_chunk()`
+    - `rejoin_chunks()`
+    - `format_headers_for_telegram()`
+    - `markdown_to_html()`
+    - `sanitize_urls()`
+    - `split_message()`
+    - `send_split_messages()`
+    - `handle_long_response()`
+    - `detect_language()`
+  - Updated Perplexity-side `detect_language()` helper for newer OpenAI model payload rules:
+    - no `temperature` for non-GPT-4-family models
+    - `max_completion_tokens` for newer non-GPT-4-family models
+    - `max_tokens` retained for GPT-4-family models
+  - Removed stale hardcoded `gpt-4o-mini` fallback from Perplexity language detection.
+  - Updated language detection fallback model handling to use the configured default model instead of old dead model names.
+  - Refactored `src/api_get_duckduckgo_search.py` for modern OpenAI tool-calling compatibility.
+  - Updated DuckDuckGo sub-agent browsing away from legacy-only `functions` / `function_call` handling.
+  - Added modern OpenAI `tools` / `tool_choice` payload support for the DuckDuckGo sub-agent.
+  - Added backward-compatible parsing for both:
+    - modern `tool_calls`
+    - legacy `function_call`
+  - Added safer DuckDuckGo sub-agent response extraction to avoid brittle direct `choices[0]["message"]["content"]` assumptions.
+  - Updated DuckDuckGo sub-agent model payload rules for newer OpenAI models:
+    - GPT-4-family models may receive `temperature`
+    - newer non-GPT-4-family models omit `temperature`
+    - newer non-GPT-4-family models use `max_completion_tokens`
+    - GPT-4-family models keep `max_tokens`
+  - Updated DuckDuckGo default fallback model from old `gpt-4` assumptions to the newer configured model path / GPT-5.x-era default.
+  - Kept DuckDuckGo search behavior compatible with non-agentic mode:
+    - raw DuckDuckGo/lynx result fetching still works without invoking the sub-agent
+    - duplicate links are filtered
+    - DuckDuckGo redirect URLs are decoded back into original URLs
+  - Hardened DuckDuckGo agentic browsing fallback behavior:
+    - if the sub-agent returns empty output, raw DuckDuckGo results are returned
+    - if webpage fetching fails, raw DuckDuckGo results are returned
+    - if OpenAI sub-agent calls fail after retries, raw DuckDuckGo results are returned
+  - Improved `lynx` webpage dump handling for DuckDuckGo agentic browsing.
+  - Preserved configurable content-size limiting for fetched webpages:
+    - `[DuckDuckGo] -> EnableContentSizeLimit`
+    - `[DuckDuckGo] -> MaxContentSize`
+  - Improved Telegram HTML formatting safety in DuckDuckGo search output.
+  - Removed more stale pre-5.x OpenAI assumptions from auxiliary helper modules.
+  - General cleanup of old compatibility corpse-code around model defaults, token-limit parameters, and function/tool-call parsing.
 - v0.77.1 - OpenAI newer model (5.x series) / tools compatibility update
   - Added support for modern OpenAI Chat Completions tool calling via `tools` / `tool_choice` / `tool_calls`.
   - Added backward-compatible parsing for both modern `tool_calls` and legacy `function_call` responses.

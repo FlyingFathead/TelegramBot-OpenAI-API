@@ -18,10 +18,21 @@ logger.setLevel(logging.INFO)
 # Read the config for enabled/disabled function calls
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
-try: # Use try-except for safety
-    enable_reminders = config.getboolean('Reminders', 'EnableReminders', fallback=False)
-except (configparser.NoSectionError, configparser.NoOptionError):
-    enable_reminders = False
+
+def get_config_bool(section: str, option: str, fallback: bool = False) -> bool:
+    """
+    Safely read a boolean config option.
+
+    Missing section/option or malformed values fall back instead of breaking
+    bot startup.
+    """
+    try:
+        return config.getboolean(section, option, fallback=fallback)
+    except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
+        return fallback
+
+enable_reminders = get_config_bool('Reminders', 'EnableReminders', fallback=False)
+enable_perplexity = get_config_bool('Perplexity', 'Enabled', fallback=False)
 
 # silently observe the chat
 async def observe_chat():
@@ -58,7 +69,7 @@ custom_functions = [
 
 custom_functions.append({
     'name': 'get_duckduckgo_search',
-    'description': '[Use when the user requests for internet search results and if Perplexity API is too murky.] Fetches the first page search results from the first place DuckDuckGo for a given query. This function uses the Lynx browser to scrape the DuckDuckGo HTML results page.',
+    'description': '[Use when the user requests for internet search results.] Fetches the first page search results from the first place DuckDuckGo for a given query. This function uses the Lynx browser to scrape the DuckDuckGo HTML results page.',
     'parameters': {
         'type': 'object',
         'properties': {
@@ -129,38 +140,66 @@ custom_functions.append({
     }
 )
 
-# Update the custom_functions list with the new Perplexity API function
-custom_functions.append({
-    'name': 'query_perplexity',
-    'description': '[Use for dynamic inquiries, current real-time events and/or fact-checking. ALWAYS USE TO FACT CHECK WHENEVER UNSURE, i.e. if user asks for something factual or current!] This queries the Perplexity.ai API using the pplx-70b-online model to answer and fact-check up-to-date information. Always form your question in English and as if you were the user! Pass the question directly as if you were asking a person. Use for checking real-time data.',
-    'parameters': {
-        'type': 'object',
-        'properties': {
-            'question': {
-                'type': 'string',
-                'description': 'The question or statement to fact-check or inquire about, do not refer to perplexity, ask the question directly, IN ENGLISH. ALWAYS ASK IN ENGLISH.'
-            }
+# ~~~~~~~~~~~~~~~~~
+# Perplexity API
+# ~~~~~~~~~~~~~~~~~
+
+if enable_perplexity:
+    custom_functions.append({
+        'name': 'query_perplexity',
+        'description': (
+            '[Use for dynamic inquiries, current real-time events and/or fact-checking '
+            'when live web-backed answering is specifically useful.] '
+            'Queries the configured Perplexity API model for up-to-date information. '
+            'Ask the question directly in English.'
+        ),
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'question': {
+                    'type': 'string',
+                    'description': (
+                        'The question or statement to fact-check or inquire about. '
+                        'Do not refer to Perplexity. Ask directly, in English.'
+                    )
+                }
+            },
+            'required': ['question']
         }
-    }
-})
+    })
+    logger.info("Perplexity enabled in config.ini => 'query_perplexity' function added.")
+else:
+    logger.info("Perplexity disabled in config.ini => 'query_perplexity' function not added.")
 
 # stock price check
 custom_functions.append({
     'name': 'get_stock_price',
-    'description': '[Use if the user asks for stock prices or financial data.] Fetches real-time stock price data from Yahoo! Finance API using either a direct stock symbol or a search keyword, use caret (^) as a prefix for indeces (VIX, GSPC, DJI, IXIC, FTSE, DAX...).',
+    'description': (
+        '[Use if the user asks for stock prices, index prices, crypto prices, '
+        'or other financial market data.] Fetches real-time stock price data '
+        'from Yahoo! Finance API using either a direct ticker symbol or a search keyword. '
+        'Use caret (^) as a prefix for indices when applicable, e.g. ^VIX, ^GSPC, '
+        '^DJI, ^IXIC, ^FTSE, ^GDAXI.'
+    ),
     'parameters': {
         'type': 'object',
         'properties': {
             'symbol': {
                 'type': 'string',
-                'description': 'Direct stock symbol to fetch the stock price for.'
+                'description': (
+                    'Direct ticker symbol to fetch, e.g. AAPL, MSFT, TSLA, BTC-USD, '
+                    '^GSPC, ^VIX, ^IXIC, ^GDAXI. Use this if the symbol is known.'
+                )
             },
             'search': {
                 'type': 'string',
-                'description': 'Search keyword to find the stock symbol.'
+                'description': (
+                    'Search keyword to find the ticker symbol, e.g. Apple, Microsoft, '
+                    'Tesla, Bitcoin, S&P 500, Nasdaq, DAX. Use this if the exact symbol is unknown.'
+                )
             }
         },
-        'required': ['symbol', 'search']  # Specify that at least one of symbol or search is required
+        'required': []
     }
 })
 
