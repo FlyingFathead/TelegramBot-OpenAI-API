@@ -240,6 +240,26 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+
+- v0.77.1 - OpenAI newer model (5.x series) / tools compatibility update
+  - Added support for modern OpenAI Chat Completions tool calling via `tools` / `tool_choice` / `tool_calls`.
+  - Added backward-compatible parsing for both modern `tool_calls` and legacy `function_call` responses.
+  - Added `build_openai_tools()` to convert the existing legacy ChatKeke `custom_functions` format into OpenAI's modern tools format.
+  - Added `extract_function_call_or_none()` so function-call detection no longer depends only on the old `message["function_call"]` field.
+  - Updated payload building so function calling can work with newer model families, including GPT-5.x-style models.
+  - Restricted `temperature` to GPT-4-family models only, avoiding API errors from newer reasoning-style models that reject sampling parameters.
+  - Uses `max_completion_tokens` for newer non-GPT-4 models while keeping `max_tokens` for GPT-4-family models.
+  - Hardened OpenAI response parsing to avoid confusing `KeyError: 'choices'` failures when the API returns an error body.
+  - Added safer handling for missing or empty `choices` responses.
+  - Updated function-call follow-up calls so tool results are appended into chat context and the final user-facing answer is generated with `include_functions=False`, reducing accidental recursive tool calls.
+  - Updated affected function branches:
+    - `calculate_expression`
+    - `get_weather`
+    - `get_duckduckgo_search`
+    - `get_website_dump`
+    - `get_stock_price`
+    - `query_perplexity`
+    - `manage_reminder`
 - v0.7616 - Changed default Perplexity API model to `sonar` as per new model changes in the Perplexity API
 - v0.7615 - Parsing improvements
   - Improved text formatting & escaping in complex markdown vs. html cases
