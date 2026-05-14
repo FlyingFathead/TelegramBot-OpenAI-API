@@ -132,31 +132,50 @@ def get_today_usage():
     return daily_usage  # daily_usage is (premium_tokens, mini_tokens) or None
 
 # get model family and build payload
-def is_gpt4_family_model(model: str) -> bool:
+def model_supports_temperature(model: str) -> bool:
     """
     Harry rule:
-    Only gpt-4* models get legacy Chat Completions sampling/function payloads.
-    Examples allowed:
-      gpt-4
-      gpt-4.1
-      gpt-4o
-      gpt-4-turbo
-
-    Everything else:
-      no temperature
-      no old functions/function_call payload
+    Only gpt-4* models get temperature.
+    GPT-5.x / other newer reasoning-ish models do NOT get temperature.
     """
     model = (model or "").strip().lower()
     return model.startswith("gpt-4")
+
+
+def build_openai_tools(function_specs):
+    """
+    Convert legacy ChatKeke custom_functions format:
+
+        {"name": "...", "description": "...", "parameters": {...}}
+
+    into modern Chat Completions tools format:
+
+        {"type": "function", "function": {...}}
+
+    If already in tools format, keep it.
+    """
+    tools = []
+
+    for item in function_specs or []:
+        if isinstance(item, dict) and item.get("type") == "function" and "function" in item:
+            tools.append(item)
+        else:
+            tools.append({
+                "type": "function",
+                "function": item
+            })
+
+    return tools
+
 
 def build_chat_payload(bot, messages, *, include_functions=True, max_tokens=None):
     """
     Centralized Chat Completions payload builder.
 
     Important:
-    - Only gpt-4* models receive temperature.
-    - Only gpt-4* models receive old-style functions/function_call.
-    - Non-4 models become plain text Chat Completions calls.
+    - GPT-4* gets temperature.
+    - Non-GPT-4 models do NOT get temperature.
+    - Function calling uses modern tools/tool_choice for all models.
     """
     payload = {
         "model": bot.model,
@@ -164,22 +183,30 @@ def build_chat_payload(bot, messages, *, include_functions=True, max_tokens=None
     }
 
     if max_tokens is not None:
-        if is_gpt4_family_model(bot.model):
+        if model_supports_temperature(bot.model):
             payload["max_tokens"] = max_tokens
         else:
             payload["max_completion_tokens"] = max_tokens
 
-    if is_gpt4_family_model(bot.model):
+    if model_supports_temperature(bot.model):
         payload["temperature"] = bot.temperature
-
-        if include_functions:
-            payload["functions"] = custom_functions
-            payload["function_call"] = "auto"
     else:
         bot.logger.info(
-            "Model %s is not gpt-4*; omitting temperature and legacy function_call/functions.",
+            "Model %s is not gpt-4*; omitting temperature.",
             bot.model
         )
+
+    if include_functions:
+        tools = build_openai_tools(custom_functions)
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        if include_functions:
+            tools = build_openai_tools(custom_functions)
+            if tools:
+                payload["tools"] = tools
+                payload["tool_choice"] = "auto"
+                payload["parallel_tool_calls"] = False
 
     return payload
 
@@ -203,6 +230,51 @@ def extract_chat_reply_or_raise(response_json):
     message = choices[0].get("message") or {}
     content = message.get("content") or ""
     return content.strip()
+
+def extract_function_call_or_none(response_json):
+    """
+    Supports both:
+    - modern Chat Completions tool_calls
+    - old legacy function_call
+
+    Returns:
+        {"name": str, "arguments": str, "tool_call_id": str|None}
+    or None.
+    """
+    if not isinstance(response_json, dict):
+        raise RuntimeError(f"OpenAI response was not a JSON object: {response_json!r}")
+
+    if "error" in response_json:
+        raise RuntimeError(f"OpenAI API error: {response_json['error']}")
+
+    choices = response_json.get("choices") or []
+    if not choices:
+        raise RuntimeError(f"OpenAI response had empty choices: {response_json}")
+
+    message_obj = choices[0].get("message") or {}
+
+    # Modern tools/tool_calls path.
+    tool_calls = message_obj.get("tool_calls") or []
+    if tool_calls:
+        first_tool_call = tool_calls[0]
+        if first_tool_call.get("type") == "function":
+            fn = first_tool_call.get("function") or {}
+            return {
+                "name": fn.get("name"),
+                "arguments": fn.get("arguments") or "{}",
+                "tool_call_id": first_tool_call.get("id"),
+            }
+
+    # Legacy functions/function_call path.
+    legacy_function_call = message_obj.get("function_call")
+    if legacy_function_call:
+        return {
+            "name": legacy_function_call.get("name"),
+            "arguments": legacy_function_call.get("arguments") or "{}",
+            "tool_call_id": None,
+        }
+
+    return None
 
 # model picker auto-switch
 def pick_model_auto_switch(bot):
@@ -327,10 +399,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
             bot.logger.info(f"[Debug] Total token usage from file: {bot.total_token_usage}")
 
         except ValueError:
-            # Handle the case where the value in config.ini is not a valid integer
             bot.logger.error("Invalid value for GlobalMaxTokenUsagePerDay in the configuration file.")
             await update.message.reply_text("An error occurred while processing your request: couldn't get proper token count. Please try again later.")
-            # max_tokens_config = 0  # Assign a default value (0 or any other appropriate default)
+            return
 
         # Safely compare user_token_count and max_tokens_config
         if not is_no_limit and (bot.total_token_usage + user_token_count) > max_tokens_config:
@@ -657,15 +728,10 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                 # > function calling
                 # ~~~~~~~~~~~~~~~~~~
 
-                # Check for a 'function_call' in the response
-                choices = response_json.get("choices") or []
-                if not choices:
-                    raise RuntimeError(f"OpenAI response had empty choices: {response_json}")
+                # Check for a modern tool_call or legacy function_call in the response
+                function_call = extract_function_call_or_none(response_json)
 
-                message_obj = choices[0].get("message") or {}
-
-                if "function_call" in message_obj:
-                    function_call = message_obj["function_call"]
+                if function_call:
                     function_name = function_call["name"]
 
                     # ~~~~~~~~~~~~~~~~~~~~~~
@@ -720,7 +786,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot.logger.info(f"Updated chat history with calculator result: {chat_history}")
 
                         # Make an API request using the updated chat history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Extract and handle the content from the API response
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
@@ -786,7 +857,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
 
                         # Prepare the payload for the API request with updated chat history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Log the API request payload
                         bot.logger.info(f"API Request Payload: {payload}")
@@ -795,9 +871,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
 
                         # Only call strip if bot_reply_content is not None
-                        bot_reply = ""  # Default value if no content is found or an empty response is received
-                        if bot_reply_content:
-                            bot_reply = bot_reply_content.strip()
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else "🤔"
 
                         # Count tokens in the bot's response
                         bot_token_count = bot.count_tokens(bot_reply)
@@ -874,7 +948,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot.logger.info(f"Updated chat history: {chat_history}")
 
                         # Make an API request using the updated chat history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Extract and handle the content from the API response
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
@@ -952,7 +1031,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
 
                         # Make an API request using the updated chat history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Extract and handle the content from the API response
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
@@ -1036,7 +1120,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         context.chat_data['chat_history'] = chat_history
 
                         # Make the API request using the new function
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Log the API request payload
                         bot.logger.info(f"API Request Payload: {payload}")
@@ -1045,9 +1134,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
 
                         # Only call strip if bot_reply_content is not None
-                        bot_reply = ""  # Default value if no content is found or an empty response is received
-                        if bot_reply_content:
-                            bot_reply = bot_reply_content.strip()
+                        bot_reply = bot_reply_content.strip() if bot_reply_content else "🤔"
 
                         # Count tokens in the bot's response
                         bot_token_count = bot.count_tokens(bot_reply)
@@ -1233,7 +1320,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         bot.logger.info(f"Updated chat history: {chat_history}")
 
                         # Make an API request using the updated chat history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         # Extract and handle the content from the API response
                         bot_reply_content = extract_chat_reply_or_raise(response_json)
@@ -1367,7 +1459,12 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                         # (D) Re-invoke GPT to produce final user-facing text
                         context.chat_data['chat_history'] = chat_history
-                        response_json = await make_api_request(bot, chat_history, bot.timeout)
+                        response_json = await make_api_request(
+                            bot,
+                            chat_history,
+                            bot.timeout,
+                            include_functions=False
+                        )
 
                         final_reply_content = extract_chat_reply_or_raise(response_json)
                         final_reply = final_reply_content.strip() if final_reply_content else ""
@@ -1656,7 +1753,7 @@ async def generate_response_based_on_updated_context(bot, context, chat_id):
 
         # Extract the generated response from the response data.
         try:
-            generated_response = extract_chat_reply_or_raise(response_data)
+            generated_response = extract_chat_reply_or_raise(response_data) or "🤔"
         except Exception as e:
             logging.error(f"Fallback OpenAI response was invalid: {e}")
             generated_response = "🤔"
@@ -1707,9 +1804,13 @@ async def make_api_request_with_retry(bot, chat_history, retries=3, timeout=30):
     raise RuntimeError("All retry attempts failed; no response_json was produced.")
 
 # API request function module
-async def make_api_request(bot, chat_history, timeout=30):
+async def make_api_request(bot, chat_history, timeout=30, include_functions=True):
     # Prepare the payload for the API request with updated chat history
-    payload = build_chat_payload(bot, chat_history)
+    payload = build_chat_payload(
+        bot,
+        chat_history,
+        include_functions=include_functions
+    )
 
     # Make the API request
     headers = {
