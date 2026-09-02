@@ -6,7 +6,7 @@
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # version of this program
-version_number = "0.8.2"
+version_number = "0.8.3"
 
 # Add the project root directory to Python's path
 import sys
@@ -208,6 +208,9 @@ class TelegramBot:
         # Basic defaults
         self.model = self.config.get('Model', 'gpt-4o-mini')
         self.temperature = self.config.getfloat('Temperature', 0.7)
+        # Optional OpenAI reasoning level. 'default'/'auto' omits the field so
+        # each selected model uses its own API default and older models remain compatible.
+        self.reasoning_effort = self.config.get('ReasoningEffort', 'default').strip().lower()
         self.timeout = self.config.getfloat('Timeout', 30.0)
         self.max_tokens = self.config.getint('MaxTokens', 4096)
         self.max_retries = self.config.getint('MaxRetries', 3)

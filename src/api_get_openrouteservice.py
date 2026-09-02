@@ -5,6 +5,7 @@ import httpx
 import logging
 import json
 import openai
+from openai_reasoning_compat import apply_reasoning_effort
 
 # Function to retrieve the OpenRouteService API key
 def get_openrouteservice_api_key():
@@ -105,8 +106,19 @@ async def format_and_translate_directions(bot, user_request, directions_info):
     payload = {
         "model": bot.model,
         "messages": chat_history,
-        "temperature": 0.5
     }
+
+    # Preserve the old sampling setting only where this project already treats
+    # temperature as compatible. Newer reasoning models may reject it.
+    if (bot.model or "").strip().lower().startswith("gpt-4"):
+        payload["temperature"] = 0.5
+
+    apply_reasoning_effort(
+        payload,
+        bot.model,
+        getattr(bot, "reasoning_effort", "default"),
+        logger=logging.getLogger(__name__),
+    )
 
     headers = {
         "Content-Type": "application/json",

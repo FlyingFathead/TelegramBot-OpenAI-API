@@ -7,7 +7,8 @@
 DuckDuckGo search helper module for ChatKeke.
 
 Purpose:
-- Fetch DuckDuckGo HTML search results through lynx.
+- Fetch web content over HTTPS with httpx and render it through lynx locally.
+- Fetch DuckDuckGo HTML search results without relying on Lynx/GnuTLS networking.
 - Optionally run a small OpenAI sub-agent over those results.
 - Optionally let the sub-agent request one webpage dump via a local
   visit_webpage tool.
@@ -37,6 +38,7 @@ import httpx
 import openai
 
 from config_paths import CONFIG_PATH
+from openai_reasoning_compat import apply_reasoning_effort
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +65,11 @@ DEFAULT_DDG_CONTENT_SIZE_LIMIT = False
 DEFAULT_DDG_MAX_CONTENT_SIZE = 10000
 
 OPENAI_CHAT_COMPLETIONS_ENDPOINT = "https://api.openai.com/v1/chat/completions"
-DUCKDUCKGO_HTML_ENDPOINT = "https://duckduckgo.com/html/"
+# Use DuckDuckGo's canonical HTML host directly. Older Lynx/GnuTLS builds can
+# successfully connect to both hosts separately yet fail the second TLS handshake
+# when duckduckgo.com redirects to html.duckduckgo.com. Going direct avoids that
+# unnecessary redirect while keeping the same HTML search endpoint.
+DUCKDUCKGO_HTML_ENDPOINT = "https://html.duckduckgo.com/html/"
 
 
 def _cfg_get(section: str, option: str, fallback: str) -> str:
@@ -124,6 +130,7 @@ def _cfg_getboolean(section: str, option: str, fallback: bool) -> bool:
 
 model_name = _cfg_get("DEFAULT", "Model", DEFAULT_MODEL).strip()
 temperature = _cfg_getfloat("DEFAULT", "Temperature", DEFAULT_TEMPERATURE)
+reasoning_effort = _cfg_get("DEFAULT", "ReasoningEffort", "default").strip().lower()
 timeout = max(1, _cfg_getint("DEFAULT", "Timeout", DEFAULT_TIMEOUT))
 max_tokens = max(1, _cfg_getint("DEFAULT", "MaxTokens", DEFAULT_MAX_TOKENS))
 
@@ -232,6 +239,14 @@ def build_subagent_payload(
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
 
+    apply_reasoning_effort(
+        payload,
+        model_name,
+        reasoning_effort,
+        has_function_tools=bool(payload.get("tools")),
+        logger=logger,
+    )
+
     return payload
 
 
@@ -333,19 +348,50 @@ def _dedupe_lines_with_links(text: str) -> str:
 
 async def _run_lynx_dump(url: str) -> str:
     """
-    Run lynx --dump against a URL and return stdout text.
+    Fetch a URL with httpx, then render the returned HTML through Lynx locally.
 
-    Raises RuntimeError on lynx failure.
+    Lynx is intentionally not allowed to perform the HTTPS request itself. Some
+    older Lynx/GnuTLS builds intermittently fail TLS handshakes when Keke runs as
+    a service even though the same URL works from an interactive shell. httpx is
+    already used by Keke and provides the network transport; Lynx only converts
+    the downloaded HTML into the existing text-dump format.
+
+    Raises RuntimeError on HTTP or Lynx rendering failure.
     """
+    headers = {
+        "User-Agent": "Lynx/2.9.0 ChatKeke/0.8.3",
+        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    }
+
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=max(1, timeout),
+            headers=headers,
+        ) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise RuntimeError(f"HTTP fetch failed for {url}: {exc}") from exc
+
+    # Preserve correct resolution of relative links when Lynx parses HTML from
+    # stdin rather than fetching the original URL itself. A document-level BASE
+    # element is sufficient for Lynx to emit absolute references in --dump.
+    final_url = str(response.url)
+    base_tag = f'<base href="{final_url}">\n'.encode("utf-8")
+    html_bytes = base_tag + response.content
+
     process = await asyncio.create_subprocess_exec(
         "lynx",
-        "--dump",
-        url,
+        "-dump",
+        "-force_html",
+        "-stdin",
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
 
-    stdout, stderr = await process.communicate()
+    stdout, stderr = await process.communicate(input=html_bytes)
 
     if process.returncode != 0:
         error_message = stderr.decode("utf-8", errors="replace").strip()

@@ -241,6 +241,19 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 # Changelog
 
+- v0.8.3 - GPT-5.6 Luna, backwards-compatible reasoning effort, and compatibility fixes
+  - Added optional `ReasoningEffort` in `[DEFAULT]` for OpenAI Chat Completions models.
+  - `ReasoningEffort = default` normally preserves existing behaviour by omitting the field and using the selected model's API default.
+  - Added a conservative model/value compatibility layer so unsupported older models never receive `reasoning_effort`.
+  - Explicitly supports the documented effort ranges for GPT-5.1, GPT-5.2, GPT-5.4, GPT-5.5 and GPT-5.6; original GPT-5 keeps its older `minimal` vocabulary.
+  - GPT-5.6 supports `none`, `low`, `medium`, `high`, `xhigh`, and `max` where the selected endpoint/tool combination permits them.
+  - GPT-5.6 Luna has a special Chat Completions compatibility rule: when function tools are attached, Keke explicitly uses `reasoning_effort = none`. The `/v1/chat/completions` endpoint rejects Luna function-tool requests with its default/higher reasoning effort; higher reasoning plus tools requires the Responses API.
+  - Invalid model/effort combinations are logged and omitted instead of producing a malformed API request.
+  - Model auto-switching remains safe when premium/fallback models have different reasoning capabilities.
+  - Applied the same guarded setting to the optional DuckDuckGo sub-agent and Perplexity OpenAI language detector.
+  - Hardened legacy route/weather formatting calls so newer reasoning models no longer receive the old unconditional `temperature` field.
+  - DuckDuckGo HTML searches now use `httpx` for HTTPS transport and feed the downloaded HTML to Lynx locally for text rendering. This avoids observed intermittent Lynx/GnuTLS handshake failures under service execution while preserving the existing Lynx dump/parser behavior; the canonical `https://html.duckduckgo.com/html/` endpoint is used directly.
+
 - v0.8.2 - Configurable OpenAI speech-to-text model support for Telegram voice messages
   - Updated Telegram voice message transcription handling for the current OpenAI audio transcription model lineup.
   - Added configurable speech-to-text model selection through `config.ini`:

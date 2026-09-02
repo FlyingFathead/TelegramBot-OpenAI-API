@@ -16,6 +16,7 @@ import time
 import json
 import asyncio
 import openai
+from openai_reasoning_compat import apply_reasoning_effort
 
 import utils
 from utils import holiday_replacements
@@ -207,6 +208,18 @@ def build_chat_payload(bot, messages, *, include_functions=True, max_tokens=None
                 payload["tools"] = tools
                 payload["tool_choice"] = "auto"
                 payload["parallel_tool_calls"] = False
+
+    # Chat Completions uses the flat `reasoning_effort` field. Apply it only
+    # after tool attachment so Luna can enforce its Chat Completions rule:
+    # function tools require reasoning_effort="none". Older/unknown models
+    # still receive no reasoning field at all.
+    apply_reasoning_effort(
+        payload,
+        bot.model,
+        getattr(bot, "reasoning_effort", "default"),
+        has_function_tools=bool(payload.get("tools")),
+        logger=bot.logger,
+    )
 
     return payload
 

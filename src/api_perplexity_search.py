@@ -31,6 +31,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import httpx
 
 from config_paths import CONFIG_PATH
+from openai_reasoning_compat import apply_reasoning_effort
 
 
 # ---------------------------------------------------------------------------
@@ -729,6 +730,13 @@ async def detect_language(bot: Any, text: str) -> str:
 
     if openai_model_supports_temperature(model):
         payload["temperature"] = 0
+
+    apply_reasoning_effort(
+        payload,
+        model,
+        _cfg_get("DEFAULT", "ReasoningEffort", "default"),
+        logger=logging.getLogger(__name__),
+    )
 
     headers = {
         "Content-Type": "application/json",
