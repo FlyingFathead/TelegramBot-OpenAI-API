@@ -241,6 +241,14 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 # Changelog
 
+- v0.8.4 - DuckDuckGo search reliability hotfix
+  - Added HTTPX connection retries for DuckDuckGo/web fetches: `httpx.AsyncHTTPTransport(retries=2)` provides up to three connection attempts before a request fails.
+  - Fixes intermittent `httpx.ConnectError` failures observed in live service operation, including failures whose underlying cause surfaced as `BrokenResourceError`.
+  - Added explicit console-visible diagnostics for DuckDuckGo HTTP transport and HTTP status failures, including exception type, representation, cause/status details, and traceback output.
+  - Improved outer DuckDuckGo error logging so failed searches retain exception type and traceback instead of collapsing into an uninformative empty error string.
+  - Retains the v0.8.3 transport architecture: HTTPX performs HTTPS fetching and Lynx renders the already-downloaded HTML locally; Lynx is not used for the DuckDuckGo network connection itself.
+  - Verified against the live DuckDuckGo search path after the retry fix.
+
 - v0.8.3 - GPT-5.6 Luna, backwards-compatible reasoning effort, and compatibility fixes
   - Added optional `ReasoningEffort` in `[DEFAULT]` for OpenAI Chat Completions models.
   - `ReasoningEffort = default` normally preserves existing behaviour by omitting the field and using the selected model's API default.

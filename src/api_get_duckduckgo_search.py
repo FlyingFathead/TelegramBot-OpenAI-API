@@ -31,6 +31,8 @@ import json
 import logging
 import random
 import re
+import sys
+import traceback
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote, unquote_plus
 
@@ -359,20 +361,93 @@ async def _run_lynx_dump(url: str) -> str:
     Raises RuntimeError on HTTP or Lynx rendering failure.
     """
     headers = {
-        "User-Agent": "Lynx/2.9.0 ChatKeke/0.8.3",
+        "User-Agent": "Lynx/2.9.0 ChatKeke/0.8.4",
         "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
     }
 
+    # HTTPX's low-level transport can retry connection-establishment failures.
+    # The observed intermittent DDG failure is httpx.ConnectError with an
+    # anyio.BrokenResourceError cause, so use two retries (three attempts total)
+    # before surfacing the full diagnostic below.
+    transport = httpx.AsyncHTTPTransport(retries=2)
+
     try:
         async with httpx.AsyncClient(
+            transport=transport,
             follow_redirects=True,
             timeout=max(1, timeout),
             headers=headers,
         ) as client:
             response = await client.get(url)
             response.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise RuntimeError(f"HTTP fetch failed for {url}: {exc}") from exc
+    except httpx.HTTPStatusError as exc:
+        response = exc.response
+        body_preview = response.text[:2000] if response is not None else "<no response body>"
+
+        # Log with a traceback AND print directly to stderr so failures are visible
+        # even when a service/logger configuration changes.
+        logger.exception(
+            "HTTP status failure while fetching %s: status=%s reason=%r body=%r",
+            url,
+            getattr(response, "status_code", None),
+            getattr(response, "reason_phrase", None),
+            body_preview,
+        )
+        print(
+            "\n========== DUCKDUCKGO HTTP STATUS ERROR ==========\n"
+            f"URL:    {url}\n"
+            f"TYPE:   {type(exc).__name__}\n"
+            f"REPR:   {exc!r}\n"
+            f"STATUS: {getattr(response, 'status_code', None)}\n"
+            f"REASON: {getattr(response, 'reason_phrase', None)!r}\n"
+            f"BODY:   {body_preview!r}\n"
+            "TRACEBACK:",
+            file=sys.stderr,
+            flush=True,
+        )
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "==================================================\n",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise RuntimeError(
+            f"HTTP status fetch failed for {url}: "
+            f"{type(exc).__name__}: {exc!r}"
+        ) from exc
+
+    except httpx.RequestError as exc:
+        request_url = str(exc.request.url) if getattr(exc, "request", None) else url
+        cause = exc.__cause__
+
+        logger.exception(
+            "HTTP transport failure while fetching %s: type=%s repr=%r cause=%r",
+            request_url,
+            type(exc).__name__,
+            exc,
+            cause,
+        )
+        print(
+            "\n========== DUCKDUCKGO HTTP TRANSPORT ERROR ==========\n"
+            f"URL:   {request_url}\n"
+            f"TYPE:  {type(exc).__name__}\n"
+            f"REPR:  {exc!r}\n"
+            f"STR:   {exc!s}\n"
+            f"CAUSE: {cause!r}\n"
+            "TRACEBACK:",
+            file=sys.stderr,
+            flush=True,
+        )
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "=====================================================\n",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise RuntimeError(
+            f"HTTP transport fetch failed for {request_url}: "
+            f"{type(exc).__name__}: {exc!r}; cause={cause!r}"
+        ) from exc
 
     # Preserve correct resolution of relative links when Lynx parses HTML from
     # stdin rather than fetching the original URL itself. A document-level BASE
@@ -448,7 +523,12 @@ async def get_duckduckgo_search(search_terms, user_message):
             try:
                 return await _fetch_duckduckgo_results(search_terms)
             except Exception as exc:
-                logger.error("DuckDuckGo/lynx search failed: %s", exc)
+                logger.exception("DuckDuckGo search failed: type=%s repr=%r", type(exc).__name__, exc)
+                print(
+                    f"DUCKDUCKGO SEARCH FAILED: {type(exc).__name__}: {exc!r}",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 return f"Error: {str(exc)}"
 
         # Agentic path.
@@ -460,7 +540,12 @@ async def get_duckduckgo_search(search_terms, user_message):
         try:
             unique_text = await _fetch_duckduckgo_results(search_terms)
         except Exception as exc:
-            logger.error("DuckDuckGo/lynx search failed: %s", exc)
+            logger.exception("DuckDuckGo search failed: type=%s repr=%r", type(exc).__name__, exc)
+            print(
+                f"DUCKDUCKGO SEARCH FAILED: {type(exc).__name__}: {exc!r}",
+                file=sys.stderr,
+                flush=True,
+            )
             return f"Error: {str(exc)}"
 
         print_horizontal_line()
