@@ -27,6 +27,7 @@ import os
 import random
 import re
 from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import urlparse
 
 import httpx
 
@@ -216,11 +217,15 @@ def _backoff_delay(attempt: int) -> float:
 
 
 def _perplexity_headers() -> Dict[str, str]:
-    return {
+    headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+    # Identify this integration to Perplexity; skipped for custom endpoints.
+    if urlparse(PERPLEXITY_ENDPOINT).hostname == "api.perplexity.ai":
+        headers["X-Pplx-Integration"] = "telegrambot-openai-api"
+    return headers
 
 
 def _extract_perplexity_content(response_data: Dict[str, Any]) -> str:
