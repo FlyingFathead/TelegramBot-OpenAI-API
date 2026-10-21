@@ -39,14 +39,29 @@ validate_input() {
   return 0
 }
 
+validate_openai_key() {
+  validate_input "$1" || return 1
+  if [[ "$1" =~ [[:space:]] ]]; then
+    echo "Error: The OpenAI key must be one uninterrupted line without whitespace."
+    return 1
+  fi
+  if [[ "$1" != sk-* ]]; then
+    echo "Warning: OpenAI secret keys currently normally use an sk- prefix."
+  fi
+  return 0
+}
+
 # Prompt for required API keys (OpenAI and Telegram)
 while true; do
-  read -p "Please enter your OpenAI API key (required): " OPENAI_API_KEY
-  validate_input "$OPENAI_API_KEY" && break
+  read -r -s -p "Please enter your NEW OpenAI project API key (required): " OPENAI_API_KEY
+  echo
+  validate_openai_key "$OPENAI_API_KEY" && break
 done
 
+echo "Confirm in the OpenAI platform that this key belongs to the intended project."
+
 while true; do
-  read -p "Please enter your Telegram Bot API Token (required): " TELEGRAM_BOT_TOKEN
+  read -r -p "Please enter your Telegram Bot API Token (required): " TELEGRAM_BOT_TOKEN
   validate_input "$TELEGRAM_BOT_TOKEN" && break
 done
 
@@ -56,27 +71,28 @@ echo "::: Below are optional keys for the bot's supported API functions." &&
 echo "::: They're not required for basic functionality, but are a great enhancement." &&
 echo "::: If you don't have an API key right now, just press ENTER to leave them blank." &&
 hzline &&
-read -p "Please enter your Perplexity API key (optional): " PERPLEXITY_API_KEY
-read -p "Please enter your OpenWeatherMap API key (optional): " OPENWEATHERMAP_API_KEY
-read -p "Please enter your WeatherAPI key (optional): " WEATHERAPI_KEY
-read -p "Please enter your MapTiler API key (optional): " MAPTILER_API_KEY
-read -p "Please enter your Openrouteservice API key (optional): " OPENROUTESERVICE_API_KEY
+read -r -p "Please enter your Perplexity API key (optional): " PERPLEXITY_API_KEY
+read -r -p "Please enter your OpenWeatherMap API key (optional): " OPENWEATHERMAP_API_KEY
+read -r -p "Please enter your WeatherAPI key (optional): " WEATHERAPI_KEY
+read -r -p "Please enter your MapTiler API key (optional): " MAPTILER_API_KEY
+read -r -p "Please enter your Openrouteservice API key (optional): " OPENROUTESERVICE_API_KEY
 
 # Create a .env file with the required and optional keys
 hzline &&
 echo "Generating .env file..."
-cat <<EOL > .env
-OPENAI_API_KEY=$OPENAI_API_KEY
-TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
-OPENWEATHERMAP_API_KEY=$OPENWEATHERMAP_API_KEY
-WEATHERAPI_KEY=$WEATHERAPI_KEY
-MAPTILER_API_KEY=$MAPTILER_API_KEY
-OPENROUTESERVICE_API_KEY=$OPENROUTESERVICE_API_KEY
-PERPLEXITY_API_KEY=$PERPLEXITY_API_KEY
-# Additional variables can be added here
-EOL
+umask 077
+{
+  printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+  printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
+  printf 'OPENWEATHERMAP_API_KEY=%s\n' "$OPENWEATHERMAP_API_KEY"
+  printf 'WEATHERAPI_KEY=%s\n' "$WEATHERAPI_KEY"
+  printf 'MAPTILER_API_KEY=%s\n' "$MAPTILER_API_KEY"
+  printf 'OPENROUTESERVICE_API_KEY=%s\n' "$OPENROUTESERVICE_API_KEY"
+  printf 'PERPLEXITY_API_KEY=%s\n' "$PERPLEXITY_API_KEY"
+} > .env
+chmod 600 .env
 
-echo "Environment variables saved to .env." &&
+echo "Environment variables saved to .env with mode 0600." &&
 hzline &&
 
 # Instructions for the next steps
@@ -94,7 +110,10 @@ echo
 echo "4. Check the logs with:"
 echo "  sudo docker logs telegrambot-openai-api"
 echo 
-echo "5. Stop the container with:"
+echo "5. Verify the new OpenAI key before revoking the old one:"
+echo "   python3 scripts/verify_openai_key.py --live-request"
+echo
+echo "6. Stop the container with:"
 echo "   sudo docker stop <container_id>"
 echo
 echo "After that, you're all set! Enjoy, and don't forget to start the repository if you like it. :-)"

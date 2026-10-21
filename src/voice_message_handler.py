@@ -21,6 +21,7 @@ from typing import Optional
 
 import httpx
 import openai
+from api_key import OpenAICredentials, coerce_openai_credentials
 
 # tg modules
 from telegram import Update
@@ -42,11 +43,10 @@ KNOWN_STT_MODELS = {
 
 VOICE_DOWNLOAD_TIMEOUT_SECONDS = 60.0
 
-# Lazy client cache.
-# Important: do NOT instantiate AsyncOpenAI at import time, because main.py sets
-# openai.api_key only after configuration/token loading.
+# Lazy client cache. Credentials are resolved explicitly; no process-global
+# openai.api_key is read or mutated.
 _openai_client: Optional[openai.AsyncOpenAI] = None
-_openai_client_api_key: Optional[str] = None
+_openai_client_identity: Optional[tuple] = None
 
 def get_voice_log_context(update: Update, voice_file_path: Optional[str] = None, stt_model: Optional[str] = None) -> dict:
     """
@@ -75,27 +75,26 @@ def get_voice_log_context(update: Update, voice_file_path: Optional[str] = None,
         "stt_model": stt_model,
     }
 
-def get_openai_client() -> openai.AsyncOpenAI:
+def get_openai_client(openai_auth=None) -> openai.AsyncOpenAI:
     """
     Lazily create/reuse the OpenAI async client.
 
-    This respects:
-      1. openai.api_key set elsewhere by main.py
-      2. OPENAI_API_KEY from environment
-      3. default OpenAI SDK behavior if neither is explicitly set
+    The bot's resolved OpenAICredentials object is preferred. Compatibility
+    inputs are normalized through coerce_openai_credentials().
     """
     global _openai_client
-    global _openai_client_api_key
+    global _openai_client_identity
 
-    current_api_key = getattr(openai, "api_key", None) or os.getenv("OPENAI_API_KEY")
+    credentials: OpenAICredentials = coerce_openai_credentials(openai_auth)
+    identity = (
+        credentials.api_key,
+        credentials.organization,
+        credentials.project,
+    )
 
-    if _openai_client is None or _openai_client_api_key != current_api_key:
-        if current_api_key:
-            _openai_client = openai.AsyncOpenAI(api_key=current_api_key)
-        else:
-            _openai_client = openai.AsyncOpenAI()
-
-        _openai_client_api_key = current_api_key
+    if _openai_client is None or _openai_client_identity != identity:
+        _openai_client = openai.AsyncOpenAI(**credentials.sdk_kwargs())
+        _openai_client_identity = identity
 
     return _openai_client
 
@@ -357,6 +356,7 @@ async def handle_voice_message(bot, update: Update, context: CallbackContext):
             enable_whisper=bot.enable_whisper,
             logger=bot.logger,
             stt_model=stt_model,
+            openai_auth=bot,
         )
 
         if not transcription_text:
@@ -444,6 +444,7 @@ async def process_voice_message(
     enable_whisper,
     logger,
     stt_model: str = DEFAULT_STT_MODEL,
+    openai_auth=None,
 ) -> Optional[str]:
     """
     Send an audio file to OpenAI STT and return plain transcription text.
@@ -460,7 +461,7 @@ async def process_voice_message(
         return None
 
     try:
-        client = get_openai_client()
+        client = get_openai_client(openai_auth)
 
         with open(file_path, "rb") as audio_file:
             logger.info(f"Audio file being sent to OpenAI STT: {file_path}")

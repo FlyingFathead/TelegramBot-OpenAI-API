@@ -55,8 +55,16 @@ audio/
 *.vtt
 *.srt
 *.part
+*.ogg
+
+# data directory
+data/
 
 # Ignore virtual environments
 venv/
 env/
 .env
+
+# bot token
+bot_token.txt
+

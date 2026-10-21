@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 import json
 import httpx
-import openai
 
 # Elasticsearch checks
 from config_paths import (

@@ -48,9 +48,15 @@ jobs:
           docker rm telegrambot-openai-api || true
 
       - name: Run Docker container with environment variables
+        if: github.event_name == 'push'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
+          test -n "$OPENAI_API_KEY" || { echo "OPENAI_API_KEY secret is missing"; exit 1; }
+          test -n "$TELEGRAM_BOT_TOKEN" || { echo "TELEGRAM_BOT_TOKEN secret is missing"; exit 1; }
           docker run \
             --name telegrambot-openai-api \
-            --env OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-            --env TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }} \
+            --env OPENAI_API_KEY \
+            --env TELEGRAM_BOT_TOKEN \
             -d ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

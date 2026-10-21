@@ -4,8 +4,8 @@ import os
 import httpx
 import logging
 import json
-import openai
 from openai_reasoning_compat import apply_reasoning_effort
+from api_key import build_openai_headers
 
 # Function to retrieve the OpenRouteService API key
 def get_openrouteservice_api_key():
@@ -120,10 +120,7 @@ async def format_and_translate_directions(bot, user_request, directions_info):
         logger=logging.getLogger(__name__),
     )
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}"
-    }
+    headers = build_openai_headers(bot)
 
     # Make the API request
     async with httpx.AsyncClient() as client:

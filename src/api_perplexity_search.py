@@ -32,6 +32,7 @@ import httpx
 
 from config_paths import CONFIG_PATH
 from openai_reasoning_compat import apply_reasoning_effort
+from api_key import APIKeyConfigurationError, build_openai_headers
 
 
 # ---------------------------------------------------------------------------
@@ -172,16 +173,6 @@ def openai_token_limit_key(model: str) -> str:
     if openai_model_supports_temperature(model):
         return "max_tokens"
     return "max_completion_tokens"
-
-
-def _get_openai_api_key_from_bot(bot: Any) -> Optional[str]:
-    """
-    Try the bot's configured key first, then environment fallback.
-    """
-    key = getattr(bot, "openai_api_key", None)
-    if key:
-        return key
-    return os.getenv("OPENAI_API_KEY")
 
 
 # ---------------------------------------------------------------------------
@@ -685,9 +676,13 @@ async def detect_language(bot: Any, text: str) -> str:
     if not text.strip():
         return "en"
 
-    api_key = _get_openai_api_key_from_bot(bot)
-    if not api_key:
-        logging.error("OpenAI API key is missing; detect_language defaulting to English.")
+    try:
+        headers = build_openai_headers(bot)
+    except APIKeyConfigurationError as exc:
+        logging.error(
+            "OpenAI credential is missing; detect_language defaulting to English: %s",
+            exc,
+        )
         return "en"
 
     finnish_hint = (
@@ -737,11 +732,6 @@ async def detect_language(bot: Any, text: str) -> str:
         _cfg_get("DEFAULT", "ReasoningEffort", "default"),
         logger=logging.getLogger(__name__),
     )
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:

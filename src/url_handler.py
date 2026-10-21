@@ -98,8 +98,8 @@ def get_description_snippet(description, max_lines=DESCRIPTION_MAX_LINES):
 # Regular expression for extracting the YouTube video ID
 YOUTUBE_REGEX = (
     r'(https?://)?(www\.)?'
-    '(youtube|youtu|youtube-nocookie)\.(com|be)/'
-    '(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})')
+    r'(youtube|youtu|youtube-nocookie)\.(com|be)/'
+    r'(watch\?v=|embed/|v/|.+\?v=)?([^&=%\?]{11})')
 
 def extract_youtube_video_id(url):
     match = re.match(YOUTUBE_REGEX, url)

@@ -29,8 +29,8 @@ import json
 import httpx
 import os
 import logging
-import openai
 from openai_reasoning_compat import apply_reasoning_effort
+from api_key import build_openai_headers
 
 # Stuff we want to get via WeatherAPI:
 from api_get_weatherapi import get_moon_phase, get_timezone, get_daily_forecast, get_current_weather_via_weatherapi, get_astronomy_data
@@ -596,10 +596,7 @@ async def format_and_translate_weather(bot, user_request, weather_info):
         logger=logging.getLogger(__name__),
     )
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}"
-    }
+    headers = build_openai_headers(bot)
 
     # Make the API request
     async with httpx.AsyncClient() as client:
