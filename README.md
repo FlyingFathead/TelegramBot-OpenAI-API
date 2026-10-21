@@ -287,6 +287,15 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 > The current application version is stored in the repository-root `VERSION` file and loaded by the runtime from there. Update `VERSION` once for a release instead of duplicating the current version in source files.
 
+- v0.8.6 - GPT-6 Luna default and model-specific tool/reasoning compatibility
+  - Changed the default ChatKeke model and auto-switch premium model to `gpt-6-luna`.
+  - Kept ChatKeke on the existing Chat Completions transport and preserved all existing custom tool definitions and dispatch logic unchanged.
+  - Kept `ReasoningEffort = none` as the shipped default so GPT-6 Luna custom function tools work through `/v1/chat/completions`.
+  - Added the documented GPT-6 Chat Completions exception: GPT-6 Luna and GPT-6 Sol are forced to `reasoning_effort = none` whenever function tools are attached, preventing invalid tool requests even if a local config selects a higher effort.
+  - Removed the old GPT-5.6-Luna-specific forced-none rule. GPT-5.6 now honors the configured reasoning effort when tools are attached; it is only `none` when the configuration explicitly requests `none`.
+  - Left the Elasticsearch RAG/action-token insertion path unchanged: retrieved Elasticsearch context still feeds `chat_history_with_es_context`, which is passed to the same tool-enabled Chat Completions payload builder.
+  - Bumped the repository-root `VERSION` to `0.8.6`.
+
 - v0.8.5 - OpenAI project-key migration and explicit credential handling
   - Removed the mutable process-global `openai.api_key` and passed one resolved credential object explicitly into raw HTTP requests and the OpenAI SDK client.
   - Added optional `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` routing overrides without requiring them for normal project keys.
@@ -314,7 +323,7 @@ If you run into any issues, consult the logs or reach out on the repository's [I
   - Added a conservative model/value compatibility layer so unsupported older models never receive `reasoning_effort`.
   - Explicitly supports the documented effort ranges for GPT-5.1, GPT-5.2, GPT-5.4, GPT-5.5 and GPT-5.6; original GPT-5 keeps its older `minimal` vocabulary.
   - GPT-5.6 supports `none`, `low`, `medium`, `high`, `xhigh`, and `max` where the selected endpoint/tool combination permits them.
-  - GPT-5.6 Luna has a special Chat Completions compatibility rule: when function tools are attached, Keke explicitly uses `reasoning_effort = none`. The `/v1/chat/completions` endpoint rejects Luna function-tool requests with its default/higher reasoning effort; higher reasoning plus tools requires the Responses API.
+  - The original v0.8.3 compatibility layer included a GPT-5.6-Luna forced-`none` tool rule; v0.8.6 narrows that exception to the GPT-6 Luna/Sol models for which current Chat Completions documentation requires it.
   - Invalid model/effort combinations are logged and omitted instead of producing a malformed API request.
   - Model auto-switching remains safe when premium/fallback models have different reasoning capabilities.
   - Applied the same guarded setting to the optional DuckDuckGo sub-agent and Perplexity OpenAI language detector.

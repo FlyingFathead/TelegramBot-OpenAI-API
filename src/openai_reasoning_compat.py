@@ -18,6 +18,8 @@ from typing import Optional
 # Explicitly documented Chat Completions-compatible model families.
 # Keep this conservative.  Unknown/future models simply use their API default.
 _REASONING_EFFORTS_BY_PREFIX = (
+    ("gpt-6-luna", ("none", "low", "medium", "high", "xhigh", "max")),
+    ("gpt-6-sol", ("none", "low", "medium", "high", "xhigh", "max")),
     ("gpt-5.6", ("none", "low", "medium", "high", "xhigh", "max")),
     ("gpt-5.5", ("none", "low", "medium", "high", "xhigh")),
     ("gpt-5.4", ("none", "low", "medium", "high", "xhigh")),
@@ -30,6 +32,11 @@ _REASONING_EFFORTS_BY_PREFIX = (
 _GPT5_BASE_EFFORTS = ("minimal", "low", "medium", "high")
 
 _DEFAULT_SENTINELS = {"", "auto", "default", "model-default", "model_default"}
+
+# OpenAI documents this restriction specifically for GPT-6 Luna and GPT-6 Sol
+# when custom function tools are sent through /v1/chat/completions. GPT-5.6
+# supports function calling without this forced-none compatibility exception.
+_CHAT_COMPLETIONS_TOOLS_REQUIRE_NONE_PREFIXES = ("gpt-6-luna", "gpt-6-sol")
 
 
 def supported_reasoning_efforts(model: str) -> Optional[tuple[str, ...]]:
@@ -68,9 +75,9 @@ def resolve_reasoning_effort(
     """Resolve a configured effort to a value safe to send to Chat Completions.
 
     ``default``/``auto``/blank normally means omit the parameter and let the
-    selected model use its own default. GPT-5.6 Luna is the exception when
-    function tools are attached to Chat Completions: its default/higher effort
-    is rejected by that endpoint, so this helper explicitly returns ``none``.
+    selected model use its own default. GPT-6 Luna and GPT-6 Sol are the
+    exceptions when function tools are attached to Chat Completions: that
+    endpoint supports their function calling only with ``reasoning_effort=none``.
 
     Explicit values are otherwise sent only when the selected model is in the
     compatibility table *and* that exact value is supported. Unsupported values
@@ -79,24 +86,26 @@ def resolve_reasoning_effort(
     effort = (configured_effort or "default").strip().lower()
     name = (model or "").strip().lower()
 
-    # Live API behaviour observed for GPT-5.6 Luna on /v1/chat/completions:
-    # function tools cannot be combined with Luna's default/higher reasoning
-    # efforts. The endpoint explicitly requires reasoning_effort="none" (or
-    # migration to /v1/responses). Force the safe Chat Completions value when
-    # function tools are present so a config value cannot turn every tool-enabled
-    # request into HTTP 400.
-    if has_function_tools and name.startswith("gpt-5.6-luna"):
+    # GPT-6 Luna / GPT-6 Sol function tools on /v1/chat/completions require
+    # reasoning_effort="none". Keep this narrowly model-specific: GPT-5.6 must
+    # continue to honor its configured/default reasoning effort rather than being
+    # forced to none merely because tools are attached.
+    if has_function_tools and any(
+        name.startswith(prefix) for prefix in _CHAT_COMPLETIONS_TOOLS_REQUIRE_NONE_PREFIXES
+    ):
         if effort not in _DEFAULT_SENTINELS and effort != "none" and logger is not None:
             logger.warning(
-                "GPT-5.6 Luna with function tools on Chat Completions requires "
+                "%s with function tools on Chat Completions requires "
                 "ReasoningEffort=none; forcing none instead of configured value %s. "
                 "Use the Responses API for higher reasoning effort with tools.",
+                model,
                 effort,
             )
         elif effort in _DEFAULT_SENTINELS and logger is not None:
             logger.info(
-                "GPT-5.6 Luna with function tools on Chat Completions cannot use "
-                "its default reasoning effort; explicitly setting reasoning_effort=none."
+                "%s with function tools on Chat Completions cannot use its "
+                "default reasoning effort; explicitly setting reasoning_effort=none.",
+                model,
             )
         return "none"
 

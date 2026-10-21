@@ -208,7 +208,7 @@ class TelegramBot:
         self.config = self._parser['DEFAULT']
 
         # Basic defaults
-        self.model = self.config.get('Model', 'gpt-4o-mini')
+        self.model = self.config.get('Model', 'gpt-6-luna')
         self.temperature = self.config.getfloat('Temperature', 0.7)
         # Optional OpenAI reasoning level. 'default'/'auto' omits the field so
         # each selected model uses its own API default and older models remain compatible.

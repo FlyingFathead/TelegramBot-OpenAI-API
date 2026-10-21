@@ -210,9 +210,9 @@ def build_chat_payload(bot, messages, *, include_functions=True, max_tokens=None
                 payload["parallel_tool_calls"] = False
 
     # Chat Completions uses the flat `reasoning_effort` field. Apply it only
-    # after tool attachment so Luna can enforce its Chat Completions rule:
-    # function tools require reasoning_effort="none". Older/unknown models
-    # still receive no reasoning field at all.
+    # after tool attachment so model-specific compatibility rules can see whether
+    # tools are present. GPT-6 Luna/Sol require none with function tools here;
+    # GPT-5.6 is not forced to none by tool presence.
     apply_reasoning_effort(
         payload,
         bot.model,

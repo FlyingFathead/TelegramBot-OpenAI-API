@@ -12,3 +12,4 @@ src/reminder_poller.py
 src/reminder_handler.py
 VERSION
 src/app_version.py
+src/openai_reasoning_compat.py

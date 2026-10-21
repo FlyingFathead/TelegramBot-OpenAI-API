@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
 
-DEFAULT_MODEL = "gpt-5.4-mini"
+DEFAULT_MODEL = "gpt-6-luna"
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_TIMEOUT = 60
 DEFAULT_MAX_TOKENS = 2048

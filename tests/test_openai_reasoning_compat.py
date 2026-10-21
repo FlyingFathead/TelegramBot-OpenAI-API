@@ -12,7 +12,7 @@ from openai_reasoning_compat import (  # noqa: E402
 
 
 def test_default_omits_parameter_for_every_model():
-    for model in ("gpt-5.6-luna", "gpt-5.4-mini", "gpt-4o-mini", "gpt-3.5-turbo"):
+    for model in ("gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini", "gpt-4o-mini", "gpt-3.5-turbo"):
         payload = {"model": model}
         apply_reasoning_effort(payload, model, "default")
         assert "reasoning_effort" not in payload
@@ -26,23 +26,23 @@ def test_gpt56_accepts_max():
 
 
 
-def test_luna_with_function_tools_forces_none_from_default():
-    payload = {"model": "gpt-5.6-luna", "tools": [{"type": "function"}]}
+def test_gpt6_luna_with_function_tools_forces_none_from_default():
+    payload = {"model": "gpt-6-luna", "tools": [{"type": "function"}]}
     apply_reasoning_effort(
         payload,
-        "gpt-5.6-luna",
+        "gpt-6-luna",
         "default",
         has_function_tools=True,
     )
     assert payload["reasoning_effort"] == "none"
 
 
-def test_luna_with_function_tools_forces_none_from_higher_effort(caplog):
-    payload = {"model": "gpt-5.6-luna", "tools": [{"type": "function"}]}
+def test_gpt6_luna_with_function_tools_forces_none_from_higher_effort(caplog):
+    payload = {"model": "gpt-6-luna", "tools": [{"type": "function"}]}
     with caplog.at_level(logging.WARNING):
         apply_reasoning_effort(
             payload,
-            "gpt-5.6-luna",
+            "gpt-6-luna",
             "medium",
             has_function_tools=True,
             logger=logging.getLogger("test"),
@@ -51,16 +51,59 @@ def test_luna_with_function_tools_forces_none_from_higher_effort(caplog):
     assert "requires ReasoningEffort=none" in caplog.text
 
 
-def test_luna_without_function_tools_can_use_higher_effort():
-    payload = {"model": "gpt-5.6-luna"}
+def test_gpt6_sol_with_function_tools_forces_none():
+    payload = {"model": "gpt-6-sol", "tools": [{"type": "function"}]}
     apply_reasoning_effort(
         payload,
-        "gpt-5.6-luna",
+        "gpt-6-sol",
+        "high",
+        has_function_tools=True,
+    )
+    assert payload["reasoning_effort"] == "none"
+
+
+def test_gpt6_luna_without_function_tools_can_use_higher_effort():
+    payload = {"model": "gpt-6-luna"}
+    apply_reasoning_effort(
+        payload,
+        "gpt-6-luna",
         "medium",
         has_function_tools=False,
     )
     assert payload["reasoning_effort"] == "medium"
 
+
+def test_gpt56_with_function_tools_is_not_forced_to_none():
+    payload = {"model": "gpt-5.6-luna", "tools": [{"type": "function"}]}
+    apply_reasoning_effort(
+        payload,
+        "gpt-5.6-luna",
+        "medium",
+        has_function_tools=True,
+    )
+    assert payload["reasoning_effort"] == "medium"
+
+
+def test_gpt56_with_function_tools_default_remains_model_default():
+    payload = {"model": "gpt-5.6-luna", "tools": [{"type": "function"}]}
+    apply_reasoning_effort(
+        payload,
+        "gpt-5.6-luna",
+        "default",
+        has_function_tools=True,
+    )
+    assert "reasoning_effort" not in payload
+
+
+def test_gpt56_with_function_tools_honors_explicit_none():
+    payload = {"model": "gpt-5.6-luna", "tools": [{"type": "function"}]}
+    apply_reasoning_effort(
+        payload,
+        "gpt-5.6-luna",
+        "none",
+        has_function_tools=True,
+    )
+    assert payload["reasoning_effort"] == "none"
 
 def test_gpt54_rejects_max_without_malformed_payload(caplog):
     payload = {"model": "gpt-5.4-mini"}
