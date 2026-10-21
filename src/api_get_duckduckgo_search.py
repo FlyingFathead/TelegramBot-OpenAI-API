@@ -37,10 +37,10 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote, unquote_plus
 
 import httpx
-import openai
-
 from config_paths import CONFIG_PATH
+from api_key import APIKeyConfigurationError, build_openai_headers
 from openai_reasoning_compat import apply_reasoning_effort
+from app_version import VERSION as CHATKEKE_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -361,7 +361,7 @@ async def _run_lynx_dump(url: str) -> str:
     Raises RuntimeError on HTTP or Lynx rendering failure.
     """
     headers = {
-        "User-Agent": "Lynx/2.9.0 ChatKeke/0.8.4",
+        "User-Agent": f"Lynx/2.9.0 ChatKeke/{CHATKEKE_VERSION}",
         "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
     }
 
@@ -499,7 +499,7 @@ async def _fetch_duckduckgo_results(search_terms: str) -> str:
 # Main DuckDuckGo search function
 # ---------------------------------------------------------------------------
 
-async def get_duckduckgo_search(search_terms, user_message):
+async def get_duckduckgo_search(search_terms, user_message, openai_auth=None):
     """
     Main public entry point used by text_message_handler.py.
 
@@ -557,6 +557,7 @@ async def get_duckduckgo_search(search_terms, user_message):
             search_results=unique_text,
             retries=3,
             timeout=timeout,
+            openai_auth=openai_auth,
         )
 
         # Failsafe: if sub-agent result is empty, return DuckDuckGo results instead.
@@ -575,7 +576,14 @@ async def get_duckduckgo_search(search_terms, user_message):
 # OpenAI sub-agent call handler
 # ---------------------------------------------------------------------------
 
-async def sub_agent_openai_call(user_message, search_terms, search_results, retries=3, timeout=30):
+async def sub_agent_openai_call(
+    user_message,
+    search_terms,
+    search_results,
+    retries=3,
+    timeout=30,
+    openai_auth=None,
+):
     """
     Small OpenAI sub-agent for agentic DuckDuckGo browsing.
 
@@ -589,8 +597,10 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
     search_terms = search_terms or ""
     search_results = search_results or ""
 
-    if not (openai.api_key or "").strip():
-        logger.error("OpenAI API key is missing for DuckDuckGo sub-agent.")
+    try:
+        headers = build_openai_headers(openai_auth)
+    except APIKeyConfigurationError as exc:
+        logger.error("OpenAI credential is missing for DuckDuckGo sub-agent: %s", exc)
         return format_for_telegram_html(search_results)
 
     timeout = max(1, int(timeout or DEFAULT_TIMEOUT))
@@ -638,11 +648,6 @@ async def sub_agent_openai_call(user_message, search_terms, search_results, retr
         functions=functions,
         include_tools=True,
     )
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}",
-    }
 
     for attempt in range(retries):
         try:

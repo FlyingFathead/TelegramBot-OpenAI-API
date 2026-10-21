@@ -2,6 +2,8 @@
 
 ## 🤖 _Powered by ChatKeke_ 🚀
 
+> **Required OpenAI key migration:** OpenAI scheduled legacy user API keys for deactivation on **October 22, 2026**. Affected installations must create a key inside the intended OpenAI project, replace every deployed secret, verify the replacement, and then revoke the legacy key. See [the migration guide](./docs/API_KEY_MIGRATION.md).
+
 - **A simple-to-use, quick-to-deploy Python-based Telegram bot for OpenAI API & Perplexity API**
 - **🎙 Transcribed Telegram voice messages via OpenAI speech-to-text models (Whisper and others)**
   - Supports configurable STT models such as `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, and legacy `whisper-1`
@@ -38,8 +40,35 @@
 
 - **Telegram API bot token** 
   - use the [`@BotFather`](https://t.me/BotFather) bot on Telegram to set up your bot and get a Telegram Bot API token for it
-- **OpenAI API token**
-  - Get one from from: https://platform.openai.com/
+- **OpenAI project API key**
+  - Create it while the intended organization and project are selected: https://platform.openai.com/api-keys
+  - Store it as `OPENAI_API_KEY`; never commit it to Git
+
+---
+
+## Existing installations: do I need a new key?
+
+**Yes**, when OpenAI has notified your organization that a key is a legacy user API key or it appears in the legacy **User API Keys** list. A key already created inside the intended project does not need replacement solely because of this deadline.
+
+The request format remains:
+
+```text
+OPENAI_API_KEY=<project key>
+Authorization: Bearer <project key>
+```
+
+ChatKeke v0.8.5 removes the mutable global `openai.api_key`. The credential is now resolved once at startup and passed explicitly into every raw HTTP request and OpenAI SDK client. Optional `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` overrides are supported, but a normal project key does not require them.
+
+Current users must:
+
+1. Select the correct OpenAI organization and project and create a new project key. For an unattended deployment, a project service-account key is preferable where available.
+2. Replace `OPENAI_API_KEY` in every VPS/service environment, Docker secret or `.env`, GitHub Actions secret, staging deployment, and `config/api_token.txt` fallback still in use.
+3. Restart or redeploy every instance.
+4. Run `python3 scripts/verify_openai_key.py --live-request`.
+5. Test normal chat, tool calls, and speech-to-text when enabled.
+6. Revoke the legacy key only after every deployment passes.
+
+Full instructions: [docs/API_KEY_MIGRATION.md](./docs/API_KEY_MIGRATION.md).
 
 ---
 
@@ -74,11 +103,18 @@
 
 3. **Set up your Telegram bot token:**
 
-  - Either set your Telegram Bot API token as `TELEGRAM_BOT_TOKEN` environment variable, or put it into a text file named `bot_token.txt` inside the `config/` directory (= `config/bot_token.txt`)
+  - Either set your Telegram Bot API token as `TELEGRAM_BOT_TOKEN` environment variable, or put it into `config/bot_token.txt`.
+  - Token precedence is controlled by `PreferEnvForBotToken` in `config/config.ini`:
+    - `PreferEnvForBotToken = True`: use `TELEGRAM_BOT_TOKEN` first, then `config/bot_token.txt` if fallback is enabled.
+    - `PreferEnvForBotToken = False`: use `config/bot_token.txt` first, even when `TELEGRAM_BOT_TOKEN` is set. This is the manual/local override mode.
+  - To **never** fall back to the environment variable when using the file override, also set `AllowBotTokenFallback = False`.
+  - Existing installations should preserve their local `config/config.ini` when updating. Do not replace it wholesale with the repository default; use `src/configmerger.py` or merge the changed settings manually.
 
-4. **Set up your OpenAI API token:**
+4. **Set up your OpenAI project API key:**
 
-  - Either as `OPENAI_API_KEY` environment variable or put into a text file named `api_token.txt` inside the main program directory
+  - Recommended: set the project key as `OPENAI_API_KEY`
+  - Backwards-compatible fallback: place it in `config/api_token.txt` and run `chmod 600 config/api_token.txt`
+  - Startup logs only the credential source and a short one-way fingerprint, never the secret
 
 5. **Other modules:**
 
@@ -103,9 +139,9 @@
 1. **Docker** must be installed on your machine.
    - If not installed, you can download and install it from [Docker's official site](https://www.docker.com/get-started).
 
-2. **Telegram Bot API Key** and **OpenAI API Key**:
+2. **Telegram Bot API Key** and **OpenAI project API key**:
    - You will need a valid Telegram Bot API key. You can get one by creating a bot with [BotFather](https://core.telegram.org/bots#botfather).
-   - You will also need an OpenAI API key. If you don't have one, you can generate it from the [OpenAI API page](https://beta.openai.com/signup/).
+   - Create an OpenAI project API key from the [OpenAI API Keys page](https://platform.openai.com/api-keys). Do not use a legacy user key for a new deployment.
 
 ### **Step 1: Clone the Repository**
 
@@ -126,7 +162,15 @@ Run the script:
   ./docker_setup.sh
   ```
 
-Follow the instructions provided by the script. It will ask for your OpenAI API key and Telegram Bot API key, validate them, and create a `.env` file with your credentials.
+Follow the instructions provided by the script. It hides the OpenAI key while it is entered and writes `.env` with owner-only permissions.
+
+Verify the replacement before revoking the old key:
+
+  ```bash
+  python3 scripts/verify_openai_key.py --live-request
+  ```
+
+The GitHub Actions deployment uses a repository secret named `OPENAI_API_KEY`. Updating a local `.env` does not update that secret.
 
 ### **Step 3: Build the Docker Image**
 
@@ -240,6 +284,21 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 ---
 
 # Changelog
+
+> The current application version is stored in the repository-root `VERSION` file and loaded by the runtime from there. Update `VERSION` once for a release instead of duplicating the current version in source files.
+
+- v0.8.5 - OpenAI project-key migration and explicit credential handling
+  - Removed the mutable process-global `openai.api_key` and passed one resolved credential object explicitly into raw HTTP requests and the OpenAI SDK client.
+  - Added optional `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` routing overrides without requiring them for normal project keys.
+  - Added `docs/API_KEY_MIGRATION.md` and a current-user migration section to this README.
+  - Added `scripts/verify_openai_key.py` for secret-safe project access and live Chat Completions checks.
+  - Hardened key loading, fallback warnings, placeholder/whitespace rejection, and secret-free fingerprint logging.
+  - Hardened Docker setup and GitHub Actions secret passing.
+  - Preserved Telegram bot-token source precedence: `PreferEnvForBotToken = False` continues to force `config/bot_token.txt` ahead of `TELEGRAM_BOT_TOKEN`.
+  - Upgrade patch/overlay does not modify `config/config.ini`, so local token-selection overrides are not clobbered.
+  - Fixed the python-telegram-bot error handler to be async, preventing a secondary `NoneType`/`await` traceback when Telegram reports polling errors such as a `getUpdates` conflict.
+  - Added API credential and Telegram token-precedence regression tests.
+  - Centralized the application version in the repository-root `VERSION` file; runtime banners, `/about`, and the DuckDuckGo User-Agent now use that single source of truth.
 
 - v0.8.4 - DuckDuckGo search reliability hotfix
   - Added HTTPX connection retries for DuckDuckGo/web fetches: `httpx.AsyncHTTPTransport(retries=2)` provides up to three connection attempts before a request fails.

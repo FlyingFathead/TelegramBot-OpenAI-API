@@ -5,12 +5,10 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # https://github.com/FlyingFathead/TelegramBot-OpenAI-API
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# version of this program
-version_number = "0.8.4"
-
 # Add the project root directory to Python's path
 import sys
 from pathlib import Path
+from app_version import VERSION as version_number
 # Adding the project root to the Python path to resolve imports from root level
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -27,7 +25,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 from functools import partial
 
-import openai
 import json
 import httpx
 import asyncio
@@ -59,7 +56,7 @@ from config_paths import (
 
 import db_utils
 from bot_token import get_bot_token
-from api_key import get_api_key
+from api_key import APIKeyConfigurationError, load_openai_credentials
 import bot_commands
 import utils
 from modules import count_tokens, read_total_token_usage, write_total_token_usage
@@ -171,12 +168,17 @@ class TelegramBot:
         from config_paths import CHAT_LOG_FILE_PATH
         self.chat_log_file = CHAT_LOG_FILE_PATH
 
-        # Attempt to get bot & API tokens
+        # Resolve bot and OpenAI credentials once at startup. OpenAI credentials
+        # are then passed explicitly to HTTP calls and SDK clients; no mutable
+        # process-global openai.api_key is used.
         try:
             self.telegram_bot_token = get_bot_token()
-            self.openai_api_key = get_api_key()  # Store the API key as an attribute
-            openai.api_key = self.openai_api_key
-        except FileNotFoundError as e:
+            self.openai_credentials = load_openai_credentials()
+            # Compatibility attributes for older helper paths and private forks.
+            self.openai_api_key = self.openai_credentials.api_key
+            self.openai_organization = self.openai_credentials.organization
+            self.openai_project = self.openai_credentials.project
+        except (FileNotFoundError, APIKeyConfigurationError) as e:
             self.logger.error(f"Required configuration not found: {e}")
             sys.exit(1)
 
@@ -433,7 +435,7 @@ class TelegramBot:
 
     # ~~~~~~~~~~~~~~~~~~~~
     # Function to handle errors
-    def error(self, update: Update, context: CallbackContext) -> None:
+    async def error(self, update: Update, context: CallbackContext) -> None:
         self.logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     def run(self):

@@ -10,3 +10,5 @@ src/utils.py
 config/config.ini
 src/reminder_poller.py
 src/reminder_handler.py
+VERSION
+src/app_version.py
