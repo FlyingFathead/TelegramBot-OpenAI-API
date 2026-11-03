@@ -23,10 +23,10 @@
   - Localized to supported countries, or add your own special reminders
 - **📈 Fetching stock prices via Alpha Vantage API & Yahoo! Finance**
   - Real-time access to financial & stock market data
-- **📰 RSS feeds from all available sources**
-  - Fetch news and more via RSS
-- **🦆 DuckDuckGo searches as context-augmented function calls**  
-  - New! **Sub-agentic browsing** for enhanced, precise searches!
+- **📰 Section-specific news via Elasticsearch triggers**
+  - Failed or stale RSS can trigger a publisher-scoped OpenAI search, followed by a direct section page when needed.
+- **🔎 Web search with DuckDuckGo, Perplexity and OpenAI**
+  - Set `UseOpenAIWebSearch` to include OpenAI in the initial search. `FallbackToOpenAI` controls retries through OpenAI after other sources fail. Combined searches share one timeout. [Configuration and smoke tests](./docs/WEB_SEARCH.md)
 - **🌐 Web browsing (page dumps w/ links) as context-augmented function calls**
   - With optional domain/IP allow/disallow lists for safety
 - **🧮 Calculator function call module for precise calculations**
@@ -286,6 +286,10 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 # Changelog
 
 > The current application version is stored in the repository-root `VERSION` file and loaded by the runtime from there. Update `VERSION` once for a release instead of duplicating the current version in source files.
+
+- v0.8.7 - Combined web search and news retrieval fallback
+  - Each web search sends the tool query to all enabled providers under one timeout and returns their findings and citations in one tool result. DuckDuckGo and OpenAI are enabled by default.
+  - Elasticsearch news actions retain their existing tokens. Failed or stale RSS feeds can use publisher-scoped web search and the corresponding section page. See [web search settings](docs/WEB_SEARCH.md).
 
 - v0.8.6 - GPT-6 Luna default and model-specific tool/reasoning compatibility
   - Changed the default ChatKeke model and auto-switch premium model to `gpt-6-luna`.

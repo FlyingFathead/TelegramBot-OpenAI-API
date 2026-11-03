@@ -348,7 +348,7 @@ def _dedupe_lines_with_links(text: str) -> str:
     return "\n".join(unique_lines)
 
 
-async def _run_lynx_dump(url: str) -> str:
+async def _run_lynx_dump(url: str, request_timeout=None) -> str:
     """
     Fetch a URL with httpx, then render the returned HTML through Lynx locally.
 
@@ -365,21 +365,25 @@ async def _run_lynx_dump(url: str) -> str:
         "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
     }
 
-    # HTTPX's low-level transport can retry connection-establishment failures.
-    # The observed intermittent DDG failure is httpx.ConnectError with an
-    # anyio.BrokenResourceError cause, so use two retries (three attempts total)
-    # before surfacing the full diagnostic below.
-    transport = httpx.AsyncHTTPTransport(retries=2)
-
+    # Passing a custom transport disables HTTPX's environment proxy routing.
+    # Retry only connection setup failures, as the previous transport did.
     try:
         async with httpx.AsyncClient(
-            transport=transport,
-            follow_redirects=True,
-            timeout=max(1, timeout),
-            headers=headers,
+            follow_redirects=True, timeout=request_timeout or max(1, timeout), headers=headers
         ) as client:
-            response = await client.get(url)
+            for attempt in range(3):
+                try:
+                    response = await client.get(url)
+                    break
+                except (httpx.ConnectError, httpx.ConnectTimeout):
+                    if attempt == 2:
+                        raise
+                    await asyncio.sleep(0.5 * attempt)
             response.raise_for_status()
+            if url.startswith(DUCKDUCKGO_HTML_ENDPOINT + "?"):
+                from bs4 import BeautifulSoup
+                if not BeautifulSoup(response.content, "lxml").select_one("a.result__a[href]"):
+                    raise RuntimeError("DuckDuckGo returned no search result links")
     except httpx.HTTPStatusError as exc:
         response = exc.response
         body_preview = response.text[:2000] if response is not None else "<no response body>"
@@ -466,7 +470,16 @@ async def _run_lynx_dump(url: str) -> str:
         stderr=asyncio.subprocess.PIPE,
     )
 
-    stdout, stderr = await process.communicate(input=html_bytes)
+    try:
+        stdout, stderr = await process.communicate(input=html_bytes)
+    except asyncio.CancelledError:
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+        await process.wait()
+        raise
 
     if process.returncode != 0:
         error_message = stderr.decode("utf-8", errors="replace").strip()
@@ -480,13 +493,13 @@ def _build_duckduckgo_search_url(search_terms: str) -> str:
     return f"{DUCKDUCKGO_HTML_ENDPOINT}?q={formatted_query}"
 
 
-async def _fetch_duckduckgo_results(search_terms: str) -> str:
+async def _fetch_duckduckgo_results(search_terms: str, request_timeout=None) -> str:
     """
     Fetch, parse, dedupe, and format DuckDuckGo search results.
     """
     search_url = _build_duckduckgo_search_url(search_terms)
 
-    response_text = await _run_lynx_dump(search_url)
+    response_text = await _run_lynx_dump(search_url, request_timeout)
     cleaned_text = parse_duckduckgo(response_text)
     unique_text = _dedupe_lines_with_links(cleaned_text)
 
@@ -499,7 +512,7 @@ async def _fetch_duckduckgo_results(search_terms: str) -> str:
 # Main DuckDuckGo search function
 # ---------------------------------------------------------------------------
 
-async def get_duckduckgo_search(search_terms, user_message, openai_auth=None):
+async def get_duckduckgo_search(search_terms, user_message, openai_auth=None, request_timeout=None):
     """
     Main public entry point used by text_message_handler.py.
 
@@ -521,7 +534,7 @@ async def get_duckduckgo_search(search_terms, user_message, openai_auth=None):
             )
 
             try:
-                return await _fetch_duckduckgo_results(search_terms)
+                return await _fetch_duckduckgo_results(search_terms, request_timeout)
             except Exception as exc:
                 logger.exception("DuckDuckGo search failed: type=%s repr=%r", type(exc).__name__, exc)
                 print(
@@ -538,7 +551,7 @@ async def get_duckduckgo_search(search_terms, user_message, openai_auth=None):
         print_horizontal_line()
 
         try:
-            unique_text = await _fetch_duckduckgo_results(search_terms)
+            unique_text = await _fetch_duckduckgo_results(search_terms, request_timeout)
         except Exception as exc:
             logger.exception("DuckDuckGo search failed: type=%s repr=%r", type(exc).__name__, exc)
             print(
@@ -556,7 +569,7 @@ async def get_duckduckgo_search(search_terms, user_message, openai_auth=None):
             search_terms=search_terms,
             search_results=unique_text,
             retries=3,
-            timeout=timeout,
+            timeout=request_timeout or timeout,
             openai_auth=openai_auth,
         )
 
@@ -736,7 +749,7 @@ async def sub_agent_openai_call(
 
                     try:
                         logger.info("Attempting to fetch content from URL: %s", url)
-                        page_content = await fetch_link_content(url)
+                        page_content = await fetch_link_content(url, timeout)
 
                         if "Error:" in page_content:
                             logger.error(
@@ -828,7 +841,7 @@ def _is_probably_http_url(url: str) -> bool:
 # Fetch content from a link using lynx
 # ---------------------------------------------------------------------------
 
-async def fetch_link_content(link):
+async def fetch_link_content(link, request_timeout=None):
     """
     Fetch text content from a webpage using lynx --dump.
 
@@ -848,7 +861,7 @@ async def fetch_link_content(link):
 
     try:
         logger.info("Running lynx dump command for link: %s", link)
-        page_content = await _run_lynx_dump(link)
+        page_content = await _run_lynx_dump(link, request_timeout)
 
         logger.info("Lynx dump output received. Content length: %d characters", len(page_content))
 

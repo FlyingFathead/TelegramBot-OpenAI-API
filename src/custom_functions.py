@@ -32,7 +32,6 @@ def get_config_bool(section: str, option: str, fallback: bool = False) -> bool:
         return fallback
 
 enable_reminders = get_config_bool('Reminders', 'EnableReminders', fallback=False)
-enable_perplexity = get_config_bool('Perplexity', 'Enabled', fallback=False)
 
 # silently observe the chat
 async def observe_chat():
@@ -68,18 +67,14 @@ custom_functions = [
 ]
 
 custom_functions.append({
-    'name': 'get_duckduckgo_search',
-    'description': '[Use when the user requests for internet search results.] Fetches the first page search results from the first place DuckDuckGo for a given query. This function uses the Lynx browser to scrape the DuckDuckGo HTML results page.',
-    'parameters': {
-        'type': 'object',
-        'properties': {
-            'search_query': {
-                'type': 'string',
-                'description': 'The search query to fetch results for.'
-            }
-        },
-        'required': ['search_query']  # Mark 'search_query' as a required property
-    }
+    "name": "search_web",
+    "description": "Search the web when current information or external verification is needed.",
+    "parameters": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "The search query only."}},
+        "required": ["query"],
+        "additionalProperties": False,
+    },
 })
 
 # website fetcher and dumper
@@ -139,37 +134,6 @@ custom_functions.append({
         }
     }
 )
-
-# ~~~~~~~~~~~~~~~~~
-# Perplexity API
-# ~~~~~~~~~~~~~~~~~
-
-if enable_perplexity:
-    custom_functions.append({
-        'name': 'query_perplexity',
-        'description': (
-            '[Use for dynamic inquiries, current real-time events and/or fact-checking '
-            'when live web-backed answering is specifically useful.] '
-            'Queries the configured Perplexity API model for up-to-date information. '
-            'Ask the question directly in English.'
-        ),
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'question': {
-                    'type': 'string',
-                    'description': (
-                        'The question or statement to fact-check or inquire about. '
-                        'Do not refer to Perplexity. Ask directly, in English.'
-                    )
-                }
-            },
-            'required': ['question']
-        }
-    })
-    logger.info("Perplexity enabled in config.ini => 'query_perplexity' function added.")
-else:
-    logger.info("Perplexity disabled in config.ini => 'query_perplexity' function not added.")
 
 # stock price check
 custom_functions.append({

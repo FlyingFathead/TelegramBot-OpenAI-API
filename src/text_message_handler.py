@@ -51,17 +51,15 @@ from config_paths import (
     ELASTICSEARCH_SCHEME, ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD
 )
 from custom_functions import custom_functions, observe_chat
-from api_get_duckduckgo_search import get_duckduckgo_search
+from web_search import (RetrievalError, answer_web_tool, telegram_evidence_parts, WEB_TOOL_NAMES)
 from api_get_openrouteservice import get_route, get_directions_from_addresses, format_and_translate_directions
 from api_get_openweathermap import get_weather, format_and_translate_weather, format_weather_response
 from api_get_maptiler import get_coordinates_from_address, get_static_map_image
 from api_get_global_time import get_global_time
 from api_get_stock_prices_yfinance import get_stock_price, search_stock_symbol
-from api_get_website_dump import get_website_dump
 from calc_module import calculate_expression
 
 # handlers for the custom function calls
-from api_perplexity_search import query_perplexity
 # from perplexity_handler import handle_query_perplexity
 # from api_perplexity_search import query_perplexity, translate_response, translate_response_chunked, smart_chunk, split_message
 # from api_perplexity_search import query_perplexity, smart_chunk, split_message
@@ -92,7 +90,7 @@ ELASTICSEARCH_ENABLED = elasticsearch_enabled
 if elasticsearch_enabled:
     try:
         from elasticsearch_handler import search_es_for_context
-        from elasticsearch_functions import action_token_functions
+        from elasticsearch_functions import action_token_functions, news_actions
         logging.info("Elasticsearch modules imported successfully.")
     except ImportError:
         logging.error("Elasticsearch is enabled in config.ini but the 'elasticsearch' module is not installed.")
@@ -578,6 +576,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
         # Initialize chat_history_with_es_context to default value
         chat_history_with_es_context = chat_history_with_system_message
 
+        evidence_sources = {}
+
         # Assuming ELASTICSEARCH_ENABLED is true and we have fetched es_context
         if elasticsearch_enabled and search_es_for_context:
             logger.info(f"Elasticsearch is enabled, searching for context for user message: {user_message}")
@@ -595,7 +595,9 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         logger.info(f"Action token found: {token}. Executing corresponding function.")
 
                         # Execute the mapped function
-                        chat_history_with_es_context = await function(context, update, chat_history_with_system_message)
+                        kwargs = {"bot": bot, "sources": evidence_sources} if token in news_actions else {}
+                        chat_history_with_es_context = await function(
+                            context, update, chat_history_with_system_message, **kwargs)
 
                         action_triggered = True
                         break  # Stop checking after the first match to avoid multiple actions
@@ -934,176 +936,18 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         return  # Exit the loop after handling the custom function
 
                     # ~~~~~~~~~~~~~~~~~
-                    # DuckDuckGo Search
+                    # Web lookups (one tool result, one final chat completion)
                     # ~~~~~~~~~~~~~~~~~
 
-                    elif function_name == 'get_duckduckgo_search':
-                        arguments = json.loads(function_call.get('arguments', '{}'))
-                        search_query = arguments.get('search_query', '')
-
-                        if search_query:
-                            search_results = await get_duckduckgo_search(
-                                search_query,
-                                user_message,
-                                openai_auth=bot,
-                            )
-                            if search_results:
-                                system_message = f"[DuckDuckGo Search Results]: {search_results}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).][Use SIMPLE, Telegram-compliant HTML: Use these HTML tags if needed: <b> for bold, <i> for italics, <u> for underline, <s> for strikethrough, <code> for inline code, <pre> for preformatted blocks, and <a href=...> for hyperlinks.. Do NOT use <pre>, <br>, <ul>, <li> or Markdown in your response!]"
-                            else:
-                                system_message = "No results found for your query."
-                        else:
-                            system_message = "Please provide a search query."
-
-                        # Append the search results or the relevant message as a system message
-                        chat_history.append({"role": "system", "content": system_message})
-                        context.chat_data['chat_history'] = chat_history
-
-                        # Debugging: Log the updated chat history
-                        bot.logger.info(f"Updated chat history: {chat_history}")
-
-                        # Make an API request using the updated chat history
-                        response_json = await make_api_request(
-                            bot,
-                            chat_history,
-                            bot.timeout,
-                            include_functions=False
-                        )
-
-                        # Extract and handle the content from the API response
-                        bot_reply_content = extract_chat_reply_or_raise(response_json)
-                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
-
-                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
-
-                        # Update usage metrics and logs
-                        bot_token_count = bot.count_tokens(bot_reply)
-                        bot.total_token_usage += bot_token_count
-                        bot.write_total_token_usage(bot.total_token_usage)
-                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
-
-                        # Ensure the bot has a substantive response to send
-                        if bot_reply:
-                            # Function to clean unsupported tags
-                            # # // old method
-                            # def sanitize_html(content):
-                            #     # Remove unsupported HTML tags
-                            #     for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
-                            #         content = content.replace(tag, '')
-                            #     # Optionally: Replace line breaks with "\n" to preserve formatting
-                            #     content = content.replace('<br>', '\n').replace('<br/>', '\n')
-                            #     return content
-
-                            # Convert markdown to HTML
-                            # escaped_reply = markdown_to_html(bot_reply)
-                            try:
-                                escaped_reply = markdown_to_html(bot_reply)
-                            except Exception as e:
-                                bot.logger.error(f"markdown_to_html failed: {e}")
-                                escaped_reply = html.escape(bot_reply)  # Safe fallback
-
-                            # Sanitize the HTML to remove any unsupported tags
-                            escaped_reply = sanitize_html(escaped_reply)
-
-                            # Log the bot's response from DuckDuckGo Search
-                            bot.log_message(
-                                message_type='Bot',
-                                message=bot_reply,
-                                source='DuckDuckGo Search'
-                            )
-
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                        else:
-                            bot.logger.error("Attempted to send an empty message.")
-                            escaped_reply = "🤔"
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                            pass
-
-                        # Finalize the function call
-                        stop_typing_event.set()
-                        context.user_data.pop('active_translation', None)
-                        return
-
-                    # ~~~~~~~~~~~~~~~~~~~~~~~
-                    # Website quick peek dump
-                    # ~~~~~~~~~~~~~~~~~~~~~~~
-
-                    elif function_name == 'get_website_dump':
-                        arguments = json.loads(function_call.get('arguments', '{}'))
-                        url = arguments.get('url', '')
-
-                        if url:
-                            webpage_content = await get_website_dump(url)
-                            if webpage_content:
-                                system_message = f"[Webpage Content]: {webpage_content}\n\n[NOTE: format your response as Telegram-compatible HTML with links. Do NOT use <pre> or <br> tags! Translate your response to the user's language if necessary (= if the user talked to you in Finnish, respond in Finnish).]"
-                            else:
-                                system_message = "No content found for the specified URL."
-                        else:
-                            system_message = "URL was invalid. Please provide a valid URL."
-
-                        # Append the webpage content or the relevant message as a system message
-                        chat_history.append({"role": "system", "content": system_message})
-                        context.chat_data['chat_history'] = chat_history
-
-                        # Make an API request using the updated chat history
-                        response_json = await make_api_request(
-                            bot,
-                            chat_history,
-                            bot.timeout,
-                            include_functions=False
-                        )
-
-                        # Extract and handle the content from the API response
-                        bot_reply_content = extract_chat_reply_or_raise(response_json)
-                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
-
-                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
-
-                        # Update usage metrics and logs
-                        bot_token_count = bot.count_tokens(bot_reply)
-                        bot.total_token_usage += bot_token_count
-                        bot.write_total_token_usage(bot.total_token_usage)
-                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
-
-                        # Ensure the bot has a substantive response to send
-                        if bot_reply:
-                            # Function to clean unsupported tags
-                            # def sanitize_html(content):
-                            #     # Remove unsupported HTML tags
-                            #     for tag in ['<pre>', '</pre>', '<br>', '<br/>', '</br>', '<div>', '</div>', '<span>', '</span>', '<p>', '</p>']:
-                            #         content = content.replace(tag, '')
-                            #     # Optionally: Replace line breaks with "\n" to preserve formatting
-                            #     content = content.replace('<br>', '\n').replace('<br/>', '\n')
-                            #     return content
-
-                            # Convert markdown to HTML
-                            # escaped_reply = markdown_to_html(bot_reply)
-
-                            try:
-                                escaped_reply = markdown_to_html(bot_reply)
-                            except Exception as e:
-                                bot.logger.error(f"markdown_to_html failed: {e}")
-                                escaped_reply = html.escape(bot_reply)  # Safe fallback
-
-                            # Sanitize the HTML to remove any unsupported tags
-                            escaped_reply = sanitize_html(escaped_reply)
-
-                            # Log the bot's response from DuckDuckGo Search
-                            bot.log_message(
-                                message_type='Bot',
-                                message=bot_reply,
-                                source='Website Dump'
-                            )
-
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                        else:
-                            bot.logger.error("Attempted to send an empty message.")
-                            escaped_reply = "🤔"
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                            pass
-
-                        stop_typing_event.set()
-                        context.user_data.pop('active_translation', None)
-                        return
+                    elif function_name in WEB_TOOL_NAMES or function_name == "get_website_dump":
+                        try:
+                            response_json, sources = await answer_web_tool(
+                                function_call, response_json, chat_history_with_es_context,
+                                bot, make_api_request)
+                            evidence_sources.update(sources)
+                        except RetrievalError as exc:
+                            await context.bot.send_message(chat_id=chat_id, text=str(exc))
+                            return
 
                     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     # Alpha Vantage / Yahoo! Finance API
@@ -1291,101 +1135,6 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                     # ~~~~~~~~~~~~~~
                     # Handling the Perplexity API call with automatic translation
 
-                    elif function_name == 'query_perplexity':
-                        arguments = json.loads(function_call.get('arguments', '{}'))
-                        question = arguments.get('question', '')
-
-                        if not question:
-                            logging.warning("No question was provided for the Perplexity query.")
-                            await context.bot.send_message(
-                                chat_id=chat_id,
-                                text="No question was provided for the Perplexity query. Please provide a question.",
-                                parse_mode=ParseMode.HTML
-                            )
-                            return True
-
-                        # Make the asynchronous API call to query Perplexity
-                        perplexity_response = await query_perplexity(context.bot, chat_id, question)
-
-                        # Log the raw Perplexity API response for debugging
-                        logging.info(f"Raw Perplexity API Response: {perplexity_response}")
-
-                        if not perplexity_response:
-                            logging.error("Perplexity API returned an invalid or empty response.")
-                            await context.bot.send_message(
-                                chat_id=chat_id,
-                                text="Error processing the Perplexity query. Please try again later.",
-                                parse_mode=ParseMode.HTML
-                            )
-                            return True
-
-                        # Add Perplexity response to chat history as a system message
-                        # system_message = f"[Perplexity.ai response. Translate to the user's language if needed and use Telegram-compliant HTML in formatting. DO NOT use Markdown!]: {perplexity_response} [USE TELEGRAM HTML IN THE FORMATTING OF YOUR RESPONSE, NOT MARKDOWN, TRANSLATE TO USER'S LANGUAGE IF NEEDED.]"                        
-                        system_message = (
-                            f"[Perplexity.ai response]: {perplexity_response} "
-                            "[Translate to the user's language if needed. "
-                            "Use only Telegram-compatible HTML; keep it simple. CONVERT MARKDOWN TO HTML. NO <br> TAGS!"
-                            "Overall, in HTML formatting, DO NOT USE: <ul>, <li>, <br>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <pre> tags. If you want to use a codeblock, use <code>]. Remember to translate to the user's language, i.e. if they're asking in Finnish instead of English, translate into Finnish!"
-                        )
-                        chat_history.append({"role": "system", "content": system_message})
-                        context.chat_data['chat_history'] = chat_history  # Update the chat data with the new history
-
-                        # Log the updated chat history
-                        bot.logger.info(f"Updated chat history: {chat_history}")
-
-                        # Make an API request using the updated chat history
-                        response_json = await make_api_request(
-                            bot,
-                            chat_history,
-                            bot.timeout,
-                            include_functions=False
-                        )
-
-                        # Extract and handle the content from the API response
-                        bot_reply_content = extract_chat_reply_or_raise(response_json)
-                        bot.logger.info(f"Bot's response content: '{bot_reply_content}'")
-
-                        bot_reply = bot_reply_content.strip() if bot_reply_content else ""
-                        bot_reply = strip_disallowed_html_tags(bot_reply)
-
-                        # Update usage metrics and logs
-                        bot_token_count = bot.count_tokens(bot_reply)
-                        bot.total_token_usage += bot_token_count
-                        bot.write_total_token_usage(bot.total_token_usage)
-                        bot.logger.info(f"Bot's response to {update.message.from_user.username} ({chat_id}): '{bot_reply}'")
-
-                        # Ensure the bot has a substantive response to send
-                        if bot_reply:
-                            # escaped_reply = bot_reply
-                            # escaped_reply = markdown_to_html(bot_reply)
-
-                            try:
-                                escaped_reply = markdown_to_html(bot_reply)
-                            except Exception as e:
-                                bot.logger.error(f"markdown_to_html failed: {e}")
-                                escaped_reply = html.escape(bot_reply)  # Safe fallback
-
-                            # Log the bot's response from Perplexity API
-                            bot.log_message(
-                                message_type='Bot',
-                                message=bot_reply,
-                                source='Perplexity API'
-                            )
-
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                        else:
-                            bot.logger.error("Attempted to send an empty message.")
-                            # Optional fallback message or pass
-                            escaped_reply = "🤔"
-                            await context.bot.send_message(chat_id=chat_id, text=escaped_reply, parse_mode=ParseMode.HTML)
-                            pass
-
-                        # Finalize the function call
-                        context.user_data.pop('active_translation', None)
-                        return True
-
-
-                    # ~~~~~~~~~~~~~~
                     # User reminders
                     # ~~~~~~~~~~~~~~
                     # If enabled, the function calls to add, view, edit or delete user's set reminders
@@ -1620,7 +1369,8 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                 escaped_reply = sanitize_html(escaped_reply)
 
-                message_parts = split_message(escaped_reply)
+                message_parts = (telegram_evidence_parts(bot_reply, evidence_sources)
+                                 if evidence_sources else split_message(escaped_reply))
 
                 for part in message_parts:
                     await context.bot.send_message(chat_id=chat_id, text=part, parse_mode=ParseMode.HTML)                

@@ -242,7 +242,7 @@ def _extract_perplexity_content(response_data: Dict[str, Any]) -> str:
     return str(content).strip()
 
 
-async def fact_check_with_perplexity(question: str) -> Optional[Dict[str, Any]]:
+async def fact_check_with_perplexity(question: str, request_timeout=None) -> Optional[Dict[str, Any]]:
     """
     Call Perplexity/Sonar and return raw JSON.
 
@@ -263,7 +263,7 @@ async def fact_check_with_perplexity(question: str) -> Optional[Dict[str, Any]]:
     payload = _build_perplexity_payload(question)
     headers = _perplexity_headers()
 
-    timeout = httpx.Timeout(PERPLEXITY_TIMEOUT)
+    timeout = httpx.Timeout(request_timeout or PERPLEXITY_TIMEOUT)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         for attempt in range(PERPLEXITY_MAX_RETRIES):

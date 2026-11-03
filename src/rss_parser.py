@@ -1049,7 +1049,8 @@ def get_yle_karjalakse(max_days_old=1000, max_entries=DEFAULT_MAX_ENTRIES):
 def get_defcon_status():
     try:
         url = "https://www.defconlevel.com/current-level.php"
-        response = requests.get(url)
+        response = requests.get(url, timeout=12)
+        response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
         defcon_level = soup.find("div", class_="header-defcon-level").get_text(strip=True)
@@ -1075,7 +1076,7 @@ def get_defcon_status():
     except Exception as e:
         logging.error(f"Error fetching DEFCON status: {e}")
         return {
-            'type': 'text',
+            'type': 'error',
             'content': "Sori! En päässyt käsiksi DEFCON-tilaan. Mönkään meni! Pahoitteluni!",
             'html': "Sori! En päässyt käsiksi DEFCON-tilaan. Mönkään meni! Pahoitteluni!"
         }

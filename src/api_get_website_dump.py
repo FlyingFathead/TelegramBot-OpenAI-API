@@ -1,7 +1,7 @@
 # api_get_website_dump.py
 
 import urllib.parse
-import subprocess
+from api_get_duckduckgo_search import _run_lynx_dump
 import logging
 import tiktoken  # for token counting
 import sys
@@ -61,49 +61,13 @@ async def get_website_dump(url, max_tokens=10000):
         return error_message
 
     try:
-        # Execute the lynx command to fetch the website content
-        result = subprocess.run(['lynx', '--dump', url], capture_output=True, text=True, timeout=15)
-
-        # Check if the command was successful
-        if result.returncode == 0:
-            content = result.stdout
-
-            # Filter out non-informative content using regex
-            # content = re.sub(r'\[.*?\]|\(BUTTON\)|\s{2,}', ' ', content)  # Remove links, buttons, and excessive spaces
-
-            # Replace multiple spaces and tabs with a single space
-            content = re.sub(r'\s+', ' ', content)
-
-            # Keep meaningful newlines (keep single newlines, avoid empty lines)
-            content = re.sub(r'\s*\n\s*', '\n', content)  # Clean up newlines
-            content = re.sub(r'\n{2,}', '\n', content)  # Ensure no multiple consecutive newlines
-
-            # Use the correct encoding for GPT-4o
-            enc = tiktoken.encoding_for_model("gpt-4o")  # Load the appropriate tokenizer for GPT-4o
-            tokens = enc.encode(content)
-
-            # Log the fetched content and token count
-            logging.info(f"Upon user's request, fetched content from: {url}")
-            logging.info(f"Token count: {len(tokens)}")
-
-            # If the token count exceeds the max_tokens, truncate the content
-            if len(tokens) > max_tokens:
-                # Trim tokens to fit within the max_tokens
-                tokens = tokens[:max_tokens]
-                # Decode the trimmed tokens back to text
-                content = enc.decode(tokens)
-                logging.info(f"Content truncated to {max_tokens} tokens.")
-
-            return content.strip()
-        else:
-            error_message = f"Error: Unable to fetch content from {url}. Return code: {result.returncode}"
-            logging.error(error_message)
-            return error_message
-
-    except subprocess.TimeoutExpired:
-        error_message = f"Error: Timed out while trying to fetch content from {url}."
-        logging.error(error_message)
-        return error_message
+        # Check HTTP status before rendering; Lynx can otherwise dump a 404 as text.
+        content = await asyncio.wait_for(_run_lynx_dump(url, request_timeout=15), timeout=15)
+        content = re.sub(r'[^\S\n]+', ' ', content).strip()
+        content = re.sub(r'\n{3,}', '\n\n', content)
+        enc = tiktoken.encoding_for_model("gpt-4o")
+        tokens = enc.encode(content, disallowed_special=())
+        return enc.decode(tokens[:max_tokens]) if len(tokens) > max_tokens else content
 
     except Exception as e:
         error_message = f"Error: An exception occurred while fetching content from {url}: {str(e)}"
