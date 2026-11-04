@@ -7,8 +7,8 @@
 DuckDuckGo search helper module for ChatKeke.
 
 Purpose:
-- Fetch web content over HTTPS with httpx and render it through lynx locally.
-- Fetch DuckDuckGo HTML search results without relying on Lynx/GnuTLS networking.
+- Fetch DuckDuckGo results and webpages directly with Lynx.
+- Return the Lynx dump as search evidence with decoded source URLs.
 - Optionally run a small OpenAI sub-agent over those results.
 - Optionally let the sub-agent request one webpage dump via a local
   visit_webpage tool.
@@ -32,15 +32,13 @@ import logging
 import random
 import re
 import sys
-import traceback
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote, unquote_plus
+from urllib.parse import quote, unquote_plus, urlsplit
 
 import httpx
 from config_paths import CONFIG_PATH
 from api_key import APIKeyConfigurationError, build_openai_headers
 from openai_reasoning_compat import apply_reasoning_effort
-from app_version import VERSION as CHATKEKE_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -67,10 +65,7 @@ DEFAULT_DDG_CONTENT_SIZE_LIMIT = False
 DEFAULT_DDG_MAX_CONTENT_SIZE = 10000
 
 OPENAI_CHAT_COMPLETIONS_ENDPOINT = "https://api.openai.com/v1/chat/completions"
-# Use DuckDuckGo's canonical HTML host directly. Older Lynx/GnuTLS builds can
-# successfully connect to both hosts separately yet fail the second TLS handshake
-# when duckduckgo.com redirects to html.duckduckgo.com. Going direct avoids that
-# unnecessary redirect while keeping the same HTML search endpoint.
+# Use the same canonical HTML URL as a direct Lynx search.
 DUCKDUCKGO_HTML_ENDPOINT = "https://html.duckduckgo.com/html/"
 
 
@@ -349,143 +344,33 @@ def _dedupe_lines_with_links(text: str) -> str:
 
 
 async def _run_lynx_dump(url: str, request_timeout=None) -> str:
-    """
-    Fetch a URL with httpx, then render the returned HTML through Lynx locally.
-
-    Lynx is intentionally not allowed to perform the HTTPS request itself. Some
-    older Lynx/GnuTLS builds intermittently fail TLS handshakes when Keke runs as
-    a service even though the same URL works from an interactive shell. httpx is
-    already used by Keke and provides the network transport; Lynx only converts
-    the downloaded HTML into the existing text-dump format.
-
-    Raises RuntimeError on HTTP or Lynx rendering failure.
-    """
-    headers = {
-        "User-Agent": f"Lynx/2.9.0 ChatKeke/{CHATKEKE_VERSION}",
-        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-    }
-
-    # Passing a custom transport disables HTTPX's environment proxy routing.
-    # Retry only connection setup failures, as the previous transport did.
-    try:
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=request_timeout or max(1, timeout), headers=headers
-        ) as client:
-            for attempt in range(3):
-                try:
-                    response = await client.get(url)
-                    break
-                except (httpx.ConnectError, httpx.ConnectTimeout):
-                    if attempt == 2:
-                        raise
-                    await asyncio.sleep(0.5 * attempt)
-            response.raise_for_status()
-            if url.startswith(DUCKDUCKGO_HTML_ENDPOINT + "?"):
-                from bs4 import BeautifulSoup
-                if not BeautifulSoup(response.content, "lxml").select_one("a.result__a[href]"):
-                    raise RuntimeError("DuckDuckGo returned no search result links")
-    except httpx.HTTPStatusError as exc:
-        response = exc.response
-        body_preview = response.text[:2000] if response is not None else "<no response body>"
-
-        # Log with a traceback AND print directly to stderr so failures are visible
-        # even when a service/logger configuration changes.
-        logger.exception(
-            "HTTP status failure while fetching %s: status=%s reason=%r body=%r",
-            url,
-            getattr(response, "status_code", None),
-            getattr(response, "reason_phrase", None),
-            body_preview,
-        )
-        print(
-            "\n========== DUCKDUCKGO HTTP STATUS ERROR ==========\n"
-            f"URL:    {url}\n"
-            f"TYPE:   {type(exc).__name__}\n"
-            f"REPR:   {exc!r}\n"
-            f"STATUS: {getattr(response, 'status_code', None)}\n"
-            f"REASON: {getattr(response, 'reason_phrase', None)!r}\n"
-            f"BODY:   {body_preview!r}\n"
-            "TRACEBACK:",
-            file=sys.stderr,
-            flush=True,
-        )
-        traceback.print_exc(file=sys.stderr)
-        print(
-            "==================================================\n",
-            file=sys.stderr,
-            flush=True,
-        )
-        raise RuntimeError(
-            f"HTTP status fetch failed for {url}: "
-            f"{type(exc).__name__}: {exc!r}"
-        ) from exc
-
-    except httpx.RequestError as exc:
-        request_url = str(exc.request.url) if getattr(exc, "request", None) else url
-        cause = exc.__cause__
-
-        logger.exception(
-            "HTTP transport failure while fetching %s: type=%s repr=%r cause=%r",
-            request_url,
-            type(exc).__name__,
-            exc,
-            cause,
-        )
-        print(
-            "\n========== DUCKDUCKGO HTTP TRANSPORT ERROR ==========\n"
-            f"URL:   {request_url}\n"
-            f"TYPE:  {type(exc).__name__}\n"
-            f"REPR:  {exc!r}\n"
-            f"STR:   {exc!s}\n"
-            f"CAUSE: {cause!r}\n"
-            "TRACEBACK:",
-            file=sys.stderr,
-            flush=True,
-        )
-        traceback.print_exc(file=sys.stderr)
-        print(
-            "=====================================================\n",
-            file=sys.stderr,
-            flush=True,
-        )
-        raise RuntimeError(
-            f"HTTP transport fetch failed for {request_url}: "
-            f"{type(exc).__name__}: {exc!r}; cause={cause!r}"
-        ) from exc
-
-    # Preserve correct resolution of relative links when Lynx parses HTML from
-    # stdin rather than fetching the original URL itself. A document-level BASE
-    # element is sufficient for Lynx to emit absolute references in --dump.
-    final_url = str(response.url)
-    base_tag = f'<base href="{final_url}">\n'.encode("utf-8")
-    html_bytes = base_tag + response.content
-
+    """Have Lynx fetch and render the URL directly, with cancellable process cleanup."""
+    if not isinstance(url, str) or urlsplit(url).scheme not in ("http", "https"):
+        raise RuntimeError("Lynx browsing requires an HTTP or HTTPS URL")
+    logger.info("Fetching URL directly with Lynx: %s", url)
     process = await asyncio.create_subprocess_exec(
-        "lynx",
-        "-dump",
-        "-force_html",
-        "-stdin",
-        stdin=asyncio.subprocess.PIPE,
+        "lynx", "-dump", "-width=200", "-display_charset=UTF-8", url,
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-
     try:
-        stdout, stderr = await process.communicate(input=html_bytes)
-    except asyncio.CancelledError:
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(), timeout=request_timeout or max(1, timeout))
+    finally:
         if process.returncode is None:
             try:
                 process.kill()
             except ProcessLookupError:
                 pass
-        await process.wait()
-        raise
-
+            await process.wait()
     if process.returncode != 0:
-        error_message = stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(error_message or f"lynx exited with code {process.returncode}")
-
-    return stdout.decode("utf-8", errors="replace")
+        detail = stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or f"Lynx exited with code {process.returncode}")
+    content = stdout.decode("utf-8", errors="replace").strip()
+    if not content:
+        raise RuntimeError("Lynx returned an empty page")
+    return content
 
 
 def _build_duckduckgo_search_url(search_terms: str) -> str:
@@ -502,6 +387,11 @@ async def _fetch_duckduckgo_results(search_terms: str, request_timeout=None) -> 
     response_text = await _run_lynx_dump(search_url, request_timeout)
     cleaned_text = parse_duckduckgo(response_text)
     unique_text = _dedupe_lines_with_links(cleaned_text)
+    urls = re.findall(r"https?://[^\s<>]+", unique_text)
+    result_hosts = [urlsplit(url).hostname or "" for url in urls]
+    if not any(host and host not in ("duckduckgo.com", "duck.co")
+               and not host.endswith((".duckduckgo.com", ".duck.co")) for host in result_hosts):
+        raise RuntimeError("DuckDuckGo returned no result links in its Lynx dump")
 
     logger.info(unique_text)
 
@@ -520,10 +410,10 @@ async def get_duckduckgo_search(search_terms, user_message, openai_auth=None, re
     It does not send messages to Telegram directly.
     """
     try:
-        search_terms = (search_terms or "").strip()
+        search_terms = search_terms or ""
         user_message = user_message or ""
 
-        if not search_terms:
+        if not search_terms.strip():
             logger.warning("get_duckduckgo_search called with empty search_terms.")
             return "Error: empty DuckDuckGo search query."
 

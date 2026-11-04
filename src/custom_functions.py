@@ -68,7 +68,7 @@ custom_functions = [
 
 custom_functions.append({
     "name": "search_web",
-    "description": "Search the web when current information or external verification is needed.",
+    "description": "Find sources using all enabled search providers. Use get_website_dump to read a result page when its contents are needed.",
     "parameters": {
         "type": "object",
         "properties": {"query": {"type": "string", "description": "The search query only."}},
@@ -80,7 +80,7 @@ custom_functions.append({
 # website fetcher and dumper
 custom_functions.append({
     'name': 'get_website_dump',
-    'description': '[Use to fetch information from a specific website.] Fetches the content of a website using the lynx --dump command and returns the plain text output.',
+    'description': 'Browse a specific URL with Lynx and return its plain text page content. Use for URLs the user asks you to read or summarize, and to open relevant search results when their full content is needed.',
     'parameters': {
         'type': 'object',
         'properties': {

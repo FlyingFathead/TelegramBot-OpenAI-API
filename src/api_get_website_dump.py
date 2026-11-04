@@ -61,7 +61,7 @@ async def get_website_dump(url, max_tokens=10000):
         return error_message
 
     try:
-        # Check HTTP status before rendering; Lynx can otherwise dump a 404 as text.
+        # Lynx performs the network request and produces the page dump.
         content = await asyncio.wait_for(_run_lynx_dump(url, request_timeout=15), timeout=15)
         content = re.sub(r'[^\S\n]+', ' ', content).strip()
         content = re.sub(r'\n{3,}', '\n\n', content)

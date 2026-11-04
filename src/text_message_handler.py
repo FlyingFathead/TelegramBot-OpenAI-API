@@ -936,7 +936,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
                         return  # Exit the loop after handling the custom function
 
                     # ~~~~~~~~~~~~~~~~~
-                    # Web lookups (one tool result, one final chat completion)
+                    # Web lookups (combined search results and follow-up Lynx page reads)
                     # ~~~~~~~~~~~~~~~~~
 
                     elif function_name in WEB_TOOL_NAMES or function_name == "get_website_dump":
@@ -1369,7 +1369,7 @@ async def handle_message(bot, update: Update, context: CallbackContext, logger) 
 
                 escaped_reply = sanitize_html(escaped_reply)
 
-                message_parts = (telegram_evidence_parts(bot_reply, evidence_sources)
+                message_parts = (telegram_evidence_parts(escaped_reply, evidence_sources, formatted=True)
                                  if evidence_sources else split_message(escaped_reply))
 
                 for part in message_parts:
@@ -1565,13 +1565,19 @@ async def make_api_request_with_retry(bot, chat_history, retries=3, timeout=30):
     raise RuntimeError("All retry attempts failed; no response_json was produced.")
 
 # API request function module
-async def make_api_request(bot, chat_history, timeout=30, include_functions=True):
+async def make_api_request(bot, chat_history, timeout=30, include_functions=True, function_names=None):
     # Prepare the payload for the API request with updated chat history
     payload = build_chat_payload(
         bot,
         chat_history,
         include_functions=include_functions
     )
+
+    if include_functions and function_names is not None:
+        payload["tools"] = [tool for tool in payload.get("tools", [])
+                            if tool["function"]["name"] in function_names]
+        if not payload["tools"]:
+            raise ValueError("No requested function tools are available")
 
     # Make the API request
     headers = build_openai_headers(bot)

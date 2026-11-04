@@ -6,11 +6,11 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
 
-def test_v087_defaults_to_gpt6_luna_with_none_reasoning() -> None:
+def test_v0810_defaults_to_gpt6_luna_with_none_reasoning() -> None:
     config = configparser.ConfigParser()
     config.read(ROOT_DIR / "config" / "config.ini")
 
-    assert (ROOT_DIR / "VERSION").read_text(encoding="utf-8").strip() == "0.8.7"
+    assert (ROOT_DIR / "VERSION").read_text(encoding="utf-8").strip() == "0.8.10"
     assert config["DEFAULT"].get("Model") == "gpt-6-luna"
     assert config["DEFAULT"].get("ReasoningEffort") == "none"
     assert config["ModelAutoSwitch"].get("PremiumModel") == "gpt-6-luna"

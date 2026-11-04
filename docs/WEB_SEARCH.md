@@ -1,6 +1,6 @@
 # Web search and news retrieval
 
-The primary Chat Completions model can call `search_web({"query": "..."})`. The Python handler selects providers from `config/config.ini`. Each receives the query supplied in that call. The handler returns provider-labelled evidence in one tool result. Only the primary model receives the chat history when writing the Telegram reply. OpenAI's hosted search uses the existing project key and a separate request to `POST /v1/responses`. Each invocation requests one hosted web search.
+The primary Chat Completions model can call `search_web({"query": "..."})`. The Python handler selects providers from `config/config.ini`. Each receives the query supplied in that call. The handler returns provider-labelled evidence in one tool result. The primary model can then call `get_website_dump` to read selected URLs through Lynx before answering. Each webpage result is returned in its own tool message alongside the existing local context and search evidence. Only the primary model receives the chat history when writing the Telegram reply. OpenAI's hosted search uses the existing project key and a separate request to `POST /v1/responses`. Each invocation requests one hosted web search.
 
 ## Install the ZIP update on Linux
 
@@ -25,6 +25,7 @@ UseOpenAIWebSearch = True
 OpenAIModel = gpt-6-luna
 FallbackToOpenAI = True
 TimeoutSeconds = 30
+MaxWebToolCalls = 4
 NewsMaxAgeDays = 7
 
 [DuckDuckGo]
@@ -34,7 +35,7 @@ Enabled = True
 Enabled = True
 ```
 
-Perplexity also needs the existing `PERPLEXITY_API_KEY` environment variable. DuckDuckGo uses the existing Lynx installation. Every model-requested web search starts all enabled providers concurrently and gives the primary model their results together, with provider labels and source links. DuckDuckGo and initial OpenAI web search default to enabled. Perplexity retains its existing enabled setting. Earlier `DefaultProvider` entries are ignored. Only the standalone diagnostic command can select an individual provider.
+Perplexity also needs the existing `PERPLEXITY_API_KEY` environment variable. DuckDuckGo runs `lynx -dump -width=200` against the search URL directly. The separate `get_website_dump` tool uses the same direct Lynx fetch. Every model-requested web search starts all enabled providers concurrently and gives the primary model their results together, with provider labels and source links. DuckDuckGo and initial OpenAI web search default to enabled. Perplexity retains its existing enabled setting. Earlier `DefaultProvider` entries are ignored. Only the standalone diagnostic command can select an individual provider.
 
 | UseOpenAIWebSearch | FallbackToOpenAI | OpenAI hosted search behavior with the master switch enabled |
 | --- | --- | --- |
@@ -45,7 +46,15 @@ Perplexity also needs the existing `PERPLEXITY_API_KEY` environment variable. Du
 
 `OpenAIEnabled = False` disables hosted OpenAI search on every path. The primary Chat Completions model continues answering as usual. To change a setting, edit the existing `[WebSearch]` section and restart the bot.
 
+`MaxWebToolCalls` counts the initial search or page call and any follow-up web tool calls made by the primary model, up to four by default. Each search still combines all enabled providers under one shared deadline. The model can read several pages and keeps the source URLs from earlier results. Failed page reads return an explicit failure to the model so it can use the remaining evidence. Direct Lynx browsing uses `get_website_dump` independently of the optional `[DuckDuckGo] EnableAgenticBrowsing` setting.
+
 A multi-search starts the selected providers concurrently. One wall-clock deadline covers HTTP requests, retries and DuckDuckGo's optional browsing step. At the deadline the handler cancels unfinished local tasks and returns completed results. A failed lookup can use OpenAI at most once. A blocked website dump respects the existing domain restriction policy.
+
+## Telegram reply formatting
+
+Replies following web tool calls use the normal Markdown-to-HTML conversion before citation links are added. The model is instructed to use Telegram HTML and retain citation markers such as `[D1]`, `[O11]` and `[W2]`. Bold, italics and code are rendered by the bot even when the model uses Markdown. Citation replacement operates on text outside code and existing links. Long replies close and reopen formatting tags at message boundaries; source URLs and HTML entities are not cut in half. Source titles are escaped as text if the reply omits citation markers.
+
+Version 0.8.10 fixes a branch that discarded the converted reply whenever web sources were present, leaving Markdown emphasis visible while citation links worked. This is a rendering correction; provider selection, direct Lynx fetching, tool availability and search deadlines retain their v0.8.9 behavior.
 
 ## Elasticsearch news actions
 
@@ -83,4 +92,4 @@ With three configured, reachable providers, the combined check prints three labe
 
 The OpenAI API contract and supported models are documented in the [web search guide](https://developers.openai.com/api/docs/guides/tools-web-search), [Responses reference](https://developers.openai.com/api/reference/resources/responses/methods/create) and [GPT-6 Luna model page](https://developers.openai.com/api/docs/models/gpt-6-luna).
 
-In this workspace the DuckDuckGo HTML endpoint served a challenge page. The adapter reports that as a failed search, even if the challenge contains feedback or navigation links. Publisher retrieval was tested live. OpenAI and Perplexity responses were tested with fixtures and HTTP mocks. No provider credentials or Telegram token were included in the snapshot.
+The earlier HTTPX-based DuckDuckGo fetch served challenge pages. The deployment-host test supplied for v0.8.9 returned search results with direct Lynx. The adapter rejects dumps containing no external result links. Regression tests use a representative Lynx dump and mocked subprocess and provider responses. Publisher retrieval was tested live. OpenAI and Perplexity responses were tested with fixtures and HTTP mocks. No provider credentials or Telegram token were included in the snapshot.

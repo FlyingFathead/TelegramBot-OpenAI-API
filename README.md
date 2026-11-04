@@ -287,6 +287,18 @@ If you run into any issues, consult the logs or reach out on the repository's [I
 
 > The current application version is stored in the repository-root `VERSION` file and loaded by the runtime from there. Update `VERSION` once for a release instead of duplicating the current version in source files.
 
+- v0.8.10 - Preserve formatting in replies with web citations
+  - Render the formatted reply before adding source links, so bold and italics display correctly after web tool calls.
+  - Split long cited replies with balanced HTML tags, keeping code literal and citation links intact.
+
+- v0.8.9 - Fetch DuckDuckGo and webpages directly with Lynx
+  - DuckDuckGo uses `lynx -dump` to fetch the results page. Its dump joins OpenAI and enabled Perplexity results in the combined search response.
+  - The separate `get_website_dump` tool also fetches URLs directly with Lynx. Timeouts cancel and reap the Lynx process.
+
+- v0.8.8 - Restore Lynx browsing after web search
+  - The primary model can call `get_website_dump` after receiving combined search results and use the retrieved page content in its final answer.
+  - Follow-up web calls preserve local context and distinct clickable citations. `[WebSearch] MaxWebToolCalls` defaults to four calls per reply.
+
 - v0.8.7 - Combined web search and news retrieval fallback
   - Each web search sends the tool query to all enabled providers under one timeout and returns their findings and citations in one tool result. DuckDuckGo and OpenAI are enabled by default.
   - Elasticsearch news actions retain their existing tokens. Failed or stale RSS feeds can use publisher-scoped web search and the corresponding section page. See [web search settings](docs/WEB_SEARCH.md).

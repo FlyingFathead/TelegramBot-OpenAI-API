@@ -112,7 +112,7 @@ def test_shared_tool_sends_only_query_and_returns_one_tool_result(monkeypatch, n
     assert transcript[-1]["role"] == "tool" and transcript[-1]["tool_call_id"] == "call1"
     assert sum(message["role"] == "tool" for message in transcript) == 1
     assert [row["evidence"] for row in json.loads(transcript[-1]["content"])] == ["Found " + p for p in expected]
-    assert request.await_args.kwargs == {"include_functions": False}
+    assert request.await_args.kwargs == {"include_functions": True, "function_names": ("search_web", "get_website_dump")}
 
 
 def test_combined_skips_disabled_and_isolates_errors(monkeypatch):
@@ -195,23 +195,12 @@ def test_website_fallback_is_scoped_to_the_tool_url(monkeypatch):
     assert search.await_count == 1
 
 
-def test_duckduckgo_retries_connections_and_rejects_challenge_pages(monkeypatch):
+def test_duckduckgo_rejects_challenge_dump(monkeypatch):
     import api_get_duckduckgo_search as ddg
-    url = ddg._build_duckduckgo_search_url("needle")
-    request = httpx.Request("GET", url)
-    client = AsyncMock()
-    client.__aenter__.return_value = client
-    client.get.side_effect = [
-        httpx.ConnectError("transient", request=request),
-        httpx.Response(202, request=request, content=b'<a href="https://duck.co/">feedback</a>'),
-    ]
-    def factory(**kwargs):
-        assert "transport" not in kwargs and kwargs["timeout"] == 11
-        return client
-    monkeypatch.setattr(ddg.httpx, "AsyncClient", factory)
-    with pytest.raises(RuntimeError, match="no search result links"):
-        asyncio.run(ddg._run_lynx_dump(url, request_timeout=11))
-    assert client.get.await_count == 2
+    monkeypatch.setattr(ddg, "_run_lynx_dump", AsyncMock(return_value=
+        "Unfortunately, bots use DuckDuckGo too.\nReferences\n1. https://duck.co/feedback"))
+    with pytest.raises(RuntimeError, match="no result links"):
+        asyncio.run(ddg._fetch_duckduckgo_results("needle", request_timeout=11))
 
 
 @pytest.mark.parametrize("ddg,pplx,openai", [
